@@ -18,6 +18,8 @@ import {
   type Turn,
 } from '@/lib/consult-store';
 import { buildConsultAnswer } from '@/lib/consult-engine';
+import { loadOllamaSettings } from '@/lib/ai/ollama';
+import { askOllamaConsult } from '@/lib/ai/consult-ollama';
 import { safeUUID } from '@/lib/uuid';
 import { listMemos } from '@/lib/memos';
 import { listReservations } from '@/lib/reservations';
@@ -119,19 +121,29 @@ export default function ConsultPage() {
     window.setTimeout(() => setToast(null), 2400);
   }
 
-  function send(question: string) {
+  async function send(question: string) {
     const q = question.trim();
     if (q.length === 0) return;
     try {
-      // 保存済みのメモ・予定を参照してローカルで回答を生成。
-      // NOTE: 将来 AI API（/api/consult など）を接続する場合はここを差し替える。
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[consult] query:', q, '| refTarget:', refTarget, '| memos:', memos.length, '| reservations:', reservations.length);
+      // ローカルのルールエンジンで参照データの抽出（参照カード/件数用）。
+      const { answer: localAnswer, memoCount, scheduleCount, scheduleIds, memoIds } =
+        buildConsultAnswer(q, refTarget, memos, reservations);
+
+      // Ollama 連携が有効ならローカル Ollama で回答を生成（PCローカル利用）。
+      // 失敗時はローカル回答にフォールバックする。
+      let answer = localAnswer;
+      const ollama = loadOllamaSettings();
+      if (ollama.enabled) {
+        showToast('Ollama で考えています…');
+        try {
+          const aiAnswer = await askOllamaConsult(q, refTarget, memos, reservations, ollama);
+          if (aiAnswer.trim().length > 0) answer = aiAnswer.trim();
+        } catch (err) {
+          console.error('[consult] Ollama 失敗。ローカル回答にフォールバック:', err);
+          showToast('Ollamaに接続できませんでした。ローカル回答を表示します。');
+        }
       }
-      const { answer, memoCount, scheduleCount, scheduleIds, memoIds } = buildConsultAnswer(q, refTarget, memos, reservations);
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[consult] answer built. usedMemo:', memoCount, '| usedSchedule:', scheduleCount, '| scheduleIds:', scheduleIds);
-      }
+
       setTurns((prev) => [
         {
           id: safeUUID(),
@@ -147,9 +159,8 @@ export default function ConsultPage() {
         ...prev,
       ]);
       setText('');
-      showToast('回答を作成しました');
+      if (!ollama.enabled) showToast('回答を作成しました');
     } catch (e) {
-      // 詳細はデバッグ用に console へ。ユーザーには分かりやすい日本語を表示。
       console.error('[consult] 回答生成に失敗しました:', e);
       showToast('メモの読み込み中に問題が発生しました。保存データを確認してください。');
     }

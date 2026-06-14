@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import AiBar from '@/components/AiBar';
-import { CalendarIcon, ChatIcon, ChevronRightIcon, FileTextIcon } from '@/components/icons';
+import { CalendarIcon, ChatIcon, ChevronRightIcon, FileTextIcon, MicIcon } from '@/components/icons';
 import { listMemos } from '@/lib/memos';
 import { listReservations } from '@/lib/reservations';
 import { loadConsultTurns, type Turn } from '@/lib/consult-store';
@@ -139,6 +139,15 @@ export default function HomePage() {
           title="予定"
           desc="スケジュールを管理しましょう"
         />
+        {/* 文字起こし（PCローカル用・スマホでは控えめに） */}
+        <div className="hidden md:block">
+          <ActionCard
+            href="/transcribe"
+            icon={<MicIcon size={22} />}
+            title="文字起こし"
+            desc="音声ファイルをローカルWhisperでメモ化（PC用）"
+          />
+        </div>
       </section>
 
       {/* 今日の予定 */}
