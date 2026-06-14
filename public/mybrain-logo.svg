@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" width="240" height="200" fill="none">
+  <g stroke="#1B2F5B" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <!-- 左脳（アウトライン） -->
+    <path d="M115 38 C100 30 78 30 70 42 C55 40 44 50 46 62 C34 64 28 78 36 88 C28 98 34 112 46 112 C46 126 60 134 72 128 C82 140 104 138 115 128 Z" fill="#ffffff"/>
+    <!-- 右脳（左脳を中心x=120で反転） -->
+    <g transform="translate(240,0) scale(-1,1)">
+      <path d="M115 38 C100 30 78 30 70 42 C55 40 44 50 46 62 C34 64 28 78 36 88 C28 98 34 112 46 112 C46 126 60 134 72 128 C82 140 104 138 115 128 Z" fill="#ffffff"/>
+    </g>
+    <!-- 左：ネットワーク（ノード＋接続） -->
+    <line x1="64" y1="72" x2="88" y2="86"/>
+    <line x1="64" y1="100" x2="88" y2="86"/>
+  </g>
+  <g fill="#1B2F5B">
+    <circle cx="62" cy="72" r="6"/>
+    <circle cx="62" cy="100" r="6"/>
+    <circle cx="90" cy="86" r="6"/>
+  </g>
+  <!-- 右：行（テキストを表す横線） -->
+  <g stroke="#1B2F5B" stroke-width="5" stroke-linecap="round">
+    <line x1="150" y1="74" x2="178" y2="74"/>
+    <line x1="150" y1="86" x2="172" y2="86"/>
+    <line x1="150" y1="98" x2="178" y2="98"/>
+  </g>
+</svg>

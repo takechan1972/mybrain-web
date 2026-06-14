@@ -1,0 +1,28 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
+
+// AiBar / BottomTabs を使わない画面（余分な下余白を付けない）
+const BARE_PAGES = ['/welcome', '/login'];
+
+/**
+ * メイン領域のラッパー。
+ * - 通常画面：AIバー＋ボトムナビ分の下余白を確保。
+ * - Welcome / Login：それらを表示しないため、下余白は通常のみ。
+ */
+export default function MainShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const bare = BARE_PAGES.includes(pathname);
+
+  return (
+    <main
+      className="flex-1 px-5 py-5"
+      style={
+        bare
+          ? undefined
+          : { paddingBottom: 'calc(176px + env(safe-area-inset-bottom))' }
+      }>
+      {children}
+    </main>
+  );
+}
