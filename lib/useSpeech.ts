@@ -71,7 +71,11 @@ export function useSpeech(
 
   const startSession = useCallback(() => {
     const C = getCtor();
-    if (!C) return false;
+    if (!C) {
+      console.warn('[useSpeech] SpeechRecognition not available in this browser');
+      return false;
+    }
+    console.log('[useSpeech] SpeechRecognition detected, starting session...');
     const rec = new C();
     rec.lang = lang;
     rec.continuous = true;
@@ -90,7 +94,7 @@ export function useSpeech(
     };
     rec.onerror = (e) => {
       const err = e?.error ?? '';
-      if (process.env.NODE_ENV !== 'production') console.error('[useSpeech] recognition error:', err);
+      console.error('[useSpeech] recognition error:', err);
       if (err === 'not-allowed' || err === 'service-not-allowed' || err === 'audio-capture') {
         manualStopRef.current = true;
         setListening(false);
@@ -98,6 +102,7 @@ export function useSpeech(
       }
     };
     rec.onend = () => {
+      console.log('[useSpeech] recognition ended. manualStop =', manualStopRef.current);
       accumulatedRef.current += sessionFinal;
       if (manualStopRef.current) {
         setListening(false);
@@ -108,7 +113,10 @@ export function useSpeech(
     };
     try {
       rec.start();
-    } catch {
+      console.log('[useSpeech] rec.start() called');
+    } catch (err) {
+      console.error('[useSpeech] rec.start() threw:', err);
+      onErrorRef.current?.('start-failed');
       return false;
     }
     recRef.current = rec;

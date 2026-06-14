@@ -34,9 +34,11 @@ export default function AiBar() {
     },
     'ja-JP',
     (err) => {
-      // 権限拒否などのエラーを日本語で表示
+      console.error('[aibar] speech error callback:', err);
       if (err === 'not-allowed' || err === 'service-not-allowed') {
-        setError('マイクの使用が許可されていません。ブラウザ設定を確認してください。');
+        setError('マイクの使用が許可されていません。ブラウザのマイク設定を確認してください。');
+      } else if (err === 'start-failed') {
+        setError('このブラウザではアプリ内音声入力に対応していません。スマホのキーボードのマイクをご利用ください。');
       } else {
         setError('音声入力中に問題が発生しました。もう一度お試しください。');
       }
@@ -50,20 +52,22 @@ export default function AiBar() {
 
   function toggleMic() {
     setError(null);
-    if (isDev) console.log('[aibar] mic clicked. supported =', speechSupported);
+    console.log('[aibar] mic clicked. supported =', speechSupported, 'listening =', listening);
     if (listening) {
       stopSpeech();
-      if (isDev) console.log('[aibar] recognition stopped');
+      console.log('[aibar] recognition stopped');
       return;
     }
     if (!speechSupported) {
-      setError('この環境では音声入力を開始できません。HTTPS環境または対応ブラウザで確認してください。');
-      if (isDev) console.error('[aibar] SpeechRecognition unavailable (HTTP/unsupported browser).');
+      const msg =
+        'このブラウザではアプリ内音声入力に対応していません。スマホのキーボードのマイクをご利用ください。';
+      setError(msg);
+      console.warn('[aibar] SpeechRecognition not available. UA:', navigator.userAgent);
       return;
     }
     baseRef.current = text;
     startSpeech(text);
-    if (isDev) console.log('[aibar] recognition started');
+    console.log('[aibar] recognition start requested');
   }
 
   return (
