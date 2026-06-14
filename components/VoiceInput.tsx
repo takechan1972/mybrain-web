@@ -32,10 +32,29 @@ export default function VoiceInput({
 }) {
   const lastRef = useRef('');
   const [unsupportedMsg, setUnsupportedMsg] = useState<string | null>(null);
-  const { supported, listening, start, stop } = useSpeech((t) => {
-    lastRef.current = t;
-    onResult(t);
-  });
+  const [permissionMsg, setPermissionMsg] = useState<string | null>(null);
+  const { supported, listening, start, stop } = useSpeech(
+    (t) => {
+      lastRef.current = t;
+      onResult(t);
+    },
+    'ja-JP',
+    (err) => {
+      console.error('[VoiceInput] speech error:', err);
+      if (err === 'not-allowed' || err === 'service-not-allowed') {
+        setPermissionMsg(
+          'マイクの使用が許可されていません。iPhoneの場合はSafariでの利用をおすすめします。またはスマホのキーボードのマイクをご利用ください。',
+        );
+      } else if (err === 'start-failed') {
+        setPermissionMsg(
+          'このブラウザではアプリ内音声入力に対応していません。スマホのキーボードのマイクをご利用ください。',
+        );
+      } else {
+        setPermissionMsg('音声入力中に問題が発生しました。もう一度お試しください。');
+      }
+      setTimeout(() => setPermissionMsg(null), 6000);
+    },
+  );
 
   // 非対応ブラウザ（iOS Safari 等）
   if (!supported) {
@@ -70,31 +89,40 @@ export default function VoiceInput({
   }
 
   if (iconOnly) {
-    return listening ? (
-      <button
-        type="button"
-        aria-label="音声入力を停止"
-        onClick={() => {
-          console.log('[VoiceInput] mic stop tapped');
-          stop();
-          onStop?.(lastRef.current);
-        }}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#7B61FF] text-white">
-        <span className="h-2.5 w-2.5 rounded-sm bg-white" />
-      </button>
-    ) : (
-      <button
-        type="button"
-        aria-label="音声入力"
-        onClick={() => {
-          console.log('[VoiceInput] mic start tapped, supported =', supported);
-          const initial = getInitial?.() ?? '';
-          lastRef.current = initial;
-          start(initial);
-        }}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3F5FA] text-[#223A70]">
-        <MicIcon size={18} />
-      </button>
+    return (
+      <div className="relative flex flex-col items-center">
+        {listening ? (
+          <button
+            type="button"
+            aria-label="音声入力を停止"
+            onClick={() => {
+              console.log('[VoiceInput] mic stop tapped');
+              stop();
+              onStop?.(lastRef.current);
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#7B61FF] text-white">
+            <span className="h-2.5 w-2.5 rounded-sm bg-white" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            aria-label="音声入力"
+            onClick={() => {
+              console.log('[VoiceInput] mic start tapped, supported =', supported);
+              const initial = getInitial?.() ?? '';
+              lastRef.current = initial;
+              start(initial);
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3F5FA] text-[#223A70]">
+            <MicIcon size={18} />
+          </button>
+        )}
+        {permissionMsg && (
+          <div className="absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded-xl bg-[#223A70] px-3 py-2 text-[11px] leading-snug text-white shadow-lg">
+            {permissionMsg}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -126,6 +154,9 @@ export default function VoiceInput({
           </button>
         )}
       </div>
+      {permissionMsg && (
+        <p className="text-xs text-red-600">{permissionMsg}</p>
+      )}
     </div>
   );
 }

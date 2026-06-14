@@ -36,7 +36,7 @@ export default function AiBar() {
     (err) => {
       console.error('[aibar] speech error callback:', err);
       if (err === 'not-allowed' || err === 'service-not-allowed') {
-        setError('マイクの使用が許可されていません。ブラウザのマイク設定を確認してください。');
+        setError('マイクの使用が許可されていません。iPhoneの場合はSafariでの利用をおすすめします。またはスマホのキーボードのマイクをご利用ください。');
       } else if (err === 'start-failed') {
         setError('このブラウザではアプリ内音声入力に対応していません。スマホのキーボードのマイクをご利用ください。');
       } else {
