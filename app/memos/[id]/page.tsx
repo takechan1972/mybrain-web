@@ -4,8 +4,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import VoiceInput from '@/components/VoiceInput';
 import { parseMemoSpeechText } from '@/lib/parse/memo-speech';
-import { deleteMemo, getMemo, parseTags, updateMemo } from '@/lib/memos';
+import { createMemo, deleteMemo, getMemo, parseTags, updateMemo } from '@/lib/memos';
+import { loadOllamaSettings } from '@/lib/ai/ollama';
+import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
+import { isLocalHost } from '@/lib/env';
 import type { Memo } from '@/lib/types';
+
+const TRANSCRIPTION_TAGS = ['文字起こし', 'Transcription'];
 
 /** data URI 画像を最大1280pxに縮小し JPEG(0.8) で再エンコード（一覧画面と同じ圧縮ロジック） */
 function compressDataUri(dataUri: string, maxSize = 1280, quality = 0.8): Promise<string> {
@@ -58,6 +63,18 @@ export default function MemoDetailPage() {
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const baseBodyRef = useRef('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // AI（要約/整理）— PCローカル専用
+  const [local, setLocal] = useState(false);
+  const [aiKind, setAiKind] = useState<MemoAiKind | null>(null);
+  const [aiResult, setAiResult] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSaving, setAiSaving] = useState(false);
+
+  useEffect(() => {
+    setLocal(isLocalHost());
+  }, []);
 
   // 編集中の画像追加（一覧画面と同じ：圧縮してから images に追加）
   function handleFilesSelected(files: FileList | null) {
@@ -162,6 +179,87 @@ export default function MemoDetailPage() {
       }
     }
     router.push('/memos');
+  }
+
+  const aiLabel = aiKind === 'summary' ? 'AI要約' : aiKind === 'organize' ? 'AI整理' : '';
+
+  // AI要約/整理を実行（保存済みメモ本文を Ollama に渡す）
+  async function runAi(kind: MemoAiKind) {
+    if (!memo) return;
+    setAiKind(kind);
+    setAiResult('');
+    setAiError(null);
+
+    if ((memo.body ?? '').trim().length === 0) {
+      setAiError('要約する本文がありません。');
+      return;
+    }
+    if (!loadOllamaSettings().enabled) {
+      setAiError('Ollamaを有効にしてください。');
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const out = await runMemoAi(kind, memo.body);
+      setAiResult(out);
+    } catch {
+      setAiError(
+        'Ollama接続を確認してください。モデルが重くて応答に時間がかかっている可能性があります。軽量・推奨の qwen2.5:1.5b を試してください。',
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  // 元メモに追記
+  async function appendAiToMemo() {
+    if (!memo || aiResult.trim().length === 0) return;
+    setAiSaving(true);
+    const aiTag = aiKind === 'summary' ? 'AI要約' : 'AI整理';
+    const newBody = `${memo.body}\n\n--- ${aiLabel} ---\n${aiResult.trim()}`;
+    const nextTags = Array.from(new Set([...memo.tags, aiTag]));
+    const { memo: updated, error } = await updateMemo(memo.id, {
+      title: memo.title,
+      body: newBody,
+      tags: nextTags,
+      images: memo.images,
+    });
+    setAiSaving(false);
+    if (error || !updated) {
+      setAiError(error || '追記に失敗しました。');
+      return;
+    }
+    setMemo(updated);
+    setBody(updated.body);
+    setTags(updated.tags.join(', '));
+    setAiResult('');
+    setAiKind(null);
+  }
+
+  // 別メモとして保存
+  async function saveAiAsSeparate() {
+    if (!memo || aiResult.trim().length === 0) return;
+    setAiSaving(true);
+    const aiTag = aiKind === 'summary' ? 'AI要約' : 'AI整理';
+    const prefix = aiKind === 'summary' ? 'AI要約' : 'AI整理';
+    // 元メモが「文字起こし」系タグを持つ場合は引き継ぐ
+    const keepTranscription = memo.tags.filter((t) => TRANSCRIPTION_TAGS.includes(t));
+    const newTags = Array.from(new Set([aiTag, ...keepTranscription]));
+    const { memo: created, error } = await createMemo({
+      title: `${prefix}：${memo.title || '無題のメモ'}`,
+      body: aiResult.trim(),
+      tags: newTags,
+      images: [],
+    });
+    setAiSaving(false);
+    if (error || !created) {
+      setAiError(error || '保存に失敗しました。');
+      return;
+    }
+    setAiResult('');
+    setAiKind(null);
+    router.push(`/memos/${created.id}`);
   }
 
   if (memo === undefined && !loadError) {
@@ -319,6 +417,89 @@ export default function MemoDetailPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* AI要約・整理カード（読み取り表示時） */}
+      {!editing && memo && (
+        local ? (
+          <>
+            <section className="mt-2 flex flex-col gap-3 rounded-2xl border border-[#E5E8F0] bg-white p-4">
+              <p className="text-[13px] font-bold" style={{ color: '#223A70' }}>このメモをAIで処理</p>
+              <p className="text-[12px]" style={{ color: '#8A94A6' }}>
+                保存済みメモ本文を Ollama で要約・整理できます（PCローカル専用）。まずは軽量・推奨の <strong>qwen2.5:1.5b</strong> がおすすめです。
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => runAi('summary')}
+                  disabled={aiLoading}
+                  className="min-h-[48px] rounded-2xl text-[14px] font-bold text-white active:opacity-70 disabled:opacity-50"
+                  style={{ backgroundColor: '#7B61FF' }}>
+                  AIで要約
+                </button>
+                <button
+                  type="button"
+                  onClick={() => runAi('organize')}
+                  disabled={aiLoading}
+                  className="min-h-[48px] rounded-2xl text-[14px] font-bold text-white active:opacity-70 disabled:opacity-50"
+                  style={{ backgroundColor: '#7B61FF' }}>
+                  AIで整理
+                </button>
+              </div>
+            </section>
+
+            {(aiLoading || aiError || aiResult) && (
+              <section className="flex flex-col gap-3 rounded-2xl border border-[#E5E8F0] bg-white p-4">
+                <p className="text-[13px] font-bold" style={{ color: '#223A70' }}>
+                  {aiLabel || 'AI'}結果
+                </p>
+                {aiLoading && (
+                  <p className="rounded-2xl px-4 py-3 text-[13px] font-semibold" style={{ backgroundColor: '#EEF0FF', color: '#223A70' }}>
+                    Ollama で{aiLabel}しています…
+                  </p>
+                )}
+                {aiError && (
+                  <p className="rounded-2xl px-4 py-3 text-[13px] font-semibold" style={{ backgroundColor: '#FDECEC', color: '#C0392B' }}>
+                    ⚠️ {aiError}
+                  </p>
+                )}
+                {!aiLoading && aiResult && (
+                  <>
+                    <textarea
+                      value={aiResult}
+                      onChange={(e) => setAiResult(e.target.value)}
+                      rows={10}
+                      className="resize-y rounded-2xl border border-[#E5E8F0] bg-white px-4 py-3 text-[14px] leading-relaxed outline-none focus:border-[#7B61FF]"
+                      style={{ color: '#1F2937' }}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={appendAiToMemo}
+                        disabled={aiSaving}
+                        className="min-h-[48px] rounded-2xl text-[14px] font-bold text-white active:opacity-70 disabled:opacity-50"
+                        style={{ backgroundColor: '#223A70' }}>
+                        {aiSaving ? '保存中…' : '元メモに追記'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveAiAsSeparate}
+                        disabled={aiSaving}
+                        className="min-h-[48px] rounded-2xl border text-[14px] font-bold active:opacity-70 disabled:opacity-50"
+                        style={{ borderColor: '#223A70', color: '#223A70' }}>
+                        {aiSaving ? '保存中…' : '別メモとして保存'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
+          </>
+        ) : (
+          <p className="mt-2 rounded-2xl border border-[#E5E8F0] bg-yellow-50 p-4 text-[12px] text-yellow-800">
+            AIの要約・整理は <strong>PCローカル版専用</strong>です。
+          </p>
+        )
       )}
 
       {/* 削除確認モーダル（MyBrain スタイル） */}

@@ -20,6 +20,7 @@ import {
 import { buildConsultAnswer } from '@/lib/consult-engine';
 import { loadOllamaSettings } from '@/lib/ai/ollama';
 import { askOllamaConsult } from '@/lib/ai/consult-ollama';
+import { isLocalHost } from '@/lib/env';
 import { safeUUID } from '@/lib/uuid';
 import { listMemos } from '@/lib/memos';
 import { listReservations } from '@/lib/reservations';
@@ -133,7 +134,9 @@ export default function ConsultPage() {
       // 失敗時はローカル回答にフォールバックする。
       let answer = localAnswer;
       const ollama = loadOllamaSettings();
-      if (ollama.enabled) {
+      // Ollama はPCローカル環境でのみ実行（Vercel公開版ではローカル回答のまま）
+      const useOllama = ollama.enabled && isLocalHost();
+      if (useOllama) {
         showToast('Ollama で考えています…');
         try {
           const aiAnswer = await askOllamaConsult(q, refTarget, memos, reservations, ollama);
@@ -159,7 +162,7 @@ export default function ConsultPage() {
         ...prev,
       ]);
       setText('');
-      if (!ollama.enabled) showToast('回答を作成しました');
+      if (!useOllama) showToast('回答を作成しました');
     } catch (e) {
       console.error('[consult] 回答生成に失敗しました:', e);
       showToast('メモの読み込み中に問題が発生しました。保存データを確認してください。');

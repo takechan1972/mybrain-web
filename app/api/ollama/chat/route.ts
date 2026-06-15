@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
+import { isVercelServer } from '@/lib/env';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// 重いモデルでも待てるよう最大実行時間を延長
+export const maxDuration = 300;
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -14,6 +17,13 @@ interface ChatMessage {
  * → `${endpoint}/api/chat` を stream:false で呼び、assistant の本文を返す。
  */
 export async function POST(request: Request) {
+  // リモート環境では localhost の Ollama に到達できないため即エラーを返す
+  if (isVercelServer()) {
+    return NextResponse.json(
+      { error: 'AI相談（Ollama）はPCローカル版専用です。' },
+      { status: 200 },
+    );
+  }
   try {
     const { endpoint, model, messages } = (await request.json()) as {
       endpoint?: string;
@@ -27,7 +37,8 @@ export async function POST(request: Request) {
     }
 
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 120000);
+    // 応答待ちを長めに（重いモデル対策）。4分。
+    const timer = setTimeout(() => ctrl.abort(), 240000);
     const res = await fetch(`${base}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

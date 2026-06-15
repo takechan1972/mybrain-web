@@ -18,18 +18,19 @@ export interface OllamaSettings {
   model: string;
 }
 
-/** 選択できるモデル（PCで確認済みのもの） */
+/** 選択できるモデル（PCで確認済みのもの。軽い順を推奨） */
 export const OLLAMA_MODELS: { value: string; label: string }[] = [
-  { value: 'qwen3.5:4b', label: 'qwen3.5:4b（標準・高速）' },
-  { value: 'gemma4:12b', label: 'gemma4:12b（高精度）' },
-  { value: 'qwen2.5:1.5b', label: 'qwen2.5:1.5b（軽量）' },
+  { value: 'qwen2.5:1.5b', label: 'qwen2.5:1.5b（軽量・推奨）' },
+  { value: 'qwen3.5:4b', label: 'qwen3.5:4b（標準）' },
+  { value: 'gemma4:12b', label: 'gemma4:12b（高精度・重い）' },
   { value: 'gemma4:e4b', label: 'gemma4:e4b' },
 ];
 
 export const DEFAULT_OLLAMA_SETTINGS: OllamaSettings = {
   enabled: false,
   endpoint: 'http://localhost:11434',
-  model: 'qwen3.5:4b',
+  // 安定して動作する軽量モデルを既定にする
+  model: 'qwen2.5:1.5b',
 };
 
 const STORAGE_KEY = 'mybrain.ollama.settings';

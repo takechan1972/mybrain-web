@@ -8,6 +8,7 @@ import { listMemos } from '@/lib/memos';
 import { listReservations } from '@/lib/reservations';
 import { loadConsultTurns, type Turn } from '@/lib/consult-store';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { isLocalHost } from '@/lib/env';
 import type { Memo, Reservation } from '@/lib/types';
 
 const NAVY = '#223A70';
@@ -42,10 +43,12 @@ export default function HomePage() {
   const [memos, setMemos] = useState<Memo[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [local, setLocal] = useState(false);
 
   useEffect(() => {
     // AI相談履歴は localStorage（Supabase 設定の有無に関わらず読み込む）
     setTurns(loadConsultTurns());
+    setLocal(isLocalHost());
     if (!configured) return;
     const sb = getSupabaseBrowserClient();
     sb?.auth.getUser().then(({ data }) => {
@@ -139,15 +142,17 @@ export default function HomePage() {
           title="予定"
           desc="スケジュールを管理しましょう"
         />
-        {/* 文字起こし（PCローカル用・スマホでは控えめに） */}
-        <div className="hidden md:block">
-          <ActionCard
-            href="/transcribe"
-            icon={<MicIcon size={22} />}
-            title="文字起こし"
-            desc="音声ファイルをローカルWhisperでメモ化（PC用）"
-          />
-        </div>
+        {/* 文字起こし（PCローカル環境のみ・スマホでは控えめに） */}
+        {local && (
+          <div className="hidden md:block">
+            <ActionCard
+              href="/transcribe"
+              icon={<MicIcon size={22} />}
+              title="文字起こし"
+              desc="音声ファイルをローカルWhisperでメモ化（PC用）"
+            />
+          </div>
+        )}
       </section>
 
       {/* 今日の予定 */}

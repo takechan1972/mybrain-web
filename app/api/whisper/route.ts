@@ -4,6 +4,7 @@ import { writeFile, unlink, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { isVercelServer } from '@/lib/env';
 
 // ローカルの Python（faster-whisper）を呼ぶため Node ランタイムで実行
 export const runtime = 'nodejs';
@@ -66,6 +67,13 @@ function runPython(audioPath: string, model: string): Promise<WhisperResult> {
 
 export async function POST(request: Request) {
   const failMsg = 'Whisperが利用できません。Python環境とffmpegを確認してください';
+  // Vercel 等のリモート環境ではローカル Python に到達できないため即返す
+  if (isVercelServer()) {
+    return NextResponse.json(
+      { ok: false, error: '文字起こしはPCローカル版専用です。お使いのPCでローカル起動してご利用ください。' },
+      { status: 200 },
+    );
+  }
   let tmpPath: string | null = null;
   try {
     const form = await request.formData();

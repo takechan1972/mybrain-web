@@ -12,6 +12,7 @@ import {
   testOllama,
   type OllamaSettings,
 } from '@/lib/ai/ollama';
+import { isLocalHost } from '@/lib/env';
 
 const NAVY = '#223A70';
 const MUTED = '#8A94A6';
@@ -35,11 +36,13 @@ export default function SettingsPage() {
   const [ollama, setOllama] = useState<OllamaSettings>(DEFAULT_OLLAMA_SETTINGS);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [local, setLocal] = useState(false);
 
   useEffect(() => {
     const sb = getSupabaseBrowserClient();
     sb?.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
     setOllama(loadOllamaSettings());
+    setLocal(isLocalHost());
   }, []);
 
   function updateOllama(patch: Partial<OllamaSettings>) {
@@ -145,6 +148,12 @@ export default function SettingsPage() {
           このPC上の Ollama を使って AI相談・要約・メモ整理を行います。APIキーは不要です。ローカル利用のみ（外部公開なし）。
         </p>
 
+        {!local ? (
+          <p className="rounded-2xl border border-[#E5E8F0] bg-yellow-50 p-4 text-[13px] text-yellow-800">
+            この機能は <strong>PCローカル版専用</strong>です。公開（Vercel）環境では Ollama に接続できないため利用できません。お使いのPCでローカル起動するとここで設定できます。
+          </p>
+        ) : (
+          <>
         {/* エンドポイント */}
         <label className="flex flex-col gap-1">
           <span className="text-[12px] font-semibold" style={{ color: MUTED }}>エンドポイント</span>
@@ -191,6 +200,8 @@ export default function SettingsPage() {
             }}>
             {testResult.ok ? '✅ ' : '⚠️ '}{testResult.message}
           </p>
+        )}
+          </>
         )}
       </section>
 
