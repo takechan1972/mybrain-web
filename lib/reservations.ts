@@ -13,6 +13,10 @@ interface ReservationRow {
   title: string | null;
   content: string | null;
   schedule_at: string | null;
+  // 新カラム（マイグレーション適用後に存在。古い行では undefined/null になり得る）
+  start_at?: string | null;
+  end_at?: string | null;
+  all_day?: boolean | null;
   notification_enabled: boolean | null;
   created_at: string | null;
   updated_at: string | null;
@@ -35,15 +39,28 @@ function toMs(iso: string | null): number {
 }
 
 function mapRow(r: ReservationRow): Reservation {
+  // 開始日時：新カラム start_at を優先し、無ければ旧 schedule_at にフォールバック（後方互換）
+  const startAt = r.start_at ? toMs(r.start_at) : r.schedule_at ? toMs(r.schedule_at) : null;
+  const endAt = r.end_at ? toMs(r.end_at) : null;
   return {
     id: r.id,
     title: r.title ?? '',
     content: r.content ?? '',
-    scheduleAt: r.schedule_at ? toMs(r.schedule_at) : null,
+    startAt,
+    endAt,
+    allDay: r.all_day ?? false,
+    // 互換：scheduleAt は開始日時と同値にしておく（既存の表示・相談ロジックがそのまま動く）
+    scheduleAt: startAt,
     notificationEnabled: r.notification_enabled ?? false,
     createdAt: toMs(r.created_at),
     updatedAt: toMs(r.updated_at),
   };
+}
+
+/** ReservationInput から保存用の開始日時(ms)を求める（startAt 優先、無ければ scheduleAt 互換） */
+function resolveStartMs(input: ReservationInput): number | null {
+  if (input.startAt !== undefined) return input.startAt;
+  return input.scheduleAt ?? null;
 }
 
 /** 予定日時(ms) → ISO文字列（null可） */
@@ -103,11 +120,16 @@ export async function createReservation(input: ReservationInput): Promise<Reserv
   if (isDev) console.log('[reservations] createReservation: current user id exists =', Boolean(uid));
   if (!uid) return { reservation: null, error: '予定を保存するにはログインが必要です。' };
 
-  const scheduleIso = scheduleToIso(input.scheduleAt);
+  const startMs = resolveStartMs(input);
+  const startIso = scheduleToIso(startMs);
+  const endIso = scheduleToIso(input.endAt ?? null);
+  const allDay = input.allDay ?? false;
   if (isDev) {
     console.log('[reservations] insert payload:', {
       titleLength: input.title.trim().length,
-      scheduleIso,
+      startIso,
+      endIso,
+      allDay,
       notify: input.notificationEnabled,
     });
   }
@@ -118,7 +140,11 @@ export async function createReservation(input: ReservationInput): Promise<Reserv
       user_id: uid,
       title: input.title.trim() || '無題の予定',
       content: input.content.trim(),
-      schedule_at: scheduleIso,
+      start_at: startIso,
+      end_at: endIso,
+      all_day: allDay,
+      // 互換：旧カラム schedule_at にも開始日時を保存（旧コード/表示が参照しても整合する）
+      schedule_at: startIso,
       notification_enabled: input.notificationEnabled,
     })
     .select('*')
@@ -134,15 +160,22 @@ export async function createReservation(input: ReservationInput): Promise<Reserv
 export async function updateReservation(id: string, input: ReservationInput): Promise<ReservationResult> {
   const sb = getSupabaseBrowserClient();
   if (!sb) return { reservation: null, error: 'Supabaseが未設定です。' };
+  const startIso = scheduleToIso(resolveStartMs(input));
+  // 指定された項目だけ更新する（endAt/allDay 未指定の呼び出しで既存値を消さない）
+  const payload: Record<string, unknown> = {
+    title: input.title.trim() || '無題の予定',
+    content: input.content.trim(),
+    start_at: startIso,
+    schedule_at: startIso, // 互換
+    notification_enabled: input.notificationEnabled,
+    updated_at: new Date().toISOString(),
+  };
+  if (input.endAt !== undefined) payload.end_at = scheduleToIso(input.endAt);
+  if (input.allDay !== undefined) payload.all_day = input.allDay;
+
   const { data, error } = await sb
     .from('reservations')
-    .update({
-      title: input.title.trim() || '無題の予定',
-      content: input.content.trim(),
-      schedule_at: scheduleToIso(input.scheduleAt),
-      notification_enabled: input.notificationEnabled,
-      updated_at: new Date().toISOString(),
-    })
+    .update(payload)
     .eq('id', id)
     .select('*')
     .single();
@@ -182,4 +215,32 @@ export function formatSchedule(ms: number | null): string {
   const d = new Date(ms);
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** 日付のみ（終日表示用） */
+function formatDateOnly(ms: number): string {
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())}`;
+}
+
+/**
+ * 予定の開始〜終了・終日を考慮した表示文字列。
+ * - 終日：開始日（＋終了日が別日なら範囲）＋「終日」
+ * - 通常：開始日時（＋終了日時があれば「〜」で連結）
+ * - 後方互換：startAt が無ければ scheduleAt を使う
+ */
+export function formatReservationWhen(r: Reservation): string {
+  const start = r.startAt ?? r.scheduleAt;
+  if (start === null || !Number.isFinite(start)) return '日時未設定';
+  if (r.allDay) {
+    if (r.endAt && formatDateOnly(r.endAt) !== formatDateOnly(start)) {
+      return `${formatDateOnly(start)} 〜 ${formatDateOnly(r.endAt)}（終日）`;
+    }
+    return `${formatDateOnly(start)}（終日）`;
+  }
+  if (r.endAt && Number.isFinite(r.endAt)) {
+    return `${formatSchedule(start)} 〜 ${formatSchedule(r.endAt)}`;
+  }
+  return formatSchedule(start);
 }

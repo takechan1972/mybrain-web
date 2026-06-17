@@ -112,26 +112,26 @@ export default function MemosPage() {
     <DesktopMemos />
 
     {/* ── スマホ／タブレット（lg未満）：ネオン宇宙UI ── */}
-    <div className="relative min-h-[100svh] overflow-x-hidden lg:hidden">
-      {/* 宇宙背景（welcome と同じ haikei.png・静的・固定でスクロールしても静止） */}
+    <div className="relative min-h-[100svh] w-full overflow-x-hidden bg-[#050716] lg:hidden">
+      {/* 宇宙背景（haikei.png）。全ビューポートを覆う固定レイヤー（端に白を出さない）。 */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-0"
+        className="pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen"
         style={{
-          backgroundColor: '#07091C',
+          backgroundColor: '#050716',
           backgroundImage: "url('/haikei.png')",
           backgroundSize: 'cover',
           backgroundPosition: 'center top',
           backgroundRepeat: 'no-repeat',
         }}
       />
-      {/* 可読性確保の暗オーバーレイ（下ほど濃く） */}
+      {/* 可読性確保の暗オーバーレイ（下ほど濃く・全ビューポート固定） */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-0"
+        className="pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen"
         style={{
           background:
-            'linear-gradient(to bottom, rgba(5,7,22,0.20) 0%, rgba(5,7,22,0.55) 45%, rgba(5,7,22,0.92) 100%)',
+            'linear-gradient(to bottom, rgba(5,7,22,0.25) 0%, rgba(5,7,22,0.50) 45%, rgba(5,7,22,0.92) 100%)',
         }}
       />
 

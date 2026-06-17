@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   deleteReservation,
-  formatSchedule,
+  formatReservationWhen,
   getReservation,
   localInputToMs,
   msToLocalInput,
@@ -163,7 +163,7 @@ export default function ReservationDetailPage() {
       ) : (
         <div className="flex flex-col gap-2">
           <h1 className="text-xl font-bold">{item!.title || '無題の予定'}</h1>
-          <div className="text-sm text-gray-700">🗓 {formatSchedule(item!.scheduleAt)}</div>
+          <div className="text-sm text-gray-700">🗓 {formatReservationWhen(item!)}</div>
           <div className="text-sm text-gray-500">{item!.notificationEnabled ? '🔔 通知 ON' : '🔕 通知 OFF'}</div>
           <p className="whitespace-pre-wrap text-base">{item!.content || '（内容なし）'}</p>
           <div className="mt-2 text-xs text-gray-400">

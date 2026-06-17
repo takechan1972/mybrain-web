@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import type { ComponentType } from 'react';
 import { ClockIcon, HomeIcon, SettingsIcon } from './icons';
 
-// タブを隠すパス（ランディング・ログイン・メモ管理スマホUI）
-const HIDE_ON = ['/welcome', '/login', '/memos'];
+// タブを隠すパス（ランディング・ログイン・メモ管理／予定管理スマホUI）
+const HIDE_ON = ['/welcome', '/login', '/memos', '/reservations'];
 
 const NAVY = '#223A70';
 const MUTED = '#8A94A6';
