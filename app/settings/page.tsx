@@ -128,6 +128,30 @@ export default function SettingsPage() {
         </Link>
       </section>
 
+      {/* AIアシスト管理（参照範囲・応答スタイル等） */}
+      <section className="overflow-hidden rounded-3xl border border-[#E5E8F0] bg-white shadow-[0_10px_28px_rgba(31,53,104,0.07)]">
+        <Link
+          href="/ai-assist"
+          className="flex min-h-[56px] items-center gap-3 px-5 py-4 active:opacity-60">
+          <span
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[16px]"
+            style={{ backgroundColor: LAVENDER }}>
+            🤖
+          </span>
+          <span className="flex flex-1 flex-col">
+            <span className="text-[15px] font-semibold" style={{ color: '#1F2937' }}>
+              AIアシスト管理
+            </span>
+            <span className="text-[12px]" style={{ color: MUTED }}>
+              参照する情報・応答スタイル・テンプレートを管理
+            </span>
+          </span>
+          <span className="shrink-0" style={{ color: '#A6AEC0' }}>
+            <ChevronRightIcon size={18} />
+          </span>
+        </Link>
+      </section>
+
       {/* AI設定（Ollama・ローカル） */}
       <section className="flex flex-col gap-4 rounded-3xl border border-[#E5E8F0] bg-white p-5 shadow-[0_10px_28px_rgba(31,53,104,0.07)]">
         <div className="flex items-center justify-between">
@@ -148,7 +172,7 @@ export default function SettingsPage() {
           </button>
         </div>
         <p className="text-[12px]" style={{ color: MUTED }}>
-          このPC上の Ollama を使って AI相談・要約・メモ整理を行います。APIキーは不要です。ローカル利用のみ（外部公開なし）。
+          このPC上の Ollama を使って AIアシスト・要約・メモ整理を行います。APIキーは不要です。ローカル利用のみ（外部公開なし）。
         </p>
 
         {!local ? (

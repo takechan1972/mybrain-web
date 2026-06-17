@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   // リモート環境では localhost の Ollama に到達できないため即エラーを返す
   if (isVercelServer()) {
     return NextResponse.json(
-      { error: 'AI相談（Ollama）はPCローカル版専用です。' },
+      { error: 'AIアシスト（Ollama）はPCローカル版専用です。' },
       { status: 200 },
     );
   }

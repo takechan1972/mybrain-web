@@ -245,7 +245,7 @@ export default function DesktopConsult() {
         {/* ヘッダー */}
         <header className="flex items-center gap-3 border-b border-[#E8EAF3] bg-white px-6 py-4">
           <div className="flex-1">
-            <h1 className="text-[20px] font-extrabold" style={{ color: NAVY }}>AI相談</h1>
+            <h1 className="text-[20px] font-extrabold" style={{ color: NAVY }}>AIアシスト</h1>
             <p className="text-[12px]" style={{ color: MUTED }}>メモと予定をもとに、あなた専用の答えを返します</p>
           </div>
           <span className="flex items-center gap-1.5 rounded-full border border-[#E8EAF3] bg-white px-3 py-1.5 text-[12px] font-bold" style={{ color: NAVY }}>
@@ -377,7 +377,7 @@ export default function DesktopConsult() {
             <SideCard title="参照設定">
               <Toggle label="メモを参照" on={refMemo} onChange={setRefMemo} />
               <Toggle label="予定を参照" on={refSchedule} onChange={setRefSchedule} />
-              <Toggle label="AI相談履歴を参照" on={refHistory} onChange={setRefHistory} />
+              <Toggle label="AIアシスト履歴を参照" on={refHistory} onChange={setRefHistory} />
               <div className="mt-3">
                 <p className="mb-1 text-[11px] font-semibold" style={{ color: MUTED }}>参照件数</p>
                 <Segmented value={refCount} onChange={(v) => setRefCount(v as typeof refCount)} options={[{ v: 'few', t: '少なめ' }, { v: 'normal', t: '標準' }, { v: 'many', t: '多め' }]} />

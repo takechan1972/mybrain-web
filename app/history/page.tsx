@@ -32,7 +32,7 @@ type Tab = 'all' | 'consult' | 'memos' | 'schedule';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'all', label: 'すべて' },
-  { key: 'consult', label: 'AI相談' },
+  { key: 'consult', label: 'AIアシスト' },
   { key: 'memos', label: 'メモ' },
   { key: 'schedule', label: '予定' },
 ];
@@ -237,7 +237,7 @@ export default function HistoryPage() {
               searching ? (
                 <NoSearchResult />
               ) : (
-                <EmptyState title="履歴はまだありません" desc="メモ・予定・AI相談を使うと、ここに表示されます。" />
+                <EmptyState title="履歴はまだありません" desc="メモ・予定・AIアシストを使うと、ここに表示されます。" />
               )
             ) : (
               <section className="flex flex-col gap-3">
@@ -266,9 +266,9 @@ export default function HistoryPage() {
           {/* AI相談 */}
           {tab === 'consult' && (
             <section className="flex flex-col gap-3">
-              <SectionLabel>AI相談履歴</SectionLabel>
+              <SectionLabel>AIアシスト履歴</SectionLabel>
               {turns.length === 0 ? (
-                <EmptyState title="AI相談履歴はまだありません" desc="AI相談を使うと、ここに履歴が表示されます。" />
+                <EmptyState title="AIアシスト履歴はまだありません" desc="AIアシストを使うと、ここに履歴が表示されます。" />
               ) : filteredTurns.length === 0 ? (
                 <NoSearchResult />
               ) : (
@@ -325,7 +325,7 @@ export default function HistoryPage() {
           <div className="relative flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-[#E5E8F0] bg-white shadow-[0_20px_60px_rgba(31,53,104,0.18)]">
             <div className="flex items-center justify-between border-b border-[#EEF0F5] px-5 py-4">
               <div className="flex items-center gap-2">
-                <TypeBadge label="AI相談" color={NAVY} />
+                <TypeBadge label="AIアシスト" color={NAVY} />
                 {detailTurn.createdAt > 0 && (
                   <span className="text-[11px] font-medium" style={{ color: '#A6AEC0' }}>
                     {formatDateTime(detailTurn.createdAt)}
@@ -389,7 +389,7 @@ export default function HistoryPage() {
           <div className="absolute inset-0 bg-black/30" onClick={() => setConfirmId(null)} />
           <div className="relative w-full max-w-md rounded-3xl border border-[#E5E8F0] bg-white p-6 shadow-[0_20px_60px_rgba(31,53,104,0.18)]">
             <p className="text-center text-[15px] font-bold" style={{ color: NAVY }}>
-              このAI相談履歴を削除しますか？
+              このAIアシスト履歴を削除しますか？
             </p>
             <p className="mt-1 text-center text-[12px]" style={{ color: MUTED }}>
               この操作は元に戻せません。
@@ -511,9 +511,9 @@ function ConsultCard({
 }) {
   return (
     <SwipeableRow open={swipeOpen} onOpenChange={onSwipeOpenChange} onDelete={() => onDelete(t.id)}>
-      <CardShell onClick={() => onOpen(t)} ariaLabel="AI相談履歴の詳細を見る">
+      <CardShell onClick={() => onOpen(t)} ariaLabel="AIアシスト履歴の詳細を見る">
       <div className="flex items-center gap-2">
-        {showType && <TypeBadge label="AI相談" color={NAVY} />}
+        {showType && <TypeBadge label="AIアシスト" color={NAVY} />}
         {t.createdAt > 0 && (
           <span className="text-[11px] font-medium" style={{ color: '#A6AEC0' }}>
             {formatDateTime(t.createdAt)}
@@ -527,7 +527,7 @@ function ConsultCard({
             e.stopPropagation();
             onDelete(t.id);
           }}
-          className="-mr-2 ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:opacity-50"
+          className="-mr-2 ml-auto hidden h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:opacity-50 md:flex"
           style={{ color: '#C0C8D8' }}>
           <TrashIcon size={15} />
         </button>

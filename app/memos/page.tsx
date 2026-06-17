@@ -278,9 +278,9 @@ export default function MemosPage() {
           />
           <NeonCard
             color="#A66BFF"
-            title="AI相談"
+            title="AI"
             icon={<NeonChatIcon color="#A66BFF" />}
-            href="/consult"
+            href="/ai-assist"
           />
         </div>
       </div>

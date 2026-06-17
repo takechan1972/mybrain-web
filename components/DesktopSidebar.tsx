@@ -22,7 +22,7 @@ const NAV: { key: NavKey; href: string; label: string; Icon: ComponentType<{ siz
   { key: 'home', href: '/', label: 'ホーム', Icon: HomeIcon },
   { key: 'memos', href: '/memos', label: 'メモ', Icon: FileTextIcon },
   { key: 'reservations', href: '/reservations', label: '予定', Icon: CalendarIcon },
-  { key: 'consult', href: '/consult', label: 'AI相談', Icon: ChatIcon },
+  { key: 'consult', href: '/consult', label: 'AIアシスト', Icon: ChatIcon },
   { key: 'transcribe', href: '/transcribe', label: '文字起こし', Icon: MicIcon },
   { key: 'settings', href: '/settings', label: '設定', Icon: SettingsIcon },
 ];

@@ -5,7 +5,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'MyBrain',
-  description: 'メモ・予定・AI相談を一元管理するパーソナルアシスタント',
+  description: 'メモ・予定・AIアシストを一元管理するパーソナルアシスタント',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

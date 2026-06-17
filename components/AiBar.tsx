@@ -102,7 +102,7 @@ export default function AiBar() {
         {/* マイク（実際のボタン。タップで音声認識を開始/停止） */}
         <button
           type="button"
-          aria-label={listening ? '音声入力を停止' : '音声でAI相談する'}
+          aria-label={listening ? '音声入力を停止' : '音声でAIアシスト'}
           onClick={toggleMic}
           className="relative z-30 flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full transition active:opacity-60"
           style={
@@ -114,7 +114,7 @@ export default function AiBar() {
         </button>
         <button
           type="submit"
-          aria-label="AIに相談する"
+          aria-label="AIアシスト"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
           style={{ backgroundColor: PURPLE }}>
           <SendIcon size={18} />

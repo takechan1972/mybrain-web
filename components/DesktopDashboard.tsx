@@ -233,7 +233,7 @@ export default function DesktopDashboard({
             </Card>
 
             {/* カードD：AI相談（クイック入力） */}
-            <Card title="AI相談（クイック入力）" Icon={ChatIcon}>
+            <Card title="AIアシスト（クイック入力）" Icon={ChatIcon}>
               <p className="mb-2 text-[12px]" style={{ color: MUTED }}>どんなことでも相談してみてください。</p>
               <div className="relative">
                 <textarea

@@ -284,7 +284,7 @@ export default function ReservationsPage() {
         <div className="mt-2 grid grid-cols-3 gap-3">
           <NeonCard color="#22E5A8" title="メモ" icon={<NeonMemoIcon color="#22E5A8" />} href="/memos" />
           <NeonCard color="#38BDF8" title="予定" icon={<NeonCalendarIcon color="#38BDF8" />} href="/reservations" active />
-          <NeonCard color="#A66BFF" title="AI相談" icon={<NeonChatIcon color="#A66BFF" />} href="/consult" />
+          <NeonCard color="#A66BFF" title="AI" icon={<NeonChatIcon color="#A66BFF" />} href="/ai-assist" />
         </div>
       </div>
     </div>
