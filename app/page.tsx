@@ -9,6 +9,7 @@ import { listReservations } from '@/lib/reservations';
 import { loadConsultTurns, type Turn } from '@/lib/consult-store';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { isLocalHost } from '@/lib/env';
+import DesktopDashboard from '@/components/DesktopDashboard';
 import type { Memo, Reservation } from '@/lib/types';
 
 const NAVY = '#223A70';
@@ -79,7 +80,12 @@ export default function HomePage() {
   const recentTurns = turns.slice(0, 3); // loadConsultTurns は新しい順で返す
 
   return (
-    <div className="flex flex-col gap-5">
+    <>
+    {/* ── PC（lg以上）：ダッシュボードUI ── */}
+    <DesktopDashboard memos={memos} reservations={reservations} userName={name} />
+
+    {/* ── スマホ／タブレット（lg未満）：従来UI ── */}
+    <div className="flex flex-col gap-5 lg:hidden">
       {/* 上部の淡いラベンダーグラデーション（装飾・操作不可） */}
       <div
         aria-hidden
@@ -288,6 +294,7 @@ export default function HomePage() {
       {/* AI相談バー（fixed配置・ボトムナビの上に独立して浮く） */}
       <AiBar />
     </div>
+    </>
   );
 }
 

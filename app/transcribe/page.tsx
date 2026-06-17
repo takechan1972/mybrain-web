@@ -7,6 +7,7 @@ import { ChevronLeftIcon, MicIcon } from '@/components/icons';
 import { createMemo, updateMemo } from '@/lib/memos';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { isLocalHost } from '@/lib/env';
+import DesktopTranscribe from '@/components/DesktopTranscribe';
 
 const NAVY = '#223A70';
 const MUTED = '#8A94A6';
@@ -163,7 +164,9 @@ export default function TranscribePage() {
   }
 
   return (
-    <div className="flex flex-col gap-5" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
+    <>
+    <DesktopTranscribe />
+    <div className="flex flex-col gap-5 lg:hidden" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
       {/* ヘッダー */}
       <header className="flex items-center justify-between">
         <Link href="/" aria-label="戻る" className="-ml-1 flex h-9 w-9 items-center justify-center rounded-full" style={{ color: NAVY }}>
@@ -334,5 +337,6 @@ export default function TranscribePage() {
         </div>
       )}
     </div>
+    </>
   );
 }

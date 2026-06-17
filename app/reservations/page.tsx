@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarIcon, ChevronRightIcon, MicIcon } from '@/components/icons';
 import SwipeableRow from '@/components/SwipeableRow';
+import DesktopSchedules from '@/components/DesktopSchedules';
 import { useSpeech } from '@/lib/useSpeech';
 import { parseScheduleFromText, containsScheduleNoise } from '@/lib/parse/schedule';
 import {
@@ -374,7 +375,9 @@ export default function ReservationsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
+    <>
+    <DesktopSchedules />
+    <div className="flex flex-col gap-5 lg:hidden" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
       {/* ヘッダー */}
       <div className="flex items-center justify-between">
         <h1 className="text-[22px] font-bold" style={{ color: NAVY }}>
@@ -629,6 +632,7 @@ export default function ReservationsPage() {
         </div>
       )}
     </div>
+    </>
   );
 }
 

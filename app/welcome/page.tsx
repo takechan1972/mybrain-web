@@ -1,60 +1,80 @@
+'use client';
+
 import Link from 'next/link';
+import Image from 'next/image';
 
-const NAVY = '#1B2F5B';
+/*
+ * MyBrain ウェルカム画面。
+ * - デザイン確定版の1枚絵 public/welcome-hero.png（853x1844）をそのまま表示。
+ *   （ロゴ・文章・ボタンはすべて画像内。HTML/CSSでは再現しない）
+ * - 画像比率にラッパーを固定し、ボタン位置へ透明クリック領域を重ねる。
+ * - 100dvh / overflow-hidden（縦横ともスクロールなし）。背景は黒。
+ *
+ * 開発確認用：debugHotspots を true にすると透明リンク範囲を薄く可視化。
+ * 通常は false（透明）。
+ */
+const debugHotspots = false;
 
-/** MYBRAIN ランディング（一番最初の画面） */
+/* 画像内ボタン位置（％）。ズレる場合は top/left/width/height を調整。 */
+const HOTSPOTS: {
+  label: string;
+  href: string;
+  top: string;
+  left: string;
+  width: string;
+  height: string;
+}[] = [
+  // はじめる（青ネオンのメインボタン）
+  { label: 'はじめる', href: '/login?mode=signup', top: '77%',   left: '8%',  width: '84%', height: '6.5%' },
+  // ログイン（アウトラインボタン）
+  { label: 'ログイン', href: '/login',             top: '84.5%', left: '8%',  width: '84%', height: '6%' },
+  // 新規登録（右下テキストリンク）
+  { label: '新規登録', href: '/login?mode=signup', top: '91.8%', left: '55%', width: '33%', height: '3%' },
+];
+
 export default function WelcomePage() {
   return (
-    <div className="flex min-h-[88vh] flex-col">
-      {/* 中央：ロゴ＋コピー */}
-      <div className="flex flex-1 flex-col items-center justify-center px-2 text-center">
-        {/* ブレインロゴ（画像ファイルをそのまま表示・縦横比維持・中央） */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/mybrain-logo.svg"
-          alt="MYBRAIN ロゴ"
-          width={184}
-          height={153}
-          className="mx-auto block h-auto w-[184px] object-contain"
-          style={{ overflow: 'visible' }}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black"
+      style={{ height: '100dvh' }}
+    >
+      {/* 画像比率に固定したラッパー（この中の％＝画像座標と一致） */}
+      <div
+        className="relative"
+        style={{
+          height: '100dvh',
+          aspectRatio: '853 / 1844',
+          maxWidth: '100vw',
+        }}
+      >
+        <Image
+          src="/welcome-hero.png"
+          alt="MyBrain — あなたの第二の脳"
+          fill
+          priority
+          sizes="(max-width: 768px) 100vw, 480px"
+          className="object-contain"
         />
 
-        <h1 className="mt-4 text-4xl font-extrabold tracking-[0.2em]" style={{ color: NAVY }}>
-          MYBRAIN
-        </h1>
-        <p className="mt-2 text-sm tracking-[0.4em] text-gray-400">マイブレイン</p>
-
-        <h2 className="mt-8 text-xl font-bold leading-relaxed" style={{ color: NAVY }}>
-          すべての知識を、
-          <br />
-          あなたの脳のように整理する。
-        </h2>
-
-        <p className="mt-5 text-sm leading-relaxed text-gray-500">
-          アイデア、メモ、情報をひとつにまとめて、
-          <br />
-          必要なときにすぐ見つけられる。
-          <br />
-          あなた専用の第二の脳をつくりましょう。
-        </p>
-      </div>
-
-      {/* 下部：ボタン（ログイン前提のため2つのみ） */}
-      <div className="flex flex-col gap-4 pb-6">
-        <Link
-          href="/login?mode=signup"
-          className="rounded-2xl py-4 text-center text-base font-bold text-white"
-          style={{ backgroundColor: NAVY }}>
-          無料ではじめる
-        </Link>
-        <Link
-          href="/login"
-          className="rounded-2xl border-2 py-4 text-center text-base font-bold"
-          style={{ borderColor: NAVY, color: NAVY }}>
-          ログイン
-        </Link>
+        {/* 透明クリック領域（画像内ボタンの上に重ねる） */}
+        {HOTSPOTS.map((h) => (
+          <Link
+            key={h.label}
+            href={h.href}
+            aria-label={h.label}
+            className="absolute block"
+            style={{
+              top: h.top,
+              left: h.left,
+              width: h.width,
+              height: h.height,
+              ...(debugHotspots
+                ? { backgroundColor: 'rgba(0,200,255,0.25)', outline: '1px solid rgba(0,200,255,0.8)' }
+                : {}),
+            }}
+          />
+        ))}
       </div>
     </div>
   );
 }
-

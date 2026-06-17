@@ -13,6 +13,7 @@ import {
   type OllamaSettings,
 } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
+import DesktopSettings from '@/components/DesktopSettings';
 
 const NAVY = '#223A70';
 const MUTED = '#8A94A6';
@@ -73,7 +74,9 @@ export default function SettingsPage() {
   const initial = email ? email.trim().charAt(0).toUpperCase() : 'G';
 
   return (
-    <div className="flex flex-col gap-5" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
+    <>
+    <DesktopSettings />
+    <div className="flex flex-col gap-5 lg:hidden" style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
       {/* ヘッダー */}
       <header className="flex items-center justify-between">
         <Link
@@ -222,5 +225,6 @@ export default function SettingsPage() {
         </p>
       )}
     </div>
+    </>
   );
 }

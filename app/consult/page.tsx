@@ -26,6 +26,7 @@ import { listMemos } from '@/lib/memos';
 import { listReservations } from '@/lib/reservations';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import type { Memo, Reservation } from '@/lib/types';
+import DesktopConsult from '@/components/DesktopConsult';
 
 const NAVY = '#223A70';
 const MUTED = '#8A94A6';
@@ -185,7 +186,9 @@ export default function ConsultPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <>
+    <DesktopConsult />
+    <div className="flex flex-col gap-5 lg:hidden">
       {/* ヘッダー */}
       <header className="flex items-center justify-between">
         <Link
@@ -422,5 +425,6 @@ export default function ConsultPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

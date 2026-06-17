@@ -3,7 +3,8 @@
 import { usePathname } from 'next/navigation';
 
 // AiBar / BottomTabs を使わない画面（余分な下余白を付けない）
-const BARE_PAGES = ['/welcome', '/login'];
+// /memos は下部ナビ・AIバーとも非表示のため余分な下余白を付けない
+const BARE_PAGES = ['/welcome', '/login', '/memos'];
 
 /**
  * メイン領域のラッパー。
