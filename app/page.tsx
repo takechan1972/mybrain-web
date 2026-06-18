@@ -106,84 +106,94 @@ export default function HomePage() {
         className="relative z-10 flex flex-col gap-5"
         style={{ paddingBottom: 'calc(176px + env(safe-area-inset-bottom))' }}>
 
-      {/* ヘッダー：公式ロゴ（シンボル）を主役に中央配置 */}
-      <header className="flex flex-col items-center pt-4">
+      {/* ── ヒーロー：宇宙背景＋AIロボット＋ネオン脳ロゴ ── */}
+      <header className="relative flex flex-col items-center pt-2">
+        {/* AIロボット（左上の装飾ビジュアル） */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/mybrain-logo.svg"
-          alt="MYBRAIN"
-          width={72}
-          height={60}
-          className="h-auto w-[72px] object-contain"
+          src="/ai-robot.png"
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute -left-1 top-1 h-auto w-[26%] max-w-[120px] object-contain"
+          style={{ filter: 'drop-shadow(0 0 14px rgba(80,140,255,0.45))' }}
         />
-        <div className="mt-2 text-[20px] font-extrabold tracking-[0.18em]" style={{ color: '#ffffff' }}>
-          MYBRAIN
-        </div>
-        <div className="text-[10px] tracking-[0.4em]" style={{ color: '#a5b4fc' }}>
-          マイブレイン
-        </div>
+        {/* 脳アイコン＋MYBRAIN＋マイブレイン（透過ロゴ1枚） */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/mybrain-original-logo-transparent.png"
+          alt="MYBRAIN マイブレイン"
+          className="h-auto object-contain"
+          style={{ width: 'clamp(220px, 62vw, 320px)' }}
+        />
+        <p className="mt-1 text-center text-[15px] font-bold tracking-wide" style={{ color: 'rgba(205,220,250,0.92)' }}>
+          あなたの毎日を、もっとシンプルに。
+        </p>
       </header>
 
-      {/* 挨拶 */}
-      <section className="mt-1">
-        <h1 className="text-[22px] font-bold leading-snug" style={{ color: '#ffffff' }}>
-          こんにちは、{name}さん
-        </h1>
-        <p className="mt-1 text-sm" style={{ color: '#a5b4fc' }}>
-          今日もあなたの第二の脳がサポートします。
-        </p>
-      </section>
-
-      {/* 利用状況：1枚のワイドカードに3カラム */}
-      <section
-        className="grid grid-cols-3 rounded-3xl py-4"
-        style={{
-          background: 'rgba(10,14,35,0.6)',
-          border: '1px solid rgba(120,160,255,0.25)',
-          boxShadow: '0 0 18px rgba(99,102,241,0.10), 0 10px 28px rgba(0,0,0,0.35)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-        }}>
-        <StatCol label="メモ" value={memos.length} unit="件" color="#22E5A8" />
-        <StatCol label="予定" value={reservations.length} unit="件" color="#38BDF8" />
-        <StatCol label="AI相談" value={turns.length} unit="回" color="#A66BFF" />
-      </section>
-
-      {/* メインアクション：縦並び横型カード */}
-      <section className="flex flex-col gap-3">
-        <ActionCard
+      {/* ── メイン機能：メモ（緑）／予定（青）の大カード ── */}
+      <section className="grid grid-cols-2 gap-3">
+        <FeatureCard
           href="/memos"
           color="#22E5A8"
-          icon={<FileTextIcon size={22} />}
+          icon={<FileTextIcon size={40} />}
           title="メモ"
-          desc="アイデアやメモを記録しましょう"
+          desc={<>アイデアや気づきを<br />メモしましょう</>}
         />
-        <ActionCard
-          href="/consult"
-          color="#A66BFF"
-          icon={<ChatIcon size={22} />}
-          title="AI相談"
-          desc="メモや予定を参照して相談"
-        />
-        <ActionCard
+        <FeatureCard
           href="/reservations"
           color="#38BDF8"
-          icon={<CalendarIcon size={22} />}
+          icon={<CalendarIcon size={40} />}
           title="予定"
-          desc="スケジュールを管理しましょう"
+          desc={<>スケジュールやタスクを<br />管理しましょう</>}
         />
-        {/* 文字起こし（PCローカル環境のみ・スマホでは控えめに） */}
-        {local && (
-          <div className="hidden md:block">
-            <ActionCard
-              href="/transcribe"
-              color="#7BA6FF"
-              icon={<MicIcon size={22} />}
-              title="文字起こし"
-              desc="音声ファイルをローカルWhisperでメモ化（PC用）"
-            />
-          </div>
-        )}
+      </section>
+
+      {/* ── AI相談（紫）横長カード ── */}
+      <FeatureCard
+        wide
+        href="/consult"
+        color="#A66BFF"
+        icon={<ChatIcon size={40} />}
+        title="AI相談"
+        desc={<>悩みや疑問をAIに相談して<br />ヒントやアドバイスをもらいましょう</>}
+      />
+
+      {/* 文字起こし（PCローカル環境のみ・スマホでは控えめに） */}
+      {local && (
+        <div className="hidden md:block">
+          <ActionCard
+            href="/transcribe"
+            color="#7BA6FF"
+            icon={<MicIcon size={22} />}
+            title="文字起こし"
+            desc="音声ファイルをローカルWhisperでメモ化（PC用）"
+          />
+        </div>
+      )}
+
+      {/* ── 一覧（メモ／予定／AI相談）小カード3つ ── */}
+      <section className="grid grid-cols-3 gap-3">
+        <MiniListCard
+          href="/history?tab=memos"
+          color="#22E5A8"
+          icon={<FileTextIcon size={22} />}
+          title="メモ一覧"
+          desc={<>保存したメモを<br />一覧で見る</>}
+        />
+        <MiniListCard
+          href="/history?tab=schedule"
+          color="#38BDF8"
+          icon={<CalendarIcon size={22} />}
+          title="予定一覧"
+          desc={<>登録した予定を<br />一覧で見る</>}
+        />
+        <MiniListCard
+          href="/history?tab=consult"
+          color="#A66BFF"
+          icon={<ChatIcon size={22} />}
+          title="AI相談一覧"
+          desc={<>過去の相談を<br />一覧で見る</>}
+        />
       </section>
 
       {/* 今日の予定 */}
@@ -333,22 +343,6 @@ const GLASS_CARD: React.CSSProperties = {
   WebkitBackdropFilter: 'blur(12px)',
 };
 
-function StatCol({ label, value, unit, color }: { label: string; value: number; unit: string; color: string }) {
-  return (
-    <div className="flex flex-col items-center px-2 text-center">
-      <div className="text-[11px]" style={{ color: '#9fb0e0' }}>
-        {label}
-      </div>
-      <div className="mt-0.5 text-[22px] font-extrabold leading-tight" style={{ color }}>
-        {value}
-        <span className="ml-0.5 text-[11px] font-normal" style={{ color: '#9fb0e0' }}>
-          {unit}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 /** #RRGGBB + alpha → rgba() */
 function hexA(hex: string, a: number): string {
   const m = hex.replace('#', '');
@@ -356,6 +350,82 @@ function hexA(hex: string, a: number): string {
   const g = parseInt(m.slice(2, 4), 16);
   const b = parseInt(m.slice(4, 6), 16);
   return `rgba(${r},${g},${b},${a})`;
+}
+
+/** メイン機能の大カード（メモ＝緑 / 予定＝青 / AI相談＝紫）。wide で横長表示。 */
+function FeatureCard({
+  href,
+  color,
+  icon,
+  title,
+  desc,
+  wide = false,
+}: {
+  href: string;
+  color: string;
+  icon: React.ReactNode;
+  title: React.ReactNode;
+  desc: React.ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-label={typeof title === 'string' ? title : undefined}
+      className={`flex ${wide ? 'min-h-[160px]' : 'min-h-[200px]'} flex-col items-center justify-center gap-3 rounded-[28px] px-4 py-6 text-center active:scale-[0.98]`}
+      style={{
+        background: `linear-gradient(160deg, ${hexA(color, 0.16)} 0%, rgba(8,12,28,0.72) 72%)`,
+        border: `1.5px solid ${hexA(color, 0.6)}`,
+        boxShadow: `0 0 26px ${hexA(color, 0.32)}, 0 0 22px ${hexA(color, 0.14)} inset, 0 12px 30px rgba(0,0,0,0.4)`,
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}>
+      <span style={{ color, filter: `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 14px ${hexA(color, 0.6)})` }}>
+        {icon}
+      </span>
+      <span className="text-[20px] font-extrabold" style={{ color, textShadow: `0 0 12px ${hexA(color, 0.6)}` }}>
+        {title}
+      </span>
+      <span className="text-[13px] leading-relaxed" style={{ color: 'rgba(230,237,255,0.88)' }}>
+        {desc}
+      </span>
+    </Link>
+  );
+}
+
+/** 一覧導線の小カード（メモ一覧 / 予定一覧 / AI相談一覧）。 */
+function MiniListCard({
+  href,
+  color,
+  icon,
+  title,
+  desc,
+}: {
+  href: string;
+  color: string;
+  icon: React.ReactNode;
+  title: React.ReactNode;
+  desc: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex flex-col items-center gap-1.5 rounded-2xl px-2 py-4 text-center active:scale-95"
+      style={{
+        background: `linear-gradient(160deg, ${hexA(color, 0.12)} 0%, rgba(8,12,28,0.7) 72%)`,
+        border: `1px solid ${hexA(color, 0.4)}`,
+        boxShadow: `0 0 16px ${hexA(color, 0.18)}, 0 8px 22px rgba(0,0,0,0.35)`,
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}>
+      <span style={{ color, filter: `drop-shadow(0 0 5px ${hexA(color, 0.7)})` }}>{icon}</span>
+      <span className="text-[12px] font-bold" style={{ color }}>{title}</span>
+      <span className="text-[10px] leading-tight" style={{ color: 'rgba(205,220,250,0.78)' }}>{desc}</span>
+      <span aria-hidden style={{ color }}>
+        <ChevronRightIcon size={14} />
+      </span>
+    </Link>
+  );
 }
 
 function ActionCard({
