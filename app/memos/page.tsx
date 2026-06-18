@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import NextImage from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { ImageIcon } from '@/components/icons';
+import { ImageIcon, SendIcon } from '@/components/icons';
+import VoiceInput from '@/components/VoiceInput';
 import { createMemo, parseTags } from '@/lib/memos';
 import DesktopMemos from '@/components/DesktopMemos';
 
@@ -38,6 +40,7 @@ function compressDataUri(dataUri: string, maxSize = 1280, quality = 0.8): Promis
 }
 
 export default function MemosPage() {
+  const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState<string | null>(null);
@@ -49,6 +52,14 @@ export default function MemosPage() {
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // AI質問バー（/consult のマイク付き入力バーと同じ仕組み。VoiceInput で音声入力 → /consult へ受け渡し）
+  const [aiAsk, setAiAsk] = useState('');
+  const aiBaseRef = useRef('');
+  function goConsultFromMemo() {
+    const q = aiAsk.trim();
+    router.push(q ? `/consult?q=${encodeURIComponent(q)}` : '/consult');
+  }
 
   // 選択画像を縮小して data URI 化（スマホ写真は数MB→base64で巨大になり保存に失敗するため、
   // 最大1280pxへリサイズ＋JPEG圧縮してから images jsonb に保存する）
@@ -259,6 +270,42 @@ export default function MemosPage() {
             style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.3), 0 0 14px rgba(80,160,255,0.15)' }}>
             ホーム
           </Link>
+        </div>
+
+        {/* ── AI質問バー（/consult のマイク付き入力バーと同一仕様） ── */}
+        <div className="mt-1 flex flex-col gap-1.5">
+          <span className="px-1 text-[12px] font-bold" style={{ color: 'rgba(170,200,255,0.85)' }}>
+            メモについてAIに質問
+          </span>
+          <div className="flex items-center gap-2 rounded-2xl border px-3 py-2.5"
+            style={{ background: 'rgba(8,10,24,0.78)', borderColor: 'rgba(120,160,255,0.4)', boxShadow: '0 0 18px rgba(80,140,255,0.1) inset' }}>
+            <input
+              type="text"
+              value={aiAsk}
+              onChange={(e) => setAiAsk(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') goConsultFromMemo();
+              }}
+              placeholder="メモについてAIに質問..."
+              className="min-w-0 flex-1 bg-transparent text-[15px] text-white outline-none placeholder:text-[#7A86A8]"
+            />
+            <VoiceInput
+              iconOnly
+              onResult={(t) => setAiAsk(t)}
+              getInitial={() => {
+                aiBaseRef.current = aiAsk;
+                return aiAsk;
+              }}
+            />
+            <button
+              type="button"
+              aria-label="AIに送信"
+              onClick={goConsultFromMemo}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 4px 14px rgba(60,120,255,0.45)' }}>
+              <SendIcon size={18} />
+            </button>
+          </div>
         </div>
 
         {/* ── 機能カード（メモ＝緑 / 予定＝青 / AI相談＝紫） ── */}
