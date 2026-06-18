@@ -479,8 +479,8 @@ function HistoryQuickNav({ tab, onSelect }: { tab: Tab; onSelect: (t: Tab) => vo
   ];
   return (
     <nav
-      className="fixed inset-x-0 z-20 mx-auto w-full max-w-md px-5"
-      style={{ bottom: 'calc(72px + env(safe-area-inset-bottom) + 12px)' }}>
+      className="fixed inset-x-0 z-30 mx-auto w-full max-w-md px-5"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
       <div
         className="flex items-center gap-2 rounded-full p-1.5"
         style={{
