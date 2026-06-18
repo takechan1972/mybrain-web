@@ -139,7 +139,7 @@ export default function ReservationDetailPage() {
         }}
       />
 
-      <div className="relative z-10 flex flex-col gap-3" style={{ paddingBottom: 'calc(110px + env(safe-area-inset-bottom))' }}>
+      <div className="relative z-10 flex flex-col gap-3" style={{ paddingBottom: 'calc(180px + env(safe-area-inset-bottom))' }}>
       <button onClick={() => router.push('/reservations')} className="self-start text-sm font-semibold" style={{ color: '#7dd3fc' }}>
         ← 一覧へ戻る
       </button>

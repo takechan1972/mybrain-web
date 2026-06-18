@@ -310,7 +310,7 @@ export default function MemoDetailPage() {
         }}
       />
 
-      <div className="relative z-10 flex flex-col gap-3" style={{ paddingBottom: 'calc(110px + env(safe-area-inset-bottom))' }}>
+      <div className="relative z-10 flex flex-col gap-3" style={{ paddingBottom: 'calc(180px + env(safe-area-inset-bottom))' }}>
       <button onClick={() => router.push('/memos')} className="self-start text-sm font-semibold" style={{ color: '#818cf8' }}>
         ← 一覧へ戻る
       </button>
@@ -596,8 +596,8 @@ export default function MemoDetailPage() {
       )}
       </div>
 
-      {/* 下部ネオンクイックナビ（メモ / 予定 / AI） */}
-      <NeonQuickNav />
+      {/* 下部ネオンクイックナビ（メモ / 予定 / AI）。モーダル表示中は重なり防止のため非表示。 */}
+      {!confirmingDelete && !previewUri && <NeonQuickNav />}
     </>
   );
 }

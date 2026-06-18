@@ -477,8 +477,8 @@ export default function HistoryPage() {
       )}
       </div>
 
-      {/* 下部ネオンクイックナビ（メモ / 予定 / AI）。共通コンポーネントを利用。 */}
-      <NeonQuickNav />
+      {/* 下部ネオンクイックナビ（メモ / 予定 / AI）。モーダル表示中は重なり防止のため非表示。 */}
+      {!detailTurn && !confirmId && <NeonQuickNav />}
     </>
   );
 }
