@@ -287,23 +287,47 @@ export default function MemoDetailPage() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <button onClick={() => router.push('/memos')} className="self-start text-sm text-brand">
+    <>
+      {/* 宇宙背景（haikei.png）＋暗オーバーレイ（メモ／予定／履歴画面と統一） */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen"
+        style={{
+          backgroundColor: '#050716',
+          backgroundImage: "url('/haikei.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          backgroundRepeat: 'no-repeat',
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(5,7,22,0.30) 0%, rgba(5,7,22,0.55) 45%, rgba(5,7,22,0.92) 100%)',
+        }}
+      />
+
+      <div className="relative z-10 flex flex-col gap-3">
+      <button onClick={() => router.push('/memos')} className="self-start text-sm font-semibold" style={{ color: '#818cf8' }}>
         ← 一覧へ戻る
       </button>
 
-      {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+      {actionError && <p className="text-sm" style={{ color: '#fca5a5' }}>{actionError}</p>}
 
       {editing ? (
         <div className="flex flex-col gap-2">
           <input
-            className="rounded-lg border px-3 py-2 text-base"
+            className="rounded-2xl border px-4 py-3 text-base text-white outline-none placeholder:text-[#7A86A8]"
+            style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(120,160,255,0.4)' }}
             placeholder="タイトル"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
           <textarea
-            className="min-h-32 rounded-lg border px-3 py-2 text-base"
+            className="min-h-32 rounded-2xl border px-4 py-3 text-base text-white outline-none placeholder:text-[#7A86A8]"
+            style={{ background: 'rgba(8,10,24,0.78)', borderColor: 'rgba(120,160,255,0.4)' }}
             placeholder="本文"
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -320,7 +344,8 @@ export default function MemoDetailPage() {
             }}
           />
           <input
-            className="rounded-lg border px-3 py-2 text-base"
+            className="rounded-2xl border px-4 py-3 text-base text-white outline-none placeholder:text-[#7A86A8]"
+            style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(120,160,255,0.3)' }}
             placeholder="タグ（カンマ区切り）"
             value={tags}
             onChange={(e) => setTags(e.target.value)}
@@ -359,7 +384,8 @@ export default function MemoDetailPage() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="h-16 w-16 rounded-xl border border-dashed border-gray-300 text-2xl text-gray-400">
+              className="h-16 w-16 rounded-xl border border-dashed text-2xl"
+              style={{ borderColor: 'rgba(120,160,255,0.4)', color: '#9CC4FF' }}>
               ＋
             </button>
           </div>
@@ -370,24 +396,26 @@ export default function MemoDetailPage() {
                 setImages(memo?.images ?? []);
                 setEditing(false);
               }}
-              className="rounded-lg bg-gray-100 px-4 py-2 text-sm">
+              className="rounded-full border px-5 py-2.5 text-sm font-bold text-white active:scale-95"
+              style={{ borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.35)' }}>
               キャンセル
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="rounded-lg bg-brand px-4 py-2 font-bold text-white disabled:opacity-60">
+              className="rounded-full px-5 py-2.5 font-bold text-white disabled:opacity-60 active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 24px rgba(60,120,255,0.45)' }}>
               {saving ? '保存中…' : '保存'}
             </button>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <h1 className="text-xl font-bold">{memo!.title || '無題のメモ'}</h1>
+          <h1 className="text-xl font-bold" style={{ color: '#ffffff' }}>{memo!.title || '無題のメモ'}</h1>
           {memo!.tags.length > 0 && (
-            <div className="text-xs text-gray-500">{memo!.tags.map((t) => `#${t}`).join(' ')}</div>
+            <div className="text-xs" style={{ color: '#a5b4fc' }}>{memo!.tags.map((t) => `#${t}`).join(' ')}</div>
           )}
-          <p className="whitespace-pre-wrap text-base">{memo!.body || '（本文なし）'}</p>
+          <p className="whitespace-pre-wrap text-base" style={{ color: '#dbe4ff' }}>{memo!.body || '（本文なし）'}</p>
           {memo!.images.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
               {memo!.images.map((uri, i) => (
@@ -402,17 +430,21 @@ export default function MemoDetailPage() {
               ))}
             </div>
           )}
-          <div className="mt-2 text-xs text-gray-400">
+          <div className="mt-2 text-xs" style={{ color: '#8893c4' }}>
             作成：{formatDate(memo!.createdAt)} ／ 更新：{formatDate(memo!.updatedAt)}
           </div>
           <div className="mt-2 flex gap-2">
-            <button onClick={() => setEditing(true)} className="rounded-lg bg-brand px-4 py-2 font-bold text-white">
+            <button
+              onClick={() => setEditing(true)}
+              className="rounded-full px-5 py-2.5 font-bold text-white active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 24px rgba(60,120,255,0.45)' }}>
               編集
             </button>
             <button
               type="button"
               onClick={requestDelete}
-              className="min-h-[44px] rounded-lg bg-gray-100 px-4 py-2 font-bold text-red-600 active:opacity-60">
+              className="min-h-[44px] rounded-full border px-5 py-2.5 font-bold active:opacity-60"
+              style={{ borderColor: 'rgba(224,85,85,0.5)', background: 'rgba(224,85,85,0.12)', color: '#ff9b9b' }}>
               削除
             </button>
           </div>
@@ -423,9 +455,9 @@ export default function MemoDetailPage() {
       {!editing && memo && (
         local ? (
           <>
-            <section className="mt-2 flex flex-col gap-3 rounded-2xl border border-[#E5E8F0] bg-white p-4">
-              <p className="text-[13px] font-bold" style={{ color: '#223A70' }}>このメモをAIで処理</p>
-              <p className="text-[12px]" style={{ color: '#8A94A6' }}>
+            <section className="mt-2 flex flex-col gap-3 rounded-2xl border p-4" style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(120,160,255,0.4)' }}>
+              <p className="text-[13px] font-bold" style={{ color: '#ffffff' }}>このメモをAIで処理</p>
+              <p className="text-[12px]" style={{ color: '#a5b4fc' }}>
                 保存済みメモ本文を Ollama で要約・整理できます（PCローカル専用）。まずは軽量・推奨の <strong>qwen2.5:1.5b</strong> がおすすめです。
               </p>
               <div className="grid grid-cols-2 gap-2">
@@ -449,17 +481,17 @@ export default function MemoDetailPage() {
             </section>
 
             {(aiLoading || aiError || aiResult) && (
-              <section className="flex flex-col gap-3 rounded-2xl border border-[#E5E8F0] bg-white p-4">
-                <p className="text-[13px] font-bold" style={{ color: '#223A70' }}>
+              <section className="flex flex-col gap-3 rounded-2xl border p-4" style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(120,160,255,0.4)' }}>
+                <p className="text-[13px] font-bold" style={{ color: '#ffffff' }}>
                   {aiLabel || 'AI'}結果
                 </p>
                 {aiLoading && (
-                  <p className="rounded-2xl px-4 py-3 text-[13px] font-semibold" style={{ backgroundColor: '#EEF0FF', color: '#223A70' }}>
+                  <p className="rounded-2xl px-4 py-3 text-[13px] font-semibold" style={{ backgroundColor: 'rgba(99,102,241,0.18)', color: '#c7d2fe' }}>
                     Ollama で{aiLabel}しています…
                   </p>
                 )}
                 {aiError && (
-                  <p className="rounded-2xl px-4 py-3 text-[13px] font-semibold" style={{ backgroundColor: '#FDECEC', color: '#C0392B' }}>
+                  <p className="rounded-2xl px-4 py-3 text-[13px] font-semibold" style={{ backgroundColor: 'rgba(224,85,85,0.15)', color: '#ff9b9b' }}>
                     ⚠️ {aiError}
                   </p>
                 )}
@@ -469,8 +501,8 @@ export default function MemoDetailPage() {
                       value={aiResult}
                       onChange={(e) => setAiResult(e.target.value)}
                       rows={10}
-                      className="resize-y rounded-2xl border border-[#E5E8F0] bg-white px-4 py-3 text-[14px] leading-relaxed outline-none focus:border-[#7B61FF]"
-                      style={{ color: '#1F2937' }}
+                      className="resize-y rounded-2xl border px-4 py-3 text-[14px] leading-relaxed text-white outline-none"
+                      style={{ background: 'rgba(8,10,24,0.78)', borderColor: 'rgba(120,160,255,0.4)' }}
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -478,7 +510,7 @@ export default function MemoDetailPage() {
                         onClick={appendAiToMemo}
                         disabled={aiSaving}
                         className="min-h-[48px] rounded-2xl text-[14px] font-bold text-white active:opacity-70 disabled:opacity-50"
-                        style={{ backgroundColor: '#223A70' }}>
+                        style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 24px rgba(60,120,255,0.4)' }}>
                         {aiSaving ? '保存中…' : '元メモに追記'}
                       </button>
                       <button
@@ -486,7 +518,7 @@ export default function MemoDetailPage() {
                         onClick={saveAiAsSeparate}
                         disabled={aiSaving}
                         className="min-h-[48px] rounded-2xl border text-[14px] font-bold active:opacity-70 disabled:opacity-50"
-                        style={{ borderColor: '#223A70', color: '#223A70' }}>
+                        style={{ borderColor: 'rgba(120,160,255,0.5)', color: '#c7d2fe', background: 'rgba(0,0,0,0.3)' }}>
                         {aiSaving ? '保存中…' : '別メモとして保存'}
                       </button>
                     </div>
@@ -496,7 +528,7 @@ export default function MemoDetailPage() {
             )}
           </>
         ) : (
-          <p className="mt-2 rounded-2xl border border-[#E5E8F0] bg-yellow-50 p-4 text-[12px] text-yellow-800">
+          <p className="mt-2 rounded-2xl border p-4 text-[12px]" style={{ borderColor: 'rgba(242,213,138,0.4)', background: 'rgba(242,213,138,0.10)', color: '#f2d58a' }}>
             AIの要約・整理は <strong>PCローカル版専用</strong>です。
           </p>
         )
@@ -509,11 +541,19 @@ export default function MemoDetailPage() {
             className="absolute inset-0 bg-black/30"
             onClick={() => !deleting && setConfirmingDelete(false)}
           />
-          <div className="relative w-full max-w-md rounded-3xl border border-[#E5E8F0] bg-white p-6 shadow-[0_20px_60px_rgba(31,53,104,0.18)]">
-            <p className="text-center text-[15px] font-bold" style={{ color: '#223A70' }}>
+          <div
+            className="relative w-full max-w-md rounded-3xl border p-6"
+            style={{
+              background: 'rgba(20, 16, 38, 0.92)',
+              borderColor: 'rgba(120,160,255,0.3)',
+              boxShadow: '0 0 24px rgba(99,102,241,0.18), 0 20px 60px rgba(0,0,0,0.55)',
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+            }}>
+            <p className="text-center text-[15px] font-bold" style={{ color: '#ffffff' }}>
               このメモを削除しますか？
             </p>
-            <p className="mt-1 text-center text-[12px]" style={{ color: '#8A94A6' }}>
+            <p className="mt-1 text-center text-[12px]" style={{ color: '#a5b4fc' }}>
               この操作は元に戻せません。
             </p>
             <div className="mt-5 flex gap-3">
@@ -521,8 +561,8 @@ export default function MemoDetailPage() {
                 type="button"
                 onClick={() => setConfirmingDelete(false)}
                 disabled={deleting}
-                className="min-h-[44px] flex-1 rounded-full border border-[#E5E8F0] py-3 text-[14px] font-semibold disabled:opacity-60"
-                style={{ color: '#8A94A6' }}>
+                className="min-h-[44px] flex-1 rounded-full border py-3 text-[14px] font-semibold disabled:opacity-60"
+                style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#c7d2fe', background: 'rgba(0,0,0,0.3)' }}>
                 キャンセル
               </button>
               <button
@@ -553,6 +593,7 @@ export default function MemoDetailPage() {
           </button>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

@@ -362,12 +362,24 @@ export default function HistoryPage() {
       {detailTurn && (
         <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-6 sm:items-center sm:pb-0">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDetailTurn(null)} />
-          <div className="relative flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-[#E5E8F0] bg-white shadow-[0_20px_60px_rgba(31,53,104,0.18)]">
-            <div className="flex items-center justify-between border-b border-[#EEF0F5] px-5 py-4">
+          <div
+            className="relative flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-3xl"
+            style={{
+              background: 'rgba(20, 12, 35, 0.92)',
+              border: '1px solid rgba(192, 132, 252, 0.30)',
+              boxShadow: '0 0 24px rgba(217, 70, 239, 0.18), 0 20px 60px rgba(0,0,0,0.55)',
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+            }}>
+            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${CONSULT_DIVIDER}` }}>
               <div className="flex items-center gap-2">
-                <TypeBadge label="AIアシスト" color={NAVY} />
+                <span
+                  className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold"
+                  style={{ backgroundColor: CONSULT_CHIP_BG, color: CONSULT_CHIP_COLOR }}>
+                  AIアシスト
+                </span>
                 {detailTurn.createdAt > 0 && (
-                  <span className="text-[11px] font-medium" style={{ color: '#A6AEC0' }}>
+                  <span className="text-[11px] font-medium" style={{ color: CONSULT_DATE_COLOR }}>
                     {formatDateTime(detailTurn.createdAt)}
                   </span>
                 )}
@@ -377,7 +389,7 @@ export default function HistoryPage() {
                 aria-label="閉じる"
                 onClick={() => setDetailTurn(null)}
                 className="flex h-9 w-9 items-center justify-center rounded-full active:opacity-60"
-                style={{ color: '#8A94A6' }}>
+                style={{ color: CONSULT_CHIP_COLOR }}>
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>
@@ -385,36 +397,36 @@ export default function HistoryPage() {
             </div>
             <div className="flex flex-col gap-4 overflow-y-auto px-5 py-5">
               <div className="flex flex-col gap-1">
-                <span className="text-[11px] font-bold" style={{ color: '#A6AEC0' }}>
+                <span className="text-[11px] font-bold" style={{ color: CONSULT_DATE_COLOR }}>
                   質問
                 </span>
-                <p className="text-[15px] font-semibold text-[#1F2937]">{detailTurn.question}</p>
+                <p className="text-[15px] font-semibold" style={{ color: CONSULT_TITLE_COLOR }}>{detailTurn.question}</p>
               </div>
-              <div className="flex flex-col gap-1 border-t border-[#EEF0F5] pt-4">
-                <span className="text-[11px] font-bold" style={{ color: '#A6AEC0' }}>
+              <div className="flex flex-col gap-1 pt-4" style={{ borderTop: `1px solid ${CONSULT_DIVIDER}` }}>
+                <span className="text-[11px] font-bold" style={{ color: CONSULT_DATE_COLOR }}>
                   回答
                 </span>
-                <p className="whitespace-pre-line text-[14px] leading-relaxed text-[#1F2937]">{detailTurn.answer}</p>
+                <p className="whitespace-pre-line text-[14px] leading-relaxed" style={{ color: CONSULT_PREVIEW_COLOR }}>{detailTurn.answer}</p>
               </div>
               {/* 参照した予定・メモのタップ可能カード（詳細ページへ遷移） */}
               <ConsultRefCards turn={detailTurn} reservations={reservations} memos={memos} />
-              <div className="flex flex-wrap items-center gap-2 border-t border-[#EEF0F5] pt-4 text-[11px]" style={{ color: MUTED }}>
-                <span className="font-semibold" style={{ color: '#A6AEC0' }}>
+              <div className="flex flex-wrap items-center gap-2 pt-4 text-[11px]" style={{ color: CONSULT_CHIP_COLOR, borderTop: `1px solid ${CONSULT_DIVIDER}` }}>
+                <span className="font-semibold" style={{ color: CONSULT_DATE_COLOR }}>
                   参照
                 </span>
                 {(detailTurn.refTarget === 'both' || detailTurn.refTarget === 'memos') && (
-                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: LAVENDER, color: NAVY }}>
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: CONSULT_CHIP_BG, color: CONSULT_CHIP_COLOR }}>
                     <FileTextIcon size={12} />
                     メモ{typeof detailTurn.memoCount === 'number' ? ` ${detailTurn.memoCount}件` : ''}
                   </span>
                 )}
                 {(detailTurn.refTarget === 'both' || detailTurn.refTarget === 'schedule') && (
-                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: LAVENDER, color: NAVY }}>
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: CONSULT_CHIP_BG, color: CONSULT_CHIP_COLOR }}>
                     <CalendarIcon size={12} />
                     予定{typeof detailTurn.scheduleCount === 'number' ? ` ${detailTurn.scheduleCount}件` : ''}
                   </span>
                 )}
-                <span className="ml-auto" style={{ color: '#A6AEC0' }}>
+                <span className="ml-auto" style={{ color: CONSULT_DATE_COLOR }}>
                   {REF_TARGET_LABEL[detailTurn.refTarget]}
                 </span>
               </div>
@@ -595,9 +607,9 @@ function CardShell({
   href?: string;
   onClick?: () => void;
   ariaLabel?: string;
-  variant?: 'memo' | 'schedule';
+  variant?: 'memo' | 'schedule' | 'consult';
 }) {
-  const isNeon = variant === 'memo' || variant === 'schedule';
+  const isNeon = variant === 'memo' || variant === 'schedule' || variant === 'consult';
   const base = isNeon
     ? 'flex flex-col gap-3 rounded-3xl p-5'
     : 'flex flex-col gap-3 rounded-3xl border border-[#E5E8F0] bg-white p-5 shadow-[0_10px_28px_rgba(31,53,104,0.07)]';
@@ -615,6 +627,14 @@ function CardShell({
           background: 'rgba(10, 18, 38, 0.72)',
           border: '1px solid rgba(56, 189, 248, 0.30)',
           boxShadow: '0 0 18px rgba(56, 189, 248, 0.12), 0 10px 28px rgba(0,0,0,0.38)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }
+      : variant === 'consult'
+      ? {
+          background: 'rgba(20, 12, 35, 0.72)',
+          border: '1px solid rgba(192, 132, 252, 0.30)',
+          boxShadow: '0 0 18px rgba(217, 70, 239, 0.12), 0 10px 28px rgba(0,0,0,0.38)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
         }
@@ -670,11 +690,17 @@ function ConsultCard({
 }) {
   return (
     <SwipeableRow open={swipeOpen} onOpenChange={onSwipeOpenChange} onDelete={() => onDelete(t.id)}>
-      <CardShell onClick={() => onOpen(t)} ariaLabel="AIアシスト履歴の詳細を見る">
+      <CardShell onClick={() => onOpen(t)} ariaLabel="AIアシスト履歴の詳細を見る" variant="consult">
       <div className="flex items-center gap-2">
-        {showType && <TypeBadge label="AIアシスト" color={NAVY} />}
+        {showType && (
+          <span
+            className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold"
+            style={{ backgroundColor: CONSULT_CHIP_BG, color: CONSULT_CHIP_COLOR }}>
+            AIアシスト
+          </span>
+        )}
         {t.createdAt > 0 && (
-          <span className="text-[11px] font-medium" style={{ color: '#A6AEC0' }}>
+          <span className="text-[11px] font-medium" style={{ color: CONSULT_DATE_COLOR }}>
             {formatDateTime(t.createdAt)}
           </span>
         )}
@@ -687,46 +713,46 @@ function ConsultCard({
             onDelete(t.id);
           }}
           className="-mr-2 ml-auto hidden h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:opacity-50 md:flex"
-          style={{ color: '#C0C8D8' }}>
+          style={{ color: CONSULT_CHIP_COLOR }}>
           <TrashIcon size={15} />
         </button>
       </div>
       <div className="flex items-start gap-2">
-        <span className="mt-0.5 text-[11px] font-bold" style={{ color: '#A6AEC0' }}>
+        <span className="mt-0.5 text-[11px] font-bold" style={{ color: CONSULT_DATE_COLOR }}>
           質問
         </span>
-        <p className="flex-1 text-[14px] font-semibold text-[#1F2937]">{t.question}</p>
+        <p className="flex-1 text-[14px] font-semibold" style={{ color: CONSULT_TITLE_COLOR }}>{t.question}</p>
       </div>
-      <div className="border-t border-[#EEF0F5]" />
+      <div style={{ borderTop: `1px solid ${CONSULT_DIVIDER}` }} />
       <div className="flex items-start gap-2">
         <span
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-          style={{ backgroundColor: LAVENDER, color: NAVY }}>
+          style={{ backgroundColor: CONSULT_ICON_BG, color: CONSULT_ICON_COLOR }}>
           <ChatIcon size={15} />
         </span>
-        <p className="flex-1 whitespace-pre-line text-[14px] leading-relaxed text-[#1F2937]">{t.answer}</p>
+        <p className="flex-1 whitespace-pre-line text-[14px] leading-relaxed" style={{ color: CONSULT_PREVIEW_COLOR }}>{t.answer}</p>
       </div>
       {/* 参照した予定・メモのタップ可能カード。リンクのタップでカードのモーダルを開かない */}
       <div onClick={(e) => e.stopPropagation()}>
         <ConsultRefCards turn={t} reservations={reservations} memos={memos} />
       </div>
-      <div className="flex flex-wrap items-center gap-2 border-t border-[#EEF0F5] pt-3 text-[11px]" style={{ color: MUTED }}>
-        <span className="font-semibold" style={{ color: '#A6AEC0' }}>
+      <div className="flex flex-wrap items-center gap-2 pt-3 text-[11px]" style={{ color: CONSULT_CHIP_COLOR, borderTop: `1px solid ${CONSULT_DIVIDER}` }}>
+        <span className="font-semibold" style={{ color: CONSULT_DATE_COLOR }}>
           参照
         </span>
         {(t.refTarget === 'both' || t.refTarget === 'memos') && (
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: LAVENDER, color: NAVY }}>
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: CONSULT_CHIP_BG, color: CONSULT_CHIP_COLOR }}>
             <FileTextIcon size={12} />
             メモ{typeof t.memoCount === 'number' ? ` ${t.memoCount}件` : ''}
           </span>
         )}
         {(t.refTarget === 'both' || t.refTarget === 'schedule') && (
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: LAVENDER, color: NAVY }}>
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: CONSULT_CHIP_BG, color: CONSULT_CHIP_COLOR }}>
             <CalendarIcon size={12} />
             予定{typeof t.scheduleCount === 'number' ? ` ${t.scheduleCount}件` : ''}
           </span>
         )}
-        <span className="ml-auto" style={{ color: '#A6AEC0' }}>
+        <span className="ml-auto" style={{ color: CONSULT_DATE_COLOR }}>
           {REF_TARGET_LABEL[t.refTarget]}
         </span>
       </div>
@@ -734,6 +760,15 @@ function ConsultCard({
     </SwipeableRow>
   );
 }
+
+const CONSULT_ICON_BG = 'rgba(217, 70, 239, 0.18)';
+const CONSULT_ICON_COLOR = '#e879f9';
+const CONSULT_DATE_COLOR = '#c084fc';
+const CONSULT_TITLE_COLOR = '#ffffff';
+const CONSULT_PREVIEW_COLOR = '#e9d5ff';
+const CONSULT_CHIP_BG = 'rgba(192, 132, 252, 0.18)';
+const CONSULT_CHIP_COLOR = '#d8b4fe';
+const CONSULT_DIVIDER = 'rgba(192, 132, 252, 0.20)';
 
 function MemoCard({ m, showType }: { m: Memo; showType?: boolean }) {
   const hasImages = Array.isArray(m.images) && m.images.length > 0;

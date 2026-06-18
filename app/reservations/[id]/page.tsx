@@ -116,69 +116,105 @@ export default function ReservationDetailPage() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <button onClick={() => router.push('/reservations')} className="self-start text-sm text-brand">
+    <>
+      {/* 宇宙背景（haikei.png）＋暗オーバーレイ（メモ／予定／履歴画面と統一） */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen"
+        style={{
+          backgroundColor: '#050716',
+          backgroundImage: "url('/haikei.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          backgroundRepeat: 'no-repeat',
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(5,7,22,0.30) 0%, rgba(5,7,22,0.55) 45%, rgba(5,7,22,0.92) 100%)',
+        }}
+      />
+
+      <div className="relative z-10 flex flex-col gap-3">
+      <button onClick={() => router.push('/reservations')} className="self-start text-sm font-semibold" style={{ color: '#7dd3fc' }}>
         ← 一覧へ戻る
       </button>
 
-      {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+      {actionError && <p className="text-sm" style={{ color: '#fca5a5' }}>{actionError}</p>}
 
       {editing ? (
         <div className="flex flex-col gap-2">
           <input
-            className="rounded-lg border px-3 py-2 text-base"
+            className="rounded-2xl border px-4 py-3 text-base text-white outline-none placeholder:text-[#7A86A8]"
+            style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(56,189,248,0.4)' }}
             placeholder="予定タイトル"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
-          <label className="text-xs text-gray-500">予定日時</label>
+          <label className="text-xs" style={{ color: '#7dd3fc' }}>予定日時</label>
           <input
-            className="rounded-lg border px-3 py-2 text-base"
+            className="rounded-2xl border px-4 py-3 text-base text-white outline-none [color-scheme:dark]"
+            style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(56,189,248,0.4)' }}
             type="datetime-local"
             value={scheduleLocal}
             onChange={(e) => setScheduleLocal(e.target.value)}
           />
           <textarea
-            className="min-h-24 rounded-lg border px-3 py-2 text-base"
+            className="min-h-24 rounded-2xl border px-4 py-3 text-base text-white outline-none placeholder:text-[#7A86A8]"
+            style={{ background: 'rgba(8,10,24,0.78)', borderColor: 'rgba(56,189,248,0.4)' }}
             placeholder="内容メモ"
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2 text-sm" style={{ color: '#bae6fd' }}>
             <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
             {notify ? '🔔 通知 ON' : '🔕 通知 OFF'}
           </label>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setEditing(false)} className="rounded-lg bg-gray-100 px-4 py-2 text-sm">
+            <button
+              onClick={() => setEditing(false)}
+              className="rounded-full border px-5 py-2.5 text-sm font-bold text-white active:scale-95"
+              style={{ borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.35)' }}>
               キャンセル
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="rounded-lg bg-brand px-4 py-2 font-bold text-white disabled:opacity-60">
+              className="rounded-full px-5 py-2.5 font-bold text-white disabled:opacity-60 active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #2E7EFF, #38BDF8)', boxShadow: '0 6px 24px rgba(56,189,248,0.45)' }}>
               {saving ? '保存中…' : '保存'}
             </button>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <h1 className="text-xl font-bold">{item!.title || '無題の予定'}</h1>
-          <div className="text-sm text-gray-700">🗓 {formatReservationWhen(item!)}</div>
-          <div className="text-sm text-gray-500">{item!.notificationEnabled ? '🔔 通知 ON' : '🔕 通知 OFF'}</div>
-          <p className="whitespace-pre-wrap text-base">{item!.content || '（内容なし）'}</p>
-          <div className="mt-2 text-xs text-gray-400">
+          <h1 className="text-xl font-bold" style={{ color: '#ffffff' }}>{item!.title || '無題の予定'}</h1>
+          <div className="text-sm" style={{ color: '#bae6fd' }}>🗓 {formatReservationWhen(item!)}</div>
+          <div className="text-sm" style={{ color: '#7dd3fc' }}>{item!.notificationEnabled ? '🔔 通知 ON' : '🔕 通知 OFF'}</div>
+          <p className="whitespace-pre-wrap text-base" style={{ color: '#dbeafe' }}>{item!.content || '（内容なし）'}</p>
+          <div className="mt-2 text-xs" style={{ color: '#7d93c4' }}>
             作成：{formatDate(item!.createdAt)} ／ 更新：{formatDate(item!.updatedAt)}
           </div>
           <div className="mt-2 flex gap-2">
-            <button onClick={() => setEditing(true)} className="rounded-lg bg-brand px-4 py-2 font-bold text-white">
+            <button
+              onClick={() => setEditing(true)}
+              className="rounded-full px-5 py-2.5 font-bold text-white active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #2E7EFF, #38BDF8)', boxShadow: '0 6px 24px rgba(56,189,248,0.45)' }}>
               編集
             </button>
-            <button onClick={handleDelete} className="rounded-lg bg-gray-100 px-4 py-2 text-red-600">
+            <button
+              onClick={handleDelete}
+              className="rounded-full border px-5 py-2.5 font-bold active:opacity-60"
+              style={{ borderColor: 'rgba(224,85,85,0.5)', background: 'rgba(224,85,85,0.12)', color: '#ff9b9b' }}>
               削除
             </button>
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
