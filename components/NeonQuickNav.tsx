@@ -5,7 +5,8 @@ import Link from 'next/link';
 /**
  * 下部ネオンクイックナビ（メモ / 予定 / AI）。
  * メモ画面（app/memos/page.tsx）下部の NeonCard と同じ見た目を、各画面で共通利用するための固定ナビ。
- * - メモ → /memos ・ 予定 → /reservations ・ AI → /consult
+ * - メモ → /memos ・ 予定 → /reservations ・ AI → /ai-assist
+ *   （AIボタンの遷移先はメモ管理・予定管理・AIアシスト画面と統一する）
  * - 画面最下部に固定。iPhone の safe-area-inset-bottom に対応。
  */
 export default function NeonQuickNav() {
@@ -16,7 +17,7 @@ export default function NeonQuickNav() {
       <div className="grid grid-cols-3 gap-3">
         <NeonNavCard href="/memos" color="#22E5A8" title="メモ" icon={<NeonMemoIcon color="#22E5A8" />} />
         <NeonNavCard href="/reservations" color="#38BDF8" title="予定" icon={<NeonCalendarIcon color="#38BDF8" />} />
-        <NeonNavCard href="/consult" color="#A66BFF" title="AI" icon={<NeonChatIcon color="#A66BFF" />} />
+        <NeonNavCard href="/ai-assist" color="#A66BFF" title="AI" icon={<NeonChatIcon color="#A66BFF" />} />
       </div>
     </nav>
   );

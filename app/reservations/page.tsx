@@ -294,7 +294,7 @@ export default function ReservationsPage() {
             }}>
             {saving ? '保存中…' : '📅 予定を保存する'}
           </button>
-          <Link href="/history"
+          <Link href="/history?view=reservations"
             className="flex h-[54px] flex-1 items-center justify-center rounded-full border border-white/20 bg-black/35 text-[14px] font-bold text-white backdrop-blur-md transition active:scale-95"
             style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.3), 0 0 14px rgba(80,160,255,0.15)' }}>
             予定一覧

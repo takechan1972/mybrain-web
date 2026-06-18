@@ -68,6 +68,8 @@ type CombinedItem =
 
 export default function HistoryPage() {
   const [tab, setTab] = useState<Tab>('all');
+  // 単一カテゴリ表示（タブ非表示）。ホームの「メモ一覧 / 予定一覧」から ?view= で遷移したとき設定。
+  const [view, setView] = useState<'memos' | 'reservations' | null>(null);
   const [query, setQuery] = useState('');
   const voiceBaseRef = useRef('');
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -92,6 +94,15 @@ export default function HistoryPage() {
       schedule: 'schedule',
     };
     if (raw && map[raw]) setTab(map[raw]);
+    // URL の ?view= で単一カテゴリ表示（タブを隠す）。memos=メモのみ / reservations=予定のみ。
+    const rawView = new URLSearchParams(window.location.search).get('view');
+    if (rawView === 'memos') {
+      setView('memos');
+      setTab('memos');
+    } else if (rawView === 'reservations') {
+      setView('reservations');
+      setTab('schedule');
+    }
     // URL の ?q= で検索キーワードを初期適用（ホームの検索バーから遷移時など）。
     // query を入れると既存の filteredMemos / filteredReservations / filteredTurns がそのまま絞り込む。
     const rawQ = new URLSearchParams(window.location.search).get('q');
@@ -198,7 +209,7 @@ export default function HistoryPage() {
         className="relative z-10 flex flex-col gap-5"
         style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
         <h1 className="text-[22px] font-bold" style={{ color: '#ffffff' }}>
-          履歴
+          {view === 'memos' ? 'メモ一覧' : view === 'reservations' ? '予定一覧' : '履歴'}
         </h1>
 
         {/* 検索バー */}
@@ -245,7 +256,8 @@ export default function HistoryPage() {
           />
         </div>
 
-        {/* フィルタータブ */}
+        {/* フィルタータブ（単一カテゴリ表示 ?view= のときは隠す） */}
+        {!view && (
         <div className="flex gap-2 overflow-x-auto">
           {TABS.map((t) => {
             const active = tab === t.key;
@@ -273,6 +285,7 @@ export default function HistoryPage() {
             );
           })}
         </div>
+        )}
 
       {!loaded ? null : (
         <>

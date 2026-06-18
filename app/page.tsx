@@ -126,9 +126,9 @@ export default function HomePage() {
         </div>
         {/* 中段：各一覧（同寸・控えめ表示・登録件数を表示） */}
         <div className="grid grid-cols-3 gap-3">
-          <HomeTile href="/history?tab=memos" color="#22E5A8" title="メモ一覧" count={memos.length} icon={<FileTextIcon size={26} />} subtle />
-          <HomeTile href="/history?tab=schedule" color="#38BDF8" title="予定一覧" count={reservations.length} icon={<CalendarIcon size={26} />} subtle />
-          <HomeTile href="/history?tab=consult" color="#A66BFF" title="AI一覧" count={turnsCount} icon={<ChatIcon size={26} />} subtle />
+          <HomeTile href="/history?view=memos" color="#22E5A8" title="メモ一覧" count={memos.length} icon={<FileTextIcon size={26} />} subtle />
+          <HomeTile href="/history?view=reservations" color="#38BDF8" title="予定一覧" count={reservations.length} icon={<CalendarIcon size={26} />} subtle />
+          <HomeTile href="/history" color="#A66BFF" title="AI一覧" count={turnsCount} icon={<ChatIcon size={26} />} subtle />
         </div>
         {/* 下段：検索バー（2/3幅・長め）＋設定（1/3幅・テキストのみ／ギアなし）。同じホームデザインで統一 */}
         <div className="grid grid-cols-3 gap-3">
