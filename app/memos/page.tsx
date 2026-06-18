@@ -173,6 +173,12 @@ export default function MemosPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
+          {/* タイトルの音声入力（既存 VoiceInput を流用。getInitial で末尾追記） */}
+          <VoiceInput
+            iconOnly
+            onResult={(t) => setTitle(t)}
+            getInitial={() => title}
+          />
         </div>
 
         {/* ── 本文入力 ── */}
@@ -194,7 +200,15 @@ export default function MemosPage() {
               style={{ background: 'rgba(120,160,255,0.12)', color: '#9CC4FF' }}>
               <ImageIcon size={18} />
             </button>
-            <span className="text-[11px]" style={{ color: '#6E7AA0' }}>{body.length}/{BODY_MAX}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px]" style={{ color: '#6E7AA0' }}>{body.length}/{BODY_MAX}</span>
+              {/* 本文の音声入力（既存 VoiceInput を流用。getInitial で末尾追記） */}
+              <VoiceInput
+                iconOnly
+                onResult={(t) => setBody(t)}
+                getInitial={() => body}
+              />
+            </div>
           </div>
         </div>
 

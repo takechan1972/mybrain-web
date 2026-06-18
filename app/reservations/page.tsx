@@ -190,6 +190,12 @@ export default function ReservationsPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
+          {/* タイトルの音声入力（既存 VoiceInput を流用。getInitial で末尾追記） */}
+          <VoiceInput
+            iconOnly
+            onResult={(t) => setTitle(t)}
+            getInitial={() => title}
+          />
         </div>
 
         {/* ── 予定開始日時 ── */}
@@ -249,6 +255,14 @@ export default function ReservationsPage() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
+          <div className="mt-2 flex items-center justify-end border-t pt-2.5" style={{ borderColor: 'rgba(120,160,255,0.18)' }}>
+            {/* 内容メモの音声入力（既存 VoiceInput を流用。getInitial で末尾追記） */}
+            <VoiceInput
+              iconOnly
+              onResult={(t) => setContent(t)}
+              getInitial={() => content}
+            />
+          </div>
         </div>
 
         {/* ── 通知トグル ── */}
