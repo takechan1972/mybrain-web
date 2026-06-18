@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { CalendarIcon, ChatIcon, ChevronRightIcon, FileTextIcon, MicIcon, SearchIcon } from '@/components/icons';
 import { listMemos } from '@/lib/memos';
 import { listReservations } from '@/lib/reservations';
+import { loadConsultTurns } from '@/lib/consult-store';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { isLocalHost } from '@/lib/env';
 import DesktopDashboard from '@/components/DesktopDashboard';
@@ -17,6 +18,7 @@ export default function HomePage() {
   const [name, setName] = useState('ゲスト');
   const [memos, setMemos] = useState<Memo[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [turnsCount, setTurnsCount] = useState(0);
   const [local, setLocal] = useState(false);
   // ホーム検索バー（実入力フィールド）。Enter または検索アイコンで /history?q= へ遷移
   const [searchText, setSearchText] = useState('');
@@ -30,6 +32,8 @@ export default function HomePage() {
 
   useEffect(() => {
     setLocal(isLocalHost());
+    // AI相談履歴は localStorage 由来（Supabase 未設定でも件数を取得できる）
+    setTurnsCount(loadConsultTurns().length);
     if (!configured) return;
     const sb = getSupabaseBrowserClient();
     sb?.auth.getUser().then(({ data }) => {
@@ -39,6 +43,8 @@ export default function HomePage() {
     const load = () => {
       void listMemos().then(({ memos }) => setMemos(memos));
       void listReservations().then(({ reservations }) => setReservations(reservations));
+      // AI相談画面などから戻ったときも件数を更新
+      setTurnsCount(loadConsultTurns().length);
     };
     load();
     // 他画面で保存して戻ってきたときも最新を表示する
@@ -52,6 +58,16 @@ export default function HomePage() {
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [configured]);
+
+  // 今日の予定：開始日時（scheduleAt=開始日時の互換値、無ければ startAt）がローカル日付で「今日」のものを
+  // 開始時刻の昇順に並べる。日時が無い予定は除外（クラッシュ防止）。
+  const todays = reservations
+    .filter((r) => {
+      const ms = r.scheduleAt ?? r.startAt;
+      return typeof ms === 'number' && Number.isFinite(ms) && isToday(ms);
+    })
+    .sort((a, b) => (a.scheduleAt ?? a.startAt ?? 0) - (b.scheduleAt ?? b.startAt ?? 0));
+  const todaysTop = todays.slice(0, 3);
 
   return (
     <>
@@ -108,11 +124,11 @@ export default function HomePage() {
           <HomeTile big href="/reservations" color="#38BDF8" title="予定" desc="予定を管理" icon={<CalendarIcon size={28} />} />
           <HomeTile big href="/consult" color="#A66BFF" title="AI" desc="メモから相談" icon={<ChatIcon size={28} />} />
         </div>
-        {/* 中段：各一覧（同寸・控えめ表示） */}
+        {/* 中段：各一覧（同寸・控えめ表示・登録件数を表示） */}
         <div className="grid grid-cols-3 gap-3">
-          <HomeTile href="/history?tab=memos" color="#22E5A8" title="メモ一覧" icon={<FileTextIcon size={26} />} subtle />
-          <HomeTile href="/history?tab=schedule" color="#38BDF8" title="予定一覧" icon={<CalendarIcon size={26} />} subtle />
-          <HomeTile href="/history?tab=consult" color="#A66BFF" title="AI一覧" icon={<ChatIcon size={26} />} subtle />
+          <HomeTile href="/history?tab=memos" color="#22E5A8" title="メモ一覧" count={memos.length} icon={<FileTextIcon size={26} />} subtle />
+          <HomeTile href="/history?tab=schedule" color="#38BDF8" title="予定一覧" count={reservations.length} icon={<CalendarIcon size={26} />} subtle />
+          <HomeTile href="/history?tab=consult" color="#A66BFF" title="AI一覧" count={turnsCount} icon={<ChatIcon size={26} />} subtle />
         </div>
         {/* 下段：検索バー（2/3幅・長め）＋設定（1/3幅・テキストのみ／ギアなし）。同じホームデザインで統一 */}
         <div className="grid grid-cols-3 gap-3">
@@ -180,6 +196,49 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* 今日の予定（最下部・コンパクトカード）。最大3件、超過時のみ「予定一覧へ」を表示 */}
+      <section className="rounded-3xl p-4" style={TODAY_CARD}>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-[14px] font-bold" style={{ color: '#ffffff' }}>
+            今日の予定
+          </h2>
+          {todays.length > 3 && (
+            <Link
+              href="/reservations"
+              className="flex items-center gap-0.5 text-[12px] font-semibold active:opacity-60"
+              style={{ color: '#7dd3fc' }}>
+              予定一覧へ
+              <ChevronRightIcon size={14} />
+            </Link>
+          )}
+        </div>
+        {todaysTop.length === 0 ? (
+          <p className="text-[13px]" style={{ color: '#9fb0e0' }}>
+            今日の予定はありません
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {todaysTop.map((r) => (
+              <li key={r.id} className="flex items-start gap-3">
+                <span className="w-12 shrink-0 text-[12px] font-bold" style={{ color: '#7dd3fc' }}>
+                  {r.allDay ? '終日' : hhmm(r.scheduleAt ?? r.startAt)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-semibold" style={{ color: '#dbeafe' }}>
+                    {r.title || '無題の予定'}
+                  </span>
+                  {(r.content ?? '').trim().length > 0 && (
+                    <span className="block truncate text-[12px]" style={{ color: '#9fb0e0' }}>
+                      {r.content.trim()}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {!configured && (
         <p className="rounded-xl border p-3 text-xs" style={{ borderColor: 'rgba(242,213,138,0.4)', background: 'rgba(242,213,138,0.10)', color: '#f2d58a' }}>
           Supabase 未設定のため件数・一覧は表示されません（.env.local 設定後に有効）。
@@ -200,6 +259,34 @@ function hexA(hex: string, a: number): string {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+/** ローカル日付で「今日」か判定（日時 ms）。 */
+function isToday(ms: number): boolean {
+  const d = new Date(ms);
+  const n = new Date();
+  return (
+    d.getFullYear() === n.getFullYear() &&
+    d.getMonth() === n.getMonth() &&
+    d.getDate() === n.getDate()
+  );
+}
+
+/** epoch ms → "HH:mm"（時刻のみ）。null/不正は空文字。 */
+function hhmm(ms: number | null): string {
+  if (ms === null || !Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// 今日の予定カード（予定テーマの青系グラス）。
+const TODAY_CARD: React.CSSProperties = {
+  background: 'rgba(10,14,35,0.6)',
+  border: '1px solid rgba(56,189,248,0.25)',
+  boxShadow: '0 0 18px rgba(56,189,248,0.10), 0 10px 28px rgba(0,0,0,0.35)',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+};
+
 /**
  * ホーム主要導線タイル。上段（メモ/予定/AI）と下段（各一覧）を統一スタイルで表示。
  * - subtle = true で一覧用の控えめ表示（色は同系統のまま、彩度・発光を弱める）。
@@ -211,6 +298,7 @@ function HomeTile({
   icon,
   title,
   desc,
+  count,
   subtle = false,
   big = false,
 }: {
@@ -219,6 +307,7 @@ function HomeTile({
   icon: React.ReactNode;
   title: string;
   desc?: string;
+  count?: number;
   subtle?: boolean;
   big?: boolean;
 }) {
@@ -245,6 +334,11 @@ function HomeTile({
       {desc && (
         <span className="text-[10px] font-medium leading-tight" style={{ color: 'rgba(225,232,255,0.78)' }}>
           {desc}
+        </span>
+      )}
+      {typeof count === 'number' && (
+        <span className="text-[11px] font-bold leading-none" style={{ color: hexA(color, 0.95) }}>
+          {count}件
         </span>
       )}
     </Link>
