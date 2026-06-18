@@ -451,24 +451,36 @@ function CardShell({
   href,
   onClick,
   ariaLabel,
+  variant,
 }: {
   children: React.ReactNode;
   href?: string;
   onClick?: () => void;
   ariaLabel?: string;
+  variant?: 'memo';
 }) {
   const base =
-    'flex flex-col gap-3 rounded-3xl border border-[#E5E8F0] bg-white p-5 shadow-[0_10px_28px_rgba(31,53,104,0.07)]';
-  const tappable = ` ${base} relative z-10 min-h-[44px] cursor-pointer text-left transition active:opacity-60`;
-  // メモ・予定は詳細ページへ遷移（ルートあり）
+    variant === 'memo'
+      ? 'flex flex-col gap-3 rounded-3xl p-5'
+      : 'flex flex-col gap-3 rounded-3xl border border-[#E5E8F0] bg-white p-5 shadow-[0_10px_28px_rgba(31,53,104,0.07)]';
+  const memoStyle: React.CSSProperties =
+    variant === 'memo'
+      ? {
+          background: 'rgba(10, 14, 35, 0.72)',
+          border: '1px solid rgba(99, 102, 241, 0.30)',
+          boxShadow: '0 0 18px rgba(99, 102, 241, 0.12), 0 10px 28px rgba(0,0,0,0.38)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }
+      : {};
+  const tappable = `${base} relative z-10 min-h-[44px] cursor-pointer text-left transition active:opacity-60`;
   if (href) {
     return (
-      <Link href={href} aria-label={ariaLabel} className={tappable}>
+      <Link href={href} aria-label={ariaLabel} className={tappable} style={memoStyle}>
         {children}
       </Link>
     );
   }
-  // AI相談は詳細ルートが無いのでモーダルを開く（内部に削除ボタンがあるため button ではなく role=button の div）
   if (onClick) {
     return (
       <div
@@ -482,12 +494,13 @@ function CardShell({
             onClick();
           }
         }}
-        className={tappable}>
+        className={tappable}
+        style={memoStyle}>
         {children}
       </div>
     );
   }
-  return <div className={base}>{children}</div>;
+  return <div className={base} style={memoStyle}>{children}</div>;
 }
 
 function ConsultCard({
@@ -580,16 +593,22 @@ function MemoCard({ m, showType }: { m: Memo; showType?: boolean }) {
   const hasImages = Array.isArray(m.images) && m.images.length > 0;
   const preview = (m.body ?? '').trim();
   return (
-    <CardShell href={`/memos/${m.id}`} ariaLabel="メモの詳細を見る">
+    <CardShell href={`/memos/${m.id}`} ariaLabel="メモの詳細を見る" variant="memo">
       <div className="flex items-center gap-2">
         {showType && <TypeBadge label="メモ" color={PURPLE} />}
         {m.createdAt > 0 && (
-          <span className="text-[11px] font-medium" style={{ color: '#A6AEC0' }}>
+          <span className="text-[11px] font-medium" style={{ color: '#A8B5FF' }}>
             {formatDateTime(m.createdAt)}
           </span>
         )}
         {hasImages && (
-          <span className="ml-auto inline-flex items-center gap-1 text-[11px]" style={{ color: PURPLE }}>
+          <span
+            className="ml-auto inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+            style={{
+              color: '#C4B5FD',
+              borderColor: 'rgba(167, 139, 250, 0.38)',
+              backgroundColor: 'rgba(91, 33, 182, 0.20)',
+            }}>
             <ImageIcon size={13} />
             {m.images.length}
           </span>
@@ -597,26 +616,35 @@ function MemoCard({ m, showType }: { m: Memo; showType?: boolean }) {
       </div>
       <div className="flex items-start gap-2.5">
         <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-          style={{ backgroundColor: LAVENDER, color: PURPLE }}>
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
+          style={{
+            backgroundColor: 'rgba(99, 102, 241, 0.18)',
+            borderColor: 'rgba(129, 140, 248, 0.42)',
+            color: '#C4B5FD',
+            boxShadow: '0 0 16px rgba(129, 140, 248, 0.24)',
+          }}>
           <FileTextIcon size={16} />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <p className="text-[14px] font-bold text-[#1F2937]">{m.title || '無題のメモ'}</p>
+          <p className="text-[14px] font-bold text-white">{m.title || '無題のメモ'}</p>
           {preview.length > 0 && (
-            <p className="line-clamp-2 text-[13px] leading-relaxed" style={{ color: MUTED }}>
+            <p className="line-clamp-2 text-[13px] leading-relaxed" style={{ color: '#C7D2FE' }}>
               {preview}
             </p>
           )}
         </div>
       </div>
       {Array.isArray(m.tags) && m.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-t border-[#EEF0F5] pt-3">
+        <div className="flex flex-wrap gap-1.5 border-t pt-3" style={{ borderColor: 'rgba(129, 140, 248, 0.22)' }}>
           {m.tags.map((tag) => (
             <span
               key={tag}
-              className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-              style={{ backgroundColor: LAVENDER, color: NAVY }}>
+              className="rounded-full border px-2 py-0.5 text-[11px] font-medium"
+              style={{
+                backgroundColor: 'rgba(59, 130, 246, 0.14)',
+                borderColor: 'rgba(96, 165, 250, 0.28)',
+                color: '#BFDBFE',
+              }}>
               #{tag}
             </span>
           ))}
