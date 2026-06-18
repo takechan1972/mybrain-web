@@ -464,18 +464,23 @@ export default function HistoryPage() {
       )}
       </div>
 
-      {/* 下部クイック切替（メモ / 予定 / AI）。共通ボトムナビの上に浮かせる。 */}
-      <HistoryQuickNav tab={tab} onSelect={setTab} />
+      {/* 下部ナビ（メモ / 予定 / AI）。各メイン画面へ移動する。 */}
+      <HistoryQuickNav />
     </>
   );
 }
 
-// ── 下部クイック切替バー ─────────────────────────────────
-function HistoryQuickNav({ tab, onSelect }: { tab: Tab; onSelect: (t: Tab) => void }) {
-  const items: { key: Tab; label: string; Icon: (p: { size?: number }) => React.JSX.Element }[] = [
-    { key: 'memos', label: 'メモ', Icon: FileTextIcon },
-    { key: 'schedule', label: '予定', Icon: CalendarIcon },
-    { key: 'consult', label: 'AI', Icon: ChatIcon },
+// ── 下部ナビ（各メイン画面へ移動）─────────────────────────
+function HistoryQuickNav() {
+  const items: {
+    href: string;
+    label: string;
+    color: string;
+    Icon: (p: { size?: number }) => React.JSX.Element;
+  }[] = [
+    { href: '/memos', label: 'メモ', color: '#22E5A8', Icon: FileTextIcon },
+    { href: '/reservations', label: '予定', color: '#38BDF8', Icon: CalendarIcon },
+    { href: '/consult', label: 'AI', color: '#A66BFF', Icon: ChatIcon },
   ];
   return (
     <nav
@@ -490,30 +495,17 @@ function HistoryQuickNav({ tab, onSelect }: { tab: Tab; onSelect: (t: Tab) => vo
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
         }}>
-        {items.map(({ key, label, Icon }) => {
-          const active = tab === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              aria-label={label}
-              aria-pressed={active}
-              onClick={() => onSelect(key)}
-              className="flex min-h-[44px] flex-1 flex-col items-center justify-center gap-1 rounded-full py-1.5 text-[11px] font-semibold transition active:opacity-70"
-              style={
-                active
-                  ? {
-                      background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-                      color: '#ffffff',
-                      boxShadow: '0 0 14px rgba(99,102,241,0.45)',
-                    }
-                  : { background: 'transparent', color: '#818cf8' }
-              }>
-              <Icon size={20} />
-              {label}
-            </button>
-          );
-        })}
+        {items.map(({ href, label, color, Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            aria-label={label}
+            className="flex min-h-[44px] flex-1 flex-col items-center justify-center gap-1 rounded-full py-1.5 text-[11px] font-semibold transition active:scale-95 active:opacity-70"
+            style={{ background: 'transparent', color }}>
+            <Icon size={20} />
+            <span style={{ color: 'rgba(255,255,255,0.88)' }}>{label}</span>
+          </Link>
+        ))}
       </div>
     </nav>
   );
