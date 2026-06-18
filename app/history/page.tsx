@@ -166,68 +166,108 @@ export default function HistoryPage() {
   const searching = q.length > 0;
 
   return (
-    <div
-      className="flex flex-col gap-5"
-      style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
-      <h1 className="text-[22px] font-bold" style={{ color: NAVY }}>
-        履歴
-      </h1>
+    <>
+      {/* 宇宙背景（haikei.png）。全ビューポートを覆う固定レイヤー */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen"
+        style={{
+          backgroundColor: '#050716',
+          backgroundImage: "url('/haikei.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          backgroundRepeat: 'no-repeat',
+        }}
+      />
+      {/* 可読性確保の暗オーバーレイ */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(5,7,22,0.30) 0%, rgba(5,7,22,0.55) 45%, rgba(5,7,22,0.92) 100%)',
+        }}
+      />
 
-      {/* 検索バー */}
-      <div className="flex items-center gap-2 rounded-full border border-[#E5E8F0] bg-[#F3F5FA] px-4 py-2.5">
-        <span className="shrink-0" style={{ color: MUTED }}>
-          <SearchIcon size={18} />
-        </span>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="履歴を検索..."
-          className="min-w-0 flex-1 bg-transparent text-sm text-[#1F2937] outline-none placeholder:text-[#8A94A6]"
-        />
-        {query.length > 0 && (
-          <button
-            type="button"
-            aria-label="検索をクリア"
-            onClick={() => setQuery('')}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white active:opacity-70"
-            style={{ backgroundColor: '#C0C8D8' }}>
-            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
-        )}
-        {/* 音声入力ボタン。非対応ブラウザでは VoiceInput が null を返す（iconOnly時） */}
-        <VoiceInput
-          iconOnly
-          onResult={(t) => setQuery(t)}
-          getInitial={() => {
-            voiceBaseRef.current = query;
-            return query;
-          }}
-        />
-      </div>
+      <div
+        className="relative z-10 flex flex-col gap-5"
+        style={{ paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
+        <h1 className="text-[22px] font-bold" style={{ color: '#ffffff' }}>
+          履歴
+        </h1>
 
-      {/* フィルタータブ */}
-      <div className="flex gap-2 overflow-x-auto">
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          return (
+        {/* 検索バー */}
+        <div
+          className="flex items-center gap-2 rounded-full px-4 py-2.5"
+          style={{
+            background: 'rgba(10,14,35,0.65)',
+            border: '1px solid rgba(99,102,241,0.30)',
+            boxShadow: '0 0 12px rgba(99,102,241,0.08) inset',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+          }}>
+          <span className="shrink-0" style={{ color: '#6366f1' }}>
+            <SearchIcon size={18} />
+          </span>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="履歴を検索..."
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#4f5a8a]"
+            style={{ color: '#e0e7ff', caretColor: '#818cf8' }}
+          />
+          {query.length > 0 && (
             <button
-              key={t.key}
               type="button"
-              onClick={() => setTab(t.key)}
-              className="shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold transition"
-              style={
-                active
-                  ? { backgroundColor: NAVY, color: '#fff', boxShadow: '0 4px 12px rgba(34,58,112,0.25)' }
-                  : { backgroundColor: '#F3F5FA', color: MUTED }
-              }>
-              {t.label}
+              aria-label="検索をクリア"
+              onClick={() => setQuery('')}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white active:opacity-70"
+              style={{ backgroundColor: 'rgba(99,102,241,0.40)' }}>
+              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
             </button>
-          );
-        })}
-      </div>
+          )}
+          {/* 音声入力ボタン。非対応ブラウザでは VoiceInput が null を返す（iconOnly時） */}
+          <VoiceInput
+            iconOnly
+            onResult={(t) => setQuery(t)}
+            getInitial={() => {
+              voiceBaseRef.current = query;
+              return query;
+            }}
+          />
+        </div>
+
+        {/* フィルタータブ */}
+        <div className="flex gap-2 overflow-x-auto">
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className="shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold transition"
+                style={
+                  active
+                    ? {
+                        background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                        color: '#fff',
+                        boxShadow: '0 0 14px rgba(99,102,241,0.45)',
+                      }
+                    : {
+                        background: 'rgba(10,14,35,0.55)',
+                        color: '#818cf8',
+                        border: '1px solid rgba(99,102,241,0.22)',
+                      }
+                }>
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
 
       {!loaded ? null : (
         <>
@@ -422,7 +462,8 @@ export default function HistoryPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -430,7 +471,7 @@ export default function HistoryPage() {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[12px] font-semibold" style={{ color: MUTED }}>
+    <span className="text-[12px] font-semibold" style={{ color: '#818cf8' }}>
       {children}
     </span>
   );
@@ -690,16 +731,18 @@ function ScheduleCard({ r, showType }: { r: Reservation; showType?: boolean }) {
 
 function NoSearchResult() {
   return (
-    <section className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-[#E5E8F0] bg-white/60 px-5 py-10 text-center">
+    <section
+      className="flex flex-col items-center gap-2 rounded-3xl border border-dashed px-5 py-10 text-center"
+      style={{ borderColor: 'rgba(99,102,241,0.30)', background: 'rgba(10,14,35,0.50)' }}>
       <span
         className="flex h-12 w-12 items-center justify-center rounded-full"
-        style={{ backgroundColor: LAVENDER, color: NAVY }}>
+        style={{ backgroundColor: 'rgba(99,102,241,0.18)', color: '#818cf8' }}>
         <SearchIcon size={24} />
       </span>
-      <p className="text-[14px] font-bold" style={{ color: NAVY }}>
+      <p className="text-[14px] font-bold" style={{ color: '#e0e7ff' }}>
         検索結果がありません
       </p>
-      <p className="text-[12px]" style={{ color: MUTED }}>
+      <p className="text-[12px]" style={{ color: '#818cf8' }}>
         別のキーワードで検索してください。
       </p>
     </section>
@@ -708,16 +751,18 @@ function NoSearchResult() {
 
 function EmptyState({ title, desc }: { title: string; desc: string }) {
   return (
-    <section className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-[#E5E8F0] bg-white/60 px-5 py-10 text-center">
+    <section
+      className="flex flex-col items-center gap-2 rounded-3xl border border-dashed px-5 py-10 text-center"
+      style={{ borderColor: 'rgba(99,102,241,0.30)', background: 'rgba(10,14,35,0.50)' }}>
       <span
         className="flex h-12 w-12 items-center justify-center rounded-full"
-        style={{ backgroundColor: LAVENDER, color: NAVY }}>
+        style={{ backgroundColor: 'rgba(99,102,241,0.18)', color: '#818cf8' }}>
         <ChatIcon size={24} />
       </span>
-      <p className="text-[14px] font-bold" style={{ color: NAVY }}>
+      <p className="text-[14px] font-bold" style={{ color: '#e0e7ff' }}>
         {title}
       </p>
-      <p className="text-[12px]" style={{ color: MUTED }}>
+      <p className="text-[12px]" style={{ color: '#818cf8' }}>
         {desc}
       </p>
     </section>
