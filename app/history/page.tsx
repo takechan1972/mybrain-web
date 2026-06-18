@@ -498,18 +498,26 @@ function CardShell({
   href?: string;
   onClick?: () => void;
   ariaLabel?: string;
-  variant?: 'memo';
+  variant?: 'memo' | 'schedule';
 }) {
-  const base =
-    variant === 'memo'
-      ? 'flex flex-col gap-3 rounded-3xl p-5'
-      : 'flex flex-col gap-3 rounded-3xl border border-[#E5E8F0] bg-white p-5 shadow-[0_10px_28px_rgba(31,53,104,0.07)]';
+  const isNeon = variant === 'memo' || variant === 'schedule';
+  const base = isNeon
+    ? 'flex flex-col gap-3 rounded-3xl p-5'
+    : 'flex flex-col gap-3 rounded-3xl border border-[#E5E8F0] bg-white p-5 shadow-[0_10px_28px_rgba(31,53,104,0.07)]';
   const memoStyle: React.CSSProperties =
     variant === 'memo'
       ? {
           background: 'rgba(10, 14, 35, 0.72)',
           border: '1px solid rgba(99, 102, 241, 0.30)',
           boxShadow: '0 0 18px rgba(99, 102, 241, 0.12), 0 10px 28px rgba(0,0,0,0.38)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }
+      : variant === 'schedule'
+      ? {
+          background: 'rgba(10, 18, 38, 0.72)',
+          border: '1px solid rgba(56, 189, 248, 0.30)',
+          boxShadow: '0 0 18px rgba(56, 189, 248, 0.12), 0 10px 28px rgba(0,0,0,0.38)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
         }
@@ -695,17 +703,31 @@ function MemoCard({ m, showType }: { m: Memo; showType?: boolean }) {
   );
 }
 
+const SCHEDULE_ICON_BG = 'rgba(56, 189, 248, 0.18)';
+const SCHEDULE_ICON_COLOR = '#38bdf8';
+const SCHEDULE_DATE_COLOR = '#38bdf8';
+const SCHEDULE_TITLE_COLOR = '#ffffff';
+const SCHEDULE_PREVIEW_COLOR = '#bae6fd';
+const SCHEDULE_CHIP_BG = 'rgba(56, 189, 248, 0.18)';
+const SCHEDULE_CHIP_COLOR = '#7dd3fc';
+
 function ScheduleCard({ r, showType }: { r: Reservation; showType?: boolean }) {
   const detail = (r.content ?? '').trim();
   return (
-    <CardShell href={`/reservations/${r.id}`} ariaLabel="予定の詳細を見る">
+    <CardShell href={`/reservations/${r.id}`} ariaLabel="予定の詳細を見る" variant="schedule">
       <div className="flex items-center gap-2">
-        {showType && <TypeBadge label="予定" color={NAVY} />}
-        <span className="text-[11px] font-medium" style={{ color: '#A6AEC0' }}>
+        {showType && (
+          <span
+            className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold"
+            style={{ backgroundColor: SCHEDULE_CHIP_BG, color: SCHEDULE_CHIP_COLOR }}>
+            予定
+          </span>
+        )}
+        <span className="text-[11px] font-medium" style={{ color: SCHEDULE_DATE_COLOR }}>
           {formatSchedule(r.scheduleAt)}
         </span>
         {r.notificationEnabled && (
-          <span className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: LAVENDER, color: NAVY }}>
+          <span className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: SCHEDULE_CHIP_BG, color: SCHEDULE_CHIP_COLOR }}>
             通知ON
           </span>
         )}
@@ -713,13 +735,13 @@ function ScheduleCard({ r, showType }: { r: Reservation; showType?: boolean }) {
       <div className="flex items-start gap-2.5">
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-          style={{ backgroundColor: LAVENDER, color: NAVY }}>
+          style={{ backgroundColor: SCHEDULE_ICON_BG, color: SCHEDULE_ICON_COLOR }}>
           <CalendarIcon size={16} />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <p className="text-[14px] font-bold text-[#1F2937]">{r.title || '無題の予定'}</p>
+          <p className="text-[14px] font-bold" style={{ color: SCHEDULE_TITLE_COLOR }}>{r.title || '無題の予定'}</p>
           {detail.length > 0 && (
-            <p className="line-clamp-2 text-[13px] leading-relaxed" style={{ color: MUTED }}>
+            <p className="line-clamp-2 text-[13px] leading-relaxed" style={{ color: SCHEDULE_PREVIEW_COLOR }}>
               {detail}
             </p>
           )}
