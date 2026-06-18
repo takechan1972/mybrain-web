@@ -147,9 +147,12 @@ export default function HistoryPage() {
 
   const filteredMemos = useMemo(() => {
     if (!q) return memos;
-    return memos.filter((m) =>
-      includesQuery(`${m.title} ${m.body} ${(m.tags ?? []).join(' ')}`, q),
-    );
+    return memos.filter((m) => {
+      const tags = m.tags ?? [];
+      // タグは生の値と #付き の両方を検索対象に含める（「仕事」でも「#仕事」でもヒットする）
+      const hay = `${m.title} ${m.body} ${tags.join(' ')} ${tags.map((t) => `#${t}`).join(' ')}`;
+      return includesQuery(hay, q);
+    });
   }, [memos, q]);
 
   const filteredReservations = useMemo(() => {
@@ -315,7 +318,7 @@ export default function HistoryPage() {
                       />
                     );
                   if (item.kind === 'memo')
-                    return <MemoCard key={`m-${item.data.id}`} m={item.data} showType />;
+                    return <MemoCard key={`m-${item.data.id}`} m={item.data} showType onTagClick={(tag) => setQuery(`#${tag}`)} />;
                   return <ScheduleCard key={`s-${item.data.id}`} r={item.data} showType />;
                 })}
               </section>
@@ -355,7 +358,7 @@ export default function HistoryPage() {
               ) : filteredMemos.length === 0 ? (
                 <NoSearchResult />
               ) : (
-                filteredMemos.map((m) => <MemoCard key={m.id} m={m} />)
+                filteredMemos.map((m) => <MemoCard key={m.id} m={m} onTagClick={(tag) => setQuery(`#${tag}`)} />)
               )}
             </section>
           )}
@@ -694,7 +697,7 @@ const CONSULT_CHIP_BG = 'rgba(192, 132, 252, 0.18)';
 const CONSULT_CHIP_COLOR = '#d8b4fe';
 const CONSULT_DIVIDER = 'rgba(192, 132, 252, 0.20)';
 
-function MemoCard({ m, showType }: { m: Memo; showType?: boolean }) {
+function MemoCard({ m, showType, onTagClick }: { m: Memo; showType?: boolean; onTagClick?: (tag: string) => void }) {
   const hasImages = Array.isArray(m.images) && m.images.length > 0;
   const preview = (m.body ?? '').trim();
   return (
@@ -742,16 +745,24 @@ function MemoCard({ m, showType }: { m: Memo; showType?: boolean }) {
       {Array.isArray(m.tags) && m.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 border-t pt-3" style={{ borderColor: 'rgba(129, 140, 248, 0.22)' }}>
           {m.tags.map((tag) => (
-            <span
+            <button
               key={tag}
-              className="rounded-full border px-2 py-0.5 text-[11px] font-medium"
+              type="button"
+              aria-label={`タグ #${tag} で検索`}
+              onClick={(e) => {
+                // カードの詳細遷移は発火させず、検索キーワードを #タグ に設定する
+                e.preventDefault();
+                e.stopPropagation();
+                onTagClick?.(tag);
+              }}
+              className="rounded-full border px-2 py-0.5 text-[11px] font-medium transition active:scale-95"
               style={{
                 backgroundColor: 'rgba(59, 130, 246, 0.14)',
                 borderColor: 'rgba(96, 165, 250, 0.28)',
                 color: '#BFDBFE',
               }}>
               #{tag}
-            </span>
+            </button>
           ))}
         </div>
       )}
