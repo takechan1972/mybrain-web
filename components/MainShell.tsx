@@ -14,15 +14,16 @@ const BARE_PAGES = ['/welcome', '/login', '/memos', '/reservations', '/ai-assist
 export default function MainShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const bare = BARE_PAGES.includes(pathname);
-  // ホーム（/）は AiBar・BottomTabs を表示しないため、浮きバー分の余白は確保しない。
+  // ホーム（/）・設定（/settings）は AiBar・BottomTabs を表示しないため、浮きバー分の余白は確保しない。
   // safe-area ＋ 通常の余白のみにして下部の空白を解消する。
   const isHome = pathname === '/';
+  const isSettings = pathname === '/settings';
 
   return (
     <main
       className="flex-1 px-5 py-5"
       style={
-        isHome
+        isHome || isSettings
           ? { paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }
           : bare
           ? undefined
