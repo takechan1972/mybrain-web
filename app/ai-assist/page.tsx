@@ -4,6 +4,7 @@ import Link from 'next/link';
 import NextImage from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import VoiceInput from '@/components/VoiceInput';
 import {
   DEFAULT_AI_ASSIST_SETTINGS,
   loadAiAssistSettings,
@@ -131,6 +132,14 @@ export default function AiAssistPage() {
             value={ask}
             onChange={(e) => setAsk(e.target.value)}
           />
+          <div className="mt-2 flex items-center justify-end border-t pt-2.5" style={{ borderColor: 'rgba(120,160,255,0.18)' }}>
+            {/* AI相談入力の音声入力（既存 VoiceInput を流用。getInitial で末尾追記） */}
+            <VoiceInput
+              iconOnly
+              onResult={(t) => setAsk(t)}
+              getInitial={() => ask}
+            />
+          </div>
           {askHint && <p className="mt-1 text-[12px]" style={{ color: '#F2D58A' }}>{askHint}</p>}
           {/* AIのアシスト（メイン）｜ アシスト一覧 ｜ ホーム */}
           <div className="mt-3 flex gap-2">

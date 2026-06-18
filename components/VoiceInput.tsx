@@ -70,7 +70,8 @@ export default function VoiceInput({
               // 3秒後に自動消去
               setTimeout(() => setUnsupportedMsg(null), 4000);
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3F5FA] text-[#8A94A6] opacity-50">
+            className="flex h-9 w-9 items-center justify-center rounded-full text-white opacity-50"
+            style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.18)' }}>
             <MicIcon size={18} />
           </button>
           {unsupportedMsg && (
@@ -100,7 +101,8 @@ export default function VoiceInput({
               stop();
               onStop?.(lastRef.current);
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#7B61FF] text-white">
+            className="flex h-9 w-9 items-center justify-center rounded-full text-white"
+            style={{ background: 'rgba(0,0,0,0.75)', border: '1.5px solid rgba(168,107,255,0.9)', boxShadow: '0 0 14px rgba(168,107,255,0.6)' }}>
             <span className="h-2.5 w-2.5 rounded-sm bg-white" />
           </button>
         ) : (
@@ -113,7 +115,8 @@ export default function VoiceInput({
               lastRef.current = initial;
               start(initial);
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3F5FA] text-[#223A70]">
+            className="flex h-9 w-9 items-center justify-center rounded-full text-white"
+            style={{ background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(150,170,255,0.45)', boxShadow: '0 0 10px rgba(99,102,241,0.25)' }}>
             <MicIcon size={18} />
           </button>
         )}
