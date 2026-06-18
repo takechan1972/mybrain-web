@@ -3,6 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import VoiceInput from '@/components/VoiceInput';
+import NeonQuickNav from '@/components/NeonQuickNav';
 import { parseMemoSpeechText } from '@/lib/parse/memo-speech';
 import { createMemo, deleteMemo, getMemo, parseTags, updateMemo } from '@/lib/memos';
 import { loadOllamaSettings } from '@/lib/ai/ollama';
@@ -309,7 +310,7 @@ export default function MemoDetailPage() {
         }}
       />
 
-      <div className="relative z-10 flex flex-col gap-3">
+      <div className="relative z-10 flex flex-col gap-3" style={{ paddingBottom: 'calc(110px + env(safe-area-inset-bottom))' }}>
       <button onClick={() => router.push('/memos')} className="self-start text-sm font-semibold" style={{ color: '#818cf8' }}>
         ← 一覧へ戻る
       </button>
@@ -594,6 +595,9 @@ export default function MemoDetailPage() {
         </div>
       )}
       </div>
+
+      {/* 下部ネオンクイックナビ（メモ / 予定 / AI） */}
+      <NeonQuickNav />
     </>
   );
 }

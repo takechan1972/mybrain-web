@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import NeonQuickNav from '@/components/NeonQuickNav';
 import {
   deleteReservation,
   formatReservationWhen,
@@ -138,7 +139,7 @@ export default function ReservationDetailPage() {
         }}
       />
 
-      <div className="relative z-10 flex flex-col gap-3">
+      <div className="relative z-10 flex flex-col gap-3" style={{ paddingBottom: 'calc(110px + env(safe-area-inset-bottom))' }}>
       <button onClick={() => router.push('/reservations')} className="self-start text-sm font-semibold" style={{ color: '#7dd3fc' }}>
         ← 一覧へ戻る
       </button>
@@ -215,6 +216,9 @@ export default function ReservationDetailPage() {
         </div>
       )}
       </div>
+
+      {/* 下部ネオンクイックナビ（メモ / 予定 / AI） */}
+      <NeonQuickNav />
     </>
   );
 }

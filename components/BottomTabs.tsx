@@ -6,8 +6,10 @@ import type { ComponentType } from 'react';
 import { ClockIcon, HomeIcon, SettingsIcon } from './icons';
 
 // タブを隠すパス（ランディング・ログイン・メモ管理／予定管理／AIアシスト管理スマホUI・履歴）
-// /history は独自の下部ナビ（メモ/予定/AI）を表示するため共通ナビを隠す
+// /history・各詳細ページは独自の下部ナビ（メモ/予定/AI）を表示するため共通ナビを隠す
 const HIDE_ON = ['/welcome', '/login', '/memos', '/reservations', '/ai-assist', '/consult', '/history'];
+// 詳細／編集ページ（/memos/<id>・/reservations/<id>）も独自ナビを出すため隠す
+const HIDE_PREFIXES = ['/memos/', '/reservations/'];
 
 const NAVY = '#223A70';
 const MUTED = '#8A94A6';
@@ -21,6 +23,7 @@ const TABS: { href: string; label: string; Icon: ComponentType<{ size?: number }
 export default function BottomTabs() {
   const pathname = usePathname();
   if (HIDE_ON.includes(pathname)) return null;
+  if (HIDE_PREFIXES.some((p) => pathname.startsWith(p))) return null;
 
   return (
     <nav
