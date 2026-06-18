@@ -92,6 +92,10 @@ export default function HistoryPage() {
       schedule: 'schedule',
     };
     if (raw && map[raw]) setTab(map[raw]);
+    // URL の ?q= で検索キーワードを初期適用（ホームの検索バーから遷移時など）。
+    // query を入れると既存の filteredMemos / filteredReservations / filteredTurns がそのまま絞り込む。
+    const rawQ = new URLSearchParams(window.location.search).get('q');
+    if (rawQ) setQuery(rawQ);
     // AI相談：localStorage（相談画面と同一キー）
     setTurns(loadConsultTurns());
     setLoaded(true);

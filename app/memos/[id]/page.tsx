@@ -436,8 +436,9 @@ export default function MemoDetailPage() {
           </div>
           <div className="mt-2 flex gap-2">
             <button
+              type="button"
               onClick={() => setEditing(true)}
-              className="rounded-full px-5 py-2.5 font-bold text-white active:scale-95"
+              className="min-h-[44px] rounded-full px-5 py-2.5 font-bold text-white active:scale-95"
               style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 24px rgba(60,120,255,0.45)' }}>
               編集
             </button>

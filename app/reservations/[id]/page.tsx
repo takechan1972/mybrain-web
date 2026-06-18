@@ -29,6 +29,8 @@ export default function ReservationDetailPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -73,14 +75,24 @@ export default function ReservationDetailPage() {
     }
   }
 
-  async function handleDelete() {
-    if (typeof window !== 'undefined' && !window.confirm('この予定を削除しますか？元に戻せません。')) return;
+  // 削除ボタン：まず確認モーダルを表示（window.confirm はモバイルで抑制されることがあるため使わない）
+  function requestDelete() {
     setActionError(null);
+    setConfirmingDelete(true);
+  }
+
+  // 確認後：この予定（現在開いている id）だけを削除して一覧へ戻る
+  async function performDelete() {
+    setActionError(null);
+    setDeleting(true);
     const { ok, error } = await deleteReservation(id);
+    setDeleting(false);
     if (!ok) {
       setActionError(`削除できませんでした：${error}`);
+      setConfirmingDelete(false);
       return;
     }
+    setConfirmingDelete(false);
     // router.refresh() は使わない（dev環境のソフトナビでCSSが外れる崩れ回避）
     if (typeof window !== 'undefined') {
       try {
@@ -201,24 +213,70 @@ export default function ReservationDetailPage() {
           </div>
           <div className="mt-2 flex gap-2">
             <button
+              type="button"
               onClick={() => setEditing(true)}
-              className="rounded-full px-5 py-2.5 font-bold text-white active:scale-95"
+              className="min-h-[44px] rounded-full px-5 py-2.5 font-bold text-white active:scale-95"
               style={{ background: 'linear-gradient(135deg, #2E7EFF, #38BDF8)', boxShadow: '0 6px 24px rgba(56,189,248,0.45)' }}>
               編集
             </button>
             <button
-              onClick={handleDelete}
-              className="rounded-full border px-5 py-2.5 font-bold active:opacity-60"
+              type="button"
+              onClick={requestDelete}
+              className="min-h-[44px] rounded-full border px-5 py-2.5 font-bold active:opacity-60"
               style={{ borderColor: 'rgba(224,85,85,0.5)', background: 'rgba(224,85,85,0.12)', color: '#ff9b9b' }}>
               削除
             </button>
           </div>
         </div>
       )}
+
+      {/* 削除確認モーダル（MyBrain スタイル・メモ詳細と統一） */}
+      {confirmingDelete && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-5 pb-10 sm:items-center sm:pb-0">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => !deleting && setConfirmingDelete(false)}
+          />
+          <div
+            className="relative w-full max-w-md rounded-3xl border p-6"
+            style={{
+              background: 'rgba(20, 16, 38, 0.92)',
+              borderColor: 'rgba(120,160,255,0.3)',
+              boxShadow: '0 0 24px rgba(99,102,241,0.18), 0 20px 60px rgba(0,0,0,0.55)',
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+            }}>
+            <p className="text-center text-[15px] font-bold" style={{ color: '#ffffff' }}>
+              この予定を削除しますか？
+            </p>
+            <p className="mt-1 text-center text-[12px]" style={{ color: '#a5b4fc' }}>
+              削除すると元に戻せません。
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleting}
+                className="min-h-[44px] flex-1 rounded-full border py-3 text-[14px] font-semibold disabled:opacity-60"
+                style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#c7d2fe', background: 'rgba(0,0,0,0.3)' }}>
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={performDelete}
+                disabled={deleting}
+                className="min-h-[44px] flex-1 rounded-full py-3 text-[14px] font-semibold text-white disabled:opacity-60"
+                style={{ backgroundColor: '#E05555' }}>
+                {deleting ? '削除中…' : '削除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
 
-      {/* 下部ネオンクイックナビ（メモ / 予定 / AI） */}
-      <NeonQuickNav />
+      {/* 下部ネオンクイックナビ（メモ / 予定 / AI）。モーダル表示中は重なり防止のため非表示。 */}
+      {!confirmingDelete && <NeonQuickNav />}
     </>
   );
 }

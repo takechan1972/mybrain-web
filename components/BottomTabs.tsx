@@ -5,9 +5,10 @@ import { usePathname } from 'next/navigation';
 import type { ComponentType } from 'react';
 import { ClockIcon, HomeIcon, SettingsIcon } from './icons';
 
-// タブを隠すパス（ランディング・ログイン・メモ管理／予定管理／AIアシスト管理スマホUI・履歴）
+// タブを隠すパス（ホーム・ランディング・ログイン・メモ管理／予定管理／AIアシスト管理スマホUI・履歴）
+// ホーム（/）はスマホUIが独自のカード導線を持つため共通ナビを隠す
 // /history・各詳細ページは独自の下部ナビ（メモ/予定/AI）を表示するため共通ナビを隠す
-const HIDE_ON = ['/welcome', '/login', '/memos', '/reservations', '/ai-assist', '/consult', '/history'];
+const HIDE_ON = ['/', '/welcome', '/login', '/memos', '/reservations', '/ai-assist', '/consult', '/history'];
 // 詳細／編集ページ（/memos/<id>・/reservations/<id>）も独自ナビを出すため隠す
 const HIDE_PREFIXES = ['/memos/', '/reservations/'];
 
