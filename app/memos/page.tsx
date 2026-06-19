@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ImageIcon, SendIcon } from '@/components/icons';
 import VoiceInput from '@/components/VoiceInput';
 import { createMemo, parseTags } from '@/lib/memos';
+import { isPaidPlan } from '@/lib/plan';
 import DesktopMemos from '@/components/DesktopMemos';
 
 const TITLE_MAX = 100;
@@ -41,6 +42,8 @@ function compressDataUri(dataUri: string, maxSize = 1280, quality = 0.8): Promis
 
 export default function MemosPage() {
   const router = useRouter();
+  // 無料プランは AI相談バーをロック（有料プランで利用可）。実プラン接続時は lib/plan.ts を差し替える。
+  const isPaid = isPaidPlan();
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState<string | null>(null);
@@ -286,7 +289,8 @@ export default function MemosPage() {
           </Link>
         </div>
 
-        {/* ── AI質問バー（/consult のマイク付き入力バーと同一仕様） ── */}
+        {/* ── AI質問バー（有料プランのみ。無料プランはロック表示） ── */}
+        {isPaid ? (
         <div className="mt-1 flex flex-col gap-1.5">
           <span className="px-1 text-[12px] font-bold" style={{ color: 'rgba(170,200,255,0.85)' }}>
             メモについてAIに質問
@@ -321,6 +325,22 @@ export default function MemosPage() {
             </button>
           </div>
         </div>
+        ) : (
+          <Link
+            href="/settings"
+            aria-label="プランを確認"
+            className="mt-1 flex items-center gap-3 rounded-2xl border px-4 py-3 active:scale-[0.99]"
+            style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(242,213,138,0.35)', boxShadow: '0 0 16px rgba(242,213,138,0.08) inset, 0 6px 18px rgba(0,0,0,0.3)' }}>
+            <span className="text-[16px]" aria-hidden>🔒</span>
+            <span className="min-w-0 flex-1 text-[12.5px] font-bold leading-snug" style={{ color: '#f2d58a' }}>
+              AI相談は有料プランで利用できます
+            </span>
+            <span className="shrink-0 rounded-full px-3 py-1 text-[11px] font-bold"
+              style={{ background: 'rgba(242,213,138,0.16)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.4)' }}>
+              プランを確認
+            </span>
+          </Link>
+        )}
 
         {/* ── 機能カード（メモ＝緑 / 予定＝青 / AI相談＝紫） ── */}
         <div className="mt-2 grid grid-cols-3 gap-3">

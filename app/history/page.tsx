@@ -155,6 +155,18 @@ export default function HistoryPage() {
     });
   }, [memos, q]);
 
+  // メモに登録済みのタグ一覧（重複除去・登場順）。メモ専用ビューのタグ検索チップに使う。
+  const memoTags = useMemo(() => {
+    const set = new Set<string>();
+    memos.forEach((m) =>
+      (m.tags ?? []).forEach((t) => {
+        const s = t.trim();
+        if (s) set.add(s);
+      }),
+    );
+    return Array.from(set);
+  }, [memos]);
+
   const filteredReservations = useMemo(() => {
     if (!q) return reservations;
     return reservations.filter((r) =>
@@ -258,6 +270,50 @@ export default function HistoryPage() {
             }}
           />
         </div>
+
+        {/* タグ検索（メモ専用ビュー /history?view=memos のときだけ表示・コンパクト） */}
+        {view === 'memos' && (
+          <div className="flex flex-col gap-2">
+            <span className="px-1 text-[12px] font-semibold" style={{ color: '#9fb0e0' }}>
+              タグで検索
+            </span>
+            {memoTags.length === 0 ? (
+              <p className="px-1 text-[12px]" style={{ color: '#6E7AA0' }}>
+                タグはまだありません
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {memoTags.map((tag) => {
+                  const active = q === `#${tag}`.toLowerCase() || q === tag.toLowerCase();
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      aria-label={`タグ #${tag} で絞り込む`}
+                      onClick={() => setQuery(`#${tag}`)}
+                      className="rounded-full border px-3 py-1 text-[12px] font-medium transition active:scale-95"
+                      style={
+                        active
+                          ? {
+                              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                              borderColor: 'transparent',
+                              color: '#fff',
+                              boxShadow: '0 0 12px rgba(99,102,241,0.45)',
+                            }
+                          : {
+                              backgroundColor: 'rgba(59,130,246,0.14)',
+                              borderColor: 'rgba(96,165,250,0.28)',
+                              color: '#BFDBFE',
+                            }
+                      }>
+                      #{tag}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* フィルタータブ（単一カテゴリ表示 ?view= のときは隠す） */}
         {!view && (
