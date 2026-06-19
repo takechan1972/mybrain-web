@@ -70,6 +70,8 @@ export default function HistoryPage() {
   const [tab, setTab] = useState<Tab>('all');
   // 単一カテゴリ表示（タブ非表示）。ホームの「メモ一覧 / 予定一覧」から ?view= で遷移したとき設定。
   const [view, setView] = useState<'memos' | 'reservations' | null>(null);
+  // タグ選択ポップアップ（メモ専用ビューのタグ検索）。
+  const [tagSheetOpen, setTagSheetOpen] = useState(false);
   const [query, setQuery] = useState('');
   const voiceBaseRef = useRef('');
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -166,6 +168,9 @@ export default function HistoryPage() {
     );
     return Array.from(set);
   }, [memos]);
+
+  // 現在の検索キーワードがいずれかのタグ（"仕事" または "#仕事"）と一致していれば、そのタグを返す。
+  const activeTag = memoTags.find((t) => q === `#${t}`.toLowerCase() || q === t.toLowerCase()) ?? null;
 
   const filteredReservations = useMemo(() => {
     if (!q) return reservations;
@@ -271,46 +276,45 @@ export default function HistoryPage() {
           />
         </div>
 
-        {/* タグ検索（メモ専用ビュー /history?view=memos のときだけ表示・コンパクト） */}
+        {/* タグ検索（メモ専用ビュー /history?view=memos のときだけ表示・コンパクト）。
+            チップは画面に直接出さず「タグを選ぶ」ボタン → ポップアップで選択する。 */}
         {view === 'memos' && (
-          <div className="flex flex-col gap-2">
-            <span className="px-1 text-[12px] font-semibold" style={{ color: '#9fb0e0' }}>
-              タグで検索
-            </span>
-            {memoTags.length === 0 ? (
-              <p className="px-1 text-[12px]" style={{ color: '#6E7AA0' }}>
-                タグはまだありません
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {memoTags.map((tag) => {
-                  const active = q === `#${tag}`.toLowerCase() || q === tag.toLowerCase();
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      aria-label={`タグ #${tag} で絞り込む`}
-                      onClick={() => setQuery(`#${tag}`)}
-                      className="rounded-full border px-3 py-1 text-[12px] font-medium transition active:scale-95"
-                      style={
-                        active
-                          ? {
-                              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-                              borderColor: 'transparent',
-                              color: '#fff',
-                              boxShadow: '0 0 12px rgba(99,102,241,0.45)',
-                            }
-                          : {
-                              backgroundColor: 'rgba(59,130,246,0.14)',
-                              borderColor: 'rgba(96,165,250,0.28)',
-                              color: '#BFDBFE',
-                            }
-                      }>
-                      #{tag}
-                    </button>
-                  );
-                })}
-              </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTagSheetOpen(true)}
+              className="flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold transition active:scale-95"
+              style={{
+                backgroundColor: 'rgba(59,130,246,0.14)',
+                borderColor: 'rgba(96,165,250,0.30)',
+                color: '#BFDBFE',
+              }}>
+              {/* タグ（ラベル）アイコン */}
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z" />
+                <circle cx="7" cy="7" r="1.2" fill="currentColor" />
+              </svg>
+              タグを選ぶ
+            </button>
+            {activeTag && (
+              <>
+                <span
+                  className="inline-flex items-center rounded-full px-3 py-1 text-[12px] font-bold"
+                  style={{
+                    background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                    color: '#fff',
+                    boxShadow: '0 0 12px rgba(99,102,241,0.45)',
+                  }}>
+                  #{activeTag}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="text-[12px] font-semibold underline-offset-2 active:opacity-60"
+                  style={{ color: '#9fb0e0' }}>
+                  タグ検索を解除
+                </button>
+              </>
             )}
           </div>
         )}
@@ -553,8 +557,94 @@ export default function HistoryPage() {
       )}
       </div>
 
+      {/* タグ選択ポップアップ（メモ専用ビュー・ボトムシート・多い場合はスクロール） */}
+      {tagSheetOpen && view === 'memos' && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setTagSheetOpen(false)} />
+          <div
+            className="relative w-full max-w-md overflow-y-auto rounded-t-3xl px-5 pt-3 sm:rounded-3xl"
+            style={{
+              maxHeight: '70vh',
+              paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+              background: 'rgba(16,20,42,0.96)',
+              border: '1px solid rgba(120,160,255,0.28)',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.5), 0 0 24px rgba(99,102,241,0.14)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }}>
+            {/* グラバー */}
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: 'rgba(255,255,255,0.18)' }} />
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[16px] font-bold" style={{ color: '#ffffff' }}>タグで検索</h2>
+              <button
+                type="button"
+                aria-label="閉じる"
+                onClick={() => setTagSheetOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full active:opacity-60"
+                style={{ color: '#c7d2fe' }}>
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            {memoTags.length === 0 ? (
+              <p className="py-6 text-center text-[13px]" style={{ color: '#9fb0e0' }}>
+                タグはまだありません
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {memoTags.map((tag) => {
+                    const isActive = activeTag === tag;
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        aria-label={`タグ #${tag} で絞り込む`}
+                        onClick={() => {
+                          setQuery(`#${tag}`);
+                          setTagSheetOpen(false);
+                        }}
+                        className="rounded-full border px-3 py-1.5 text-[13px] font-medium transition active:scale-95"
+                        style={
+                          isActive
+                            ? {
+                                background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                                borderColor: 'transparent',
+                                color: '#fff',
+                                boxShadow: '0 0 12px rgba(99,102,241,0.45)',
+                              }
+                            : {
+                                backgroundColor: 'rgba(59,130,246,0.14)',
+                                borderColor: 'rgba(96,165,250,0.28)',
+                                color: '#BFDBFE',
+                              }
+                        }>
+                        #{tag}
+                      </button>
+                    );
+                  })}
+                </div>
+                {activeTag && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery('');
+                      setTagSheetOpen(false);
+                    }}
+                    className="mt-4 flex min-h-[44px] w-full items-center justify-center rounded-2xl text-[13px] font-bold active:opacity-70"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(120,160,255,0.3)', color: '#c7d2fe' }}>
+                    タグ検索を解除
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 下部ネオンクイックナビ（メモ / 予定 / AI）。モーダル表示中は重なり防止のため非表示。 */}
-      {!detailTurn && !confirmId && <NeonQuickNav />}
+      {!detailTurn && !confirmId && !tagSheetOpen && <NeonQuickNav />}
     </>
   );
 }

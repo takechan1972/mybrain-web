@@ -196,6 +196,7 @@ export default function ReservationsPage() {
           {/* タイトルの音声入力（既存 VoiceInput を流用。getInitial で末尾追記） */}
           <VoiceInput
             iconOnly
+            micSrc="/mic-icon.jpg"
             onResult={(t) => setTitle(t)}
             getInitial={() => title}
           />
@@ -262,6 +263,7 @@ export default function ReservationsPage() {
             {/* 内容メモの音声入力（既存 VoiceInput を流用。getInitial で末尾追記） */}
             <VoiceInput
               iconOnly
+              micSrc="/mic-icon.jpg"
               onResult={(t) => setContent(t)}
               getInitial={() => content}
             />
@@ -329,6 +331,7 @@ export default function ReservationsPage() {
             />
             <VoiceInput
               iconOnly
+              micSrc="/mic-icon.jpg"
               onResult={(t) => setAiAsk(t)}
               getInitial={() => {
                 aiBaseRef.current = aiAsk;

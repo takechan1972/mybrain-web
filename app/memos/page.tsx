@@ -179,6 +179,7 @@ export default function MemosPage() {
           {/* タイトルの音声入力（既存 VoiceInput を流用。getInitial で末尾追記） */}
           <VoiceInput
             iconOnly
+            micSrc="/mic-icon.jpg"
             onResult={(t) => setTitle(t)}
             getInitial={() => title}
           />
@@ -208,6 +209,7 @@ export default function MemosPage() {
               {/* 本文の音声入力（既存 VoiceInput を流用。getInitial で末尾追記） */}
               <VoiceInput
                 iconOnly
+                micSrc="/mic-icon.jpg"
                 onResult={(t) => setBody(t)}
                 getInitial={() => body}
               />
@@ -309,6 +311,7 @@ export default function MemosPage() {
             />
             <VoiceInput
               iconOnly
+              micSrc="/mic-icon.jpg"
               onResult={(t) => setAiAsk(t)}
               getInitial={() => {
                 aiBaseRef.current = aiAsk;

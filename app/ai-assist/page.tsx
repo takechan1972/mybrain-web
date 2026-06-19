@@ -136,6 +136,7 @@ export default function AiAssistPage() {
             {/* AI相談入力の音声入力（既存 VoiceInput を流用。getInitial で末尾追記） */}
             <VoiceInput
               iconOnly
+              micSrc="/mic-icon.jpg"
               onResult={(t) => setAsk(t)}
               getInitial={() => ask}
             />

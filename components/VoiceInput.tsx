@@ -22,6 +22,7 @@ export default function VoiceInput({
   label = '🎤 音声入力',
   listeningLabel = '■ 聞き取り中…（停止）',
   iconOnly = false,
+  micSrc,
 }: {
   onResult: (text: string) => void;
   onStop?: (text: string) => void;
@@ -29,6 +30,8 @@ export default function VoiceInput({
   label?: string;
   listeningLabel?: string;
   iconOnly?: boolean;
+  /** マイクボタンのアイコンを画像にする（指定時のみ。未指定は従来の MicIcon）。 */
+  micSrc?: string;
 }) {
   const lastRef = useRef('');
   const [unsupportedMsg, setUnsupportedMsg] = useState<string | null>(null);
@@ -56,6 +59,15 @@ export default function VoiceInput({
     },
   );
 
+  // マイクボタンのアイコン。micSrc 指定時のみ画像（白背景は invert で丸型ボタンに馴染ませ中央表示）。
+  // 未指定は従来どおり MicIcon（他画面の見た目は変えない）。
+  const micVisual = micSrc ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={micSrc} alt="" aria-hidden className="h-full w-full scale-110 object-cover" style={{ filter: 'invert(1)' }} />
+  ) : (
+    <MicIcon size={18} />
+  );
+
   // 非対応ブラウザ（iOS Safari 等）
   if (!supported) {
     if (iconOnly) {
@@ -70,9 +82,9 @@ export default function VoiceInput({
               // 3秒後に自動消去
               setTimeout(() => setUnsupportedMsg(null), 4000);
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-white opacity-50"
+            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full text-white opacity-50"
             style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.18)' }}>
-            <MicIcon size={18} />
+            {micVisual}
           </button>
           {unsupportedMsg && (
             <div className="absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 rounded-xl bg-[#223A70] px-3 py-2 text-[11px] leading-snug text-white shadow-lg">
@@ -115,9 +127,9 @@ export default function VoiceInput({
               lastRef.current = initial;
               start(initial);
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-white"
+            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full text-white"
             style={{ background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(150,170,255,0.45)', boxShadow: '0 0 10px rgba(99,102,241,0.25)' }}>
-            <MicIcon size={18} />
+            {micVisual}
           </button>
         )}
         {permissionMsg && (
