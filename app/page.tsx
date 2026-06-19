@@ -3,14 +3,58 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { CalendarIcon, ChatIcon, ChevronRightIcon, FileTextIcon, MicIcon, SearchIcon } from '@/components/icons';
 import { listMemos } from '@/lib/memos';
 import { listReservations } from '@/lib/reservations';
-import { loadConsultTurns } from '@/lib/consult-store';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
-import { isLocalHost } from '@/lib/env';
 import DesktopDashboard from '@/components/DesktopDashboard';
 import type { Memo, Reservation } from '@/lib/types';
+
+// ホームの案内メッセージ（AIがユーザーに話しかける入口画面）。
+const GUIDE_TEXT = 'なにからはじめますか';
+
+/** 案内文を日本語（ja-JP）で読み上げる。重複防止のため開始前に cancel() する。未対応・例外時は何もしない。 */
+function speakGuide() {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  try {
+    const synth = window.speechSynthesis;
+    synth.cancel(); // 重複読み上げ防止
+    const u = new SpeechSynthesisUtterance(GUIDE_TEXT);
+    u.lang = 'ja-JP';
+    u.rate = 0.95;
+    u.pitch = 1;
+    u.volume = 1;
+    const jp = synth.getVoices().find((v) => (v.lang || '').toLowerCase().startsWith('ja'));
+    if (jp) u.voice = jp;
+    synth.speak(u);
+  } catch {
+    // 読み上げ失敗は無視（ホーム機能は壊さない）
+  }
+}
+
+// ── SpeechRecognition の最小型（標準 DOM 型に含まれないため any を使わず定義） ──
+interface SRAlternative {
+  transcript: string;
+}
+interface SRResult {
+  0: SRAlternative;
+}
+interface SRResultList {
+  0: SRResult;
+  length: number;
+}
+interface SREvent {
+  results: SRResultList;
+}
+interface SRInstance {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((e: SREvent) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+}
+type SRCtor = new () => SRInstance;
 
 export default function HomePage() {
   const router = useRouter();
@@ -18,22 +62,14 @@ export default function HomePage() {
   const [name, setName] = useState('ゲスト');
   const [memos, setMemos] = useState<Memo[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [turnsCount, setTurnsCount] = useState(0);
-  const [local, setLocal] = useState(false);
-  // ホーム検索バー（実入力フィールド）。Enter または検索アイコンで /history?q= へ遷移
-  const [searchText, setSearchText] = useState('');
+  // タイプライター表示用（1文字ずつ表示）
+  const [typed, setTyped] = useState('');
+  // 音声入力の状態・ガイド表示
+  const [listening, setListening] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
 
-  // 検索実行：キーワードが空なら何もしない。安全に encodeURIComponent して履歴検索へ
-  function submitSearch() {
-    const q = searchText.trim();
-    if (!q) return;
-    router.push(`/history?q=${encodeURIComponent(q)}`);
-  }
-
+  // データ読み込み（PC版 DesktopDashboard 用）。スマホ入口画面では使わないが、PCは従来どおり。
   useEffect(() => {
-    setLocal(isLocalHost());
-    // AI相談履歴は localStorage 由来（Supabase 未設定でも件数を取得できる）
-    setTurnsCount(loadConsultTurns().length);
     if (!configured) return;
     const sb = getSupabaseBrowserClient();
     sb?.auth.getUser().then(({ data }) => {
@@ -43,11 +79,8 @@ export default function HomePage() {
     const load = () => {
       void listMemos().then(({ memos }) => setMemos(memos));
       void listReservations().then(({ reservations }) => setReservations(reservations));
-      // AI相談画面などから戻ったときも件数を更新
-      setTurnsCount(loadConsultTurns().length);
     };
     load();
-    // 他画面で保存して戻ってきたときも最新を表示する
     const onVisible = () => {
       if (document.visibilityState === 'visible') load();
     };
@@ -59,24 +92,89 @@ export default function HomePage() {
     };
   }, [configured]);
 
-  // 今日の予定：開始日時（scheduleAt=開始日時の互換値、無ければ startAt）がローカル日付で「今日」のものを
-  // 開始時刻の昇順に並べる。日時が無い予定は除外（クラッシュ防止）。
-  const todays = reservations
-    .filter((r) => {
-      const ms = r.scheduleAt ?? r.startAt;
-      return typeof ms === 'number' && Number.isFinite(ms) && isToday(ms);
-    })
-    .sort((a, b) => (a.scheduleAt ?? a.startAt ?? 0) - (b.scheduleAt ?? b.startAt ?? 0));
-  const todaysTop = todays.slice(0, 3);
+  // タイプライター：案内文を1文字ずつ表示
+  useEffect(() => {
+    setTyped('');
+    let i = 0;
+    const id = window.setInterval(() => {
+      i += 1;
+      setTyped(GUIDE_TEXT.slice(0, i));
+      if (i >= GUIDE_TEXT.length) window.clearInterval(id);
+    }, 120);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // 初回表示時に自動読み上げ（iOS 等の制限環境では枠タップで読み上げ）
+  useEffect(() => {
+    speakGuide();
+  }, []);
+
+  // 認識結果から遷移先を判定（「メモ／めも」→/memos、「予定／よてい」→/reservations、「設定／せってい」→/settings）。
+  // 部分一致なので「メモを書く」「めもを書く」「メモたメモを書く」等でも「メモ」を含めばOK。
+  function routeFromTranscript(text: string): boolean {
+    const t = text;
+    if (t.includes('メモ') || t.includes('めも')) {
+      router.push('/memos');
+      return true;
+    }
+    if (t.includes('予定') || t.includes('よてい')) {
+      router.push('/reservations');
+      return true;
+    }
+    if (t.includes('設定') || t.includes('せってい')) {
+      router.push('/settings');
+      return true;
+    }
+    return false;
+  }
+
+  // マイクボタン：音声入力を開始し、結果に応じてページ遷移する。
+  function startVoiceInput() {
+    if (typeof window === 'undefined') return;
+    const w = window as unknown as { SpeechRecognition?: SRCtor; webkitSpeechRecognition?: SRCtor };
+    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+    if (!Ctor) {
+      setHint('この端末では音声入力に対応していません');
+      return;
+    }
+    try {
+      // 読み上げ中は認識へ影響するので止める
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      const rec = new Ctor();
+      rec.lang = 'ja-JP';
+      rec.continuous = false;
+      rec.interimResults = false;
+      setHint(null);
+      setListening(true);
+      rec.onresult = (e: SREvent) => {
+        const transcript = e.results?.[0]?.[0]?.transcript ?? '';
+        const ok = routeFromTranscript(transcript);
+        if (!ok) setHint('メモ、予定、設定のどれかを話してください');
+      };
+      rec.onerror = () => {
+        setListening(false);
+      };
+      rec.onend = () => {
+        setListening(false);
+      };
+      rec.start();
+    } catch {
+      setListening(false);
+      setHint('この端末では音声入力に対応していません');
+    }
+  }
 
   return (
     <>
-    {/* ── PC（lg以上）：ダッシュボードUI ── */}
+    {/* ── PC（lg以上）：ダッシュボードUI（変更なし） ── */}
     <DesktopDashboard memos={memos} reservations={reservations} userName={name} />
 
-    {/* ── スマホ／タブレット（lg未満）：宇宙背景・ネオンUI ── */}
+    {/* ── スマホ／タブレット（lg未満）：AIが話しかける入口画面 ── */}
     <div className="relative lg:hidden">
-      {/* 宇宙背景（haikei.png）＋暗オーバーレイ（メモ／予定／履歴画面と統一・スマホのみ） */}
+      {/* カーソル点滅アニメーション */}
+      <style>{`@keyframes mbBlink{0%,49%{opacity:1}50%,100%{opacity:0}}`}</style>
+
+      {/* 宇宙背景（haikei.png）＋暗オーバーレイ（他画面と統一） */}
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen lg:hidden"
@@ -97,160 +195,125 @@ export default function HomePage() {
         }}
       />
 
-      {/* 下部余白は MainShell（ホームは safe-area + 控えめ）が付与するためここでは重複させない */}
-      <div className="relative z-10 flex flex-col gap-5">
+      {/* 本体：ロゴ → 表示枠 → マイク。下部ネオンナビ分の余白を確保 */}
+      <div
+        className="relative z-10 flex flex-col items-center gap-6"
+        style={{ paddingBottom: 'calc(124px + env(safe-area-inset-bottom))' }}>
 
-      {/* ── ヒーロー：ネオン脳ロゴ（装飾ロボット・右上ギアはモバイルでは非表示） ── */}
-      <header className="relative flex flex-col items-center pt-2">
-        {/* 脳アイコン＋MYBRAIN＋マイブレイン（透過ロゴ1枚） */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/mybrain-original-logo-transparent.png"
-          alt="MYBRAIN マイブレイン"
-          className="h-auto object-contain"
-          style={{ width: 'clamp(220px, 62vw, 320px)' }}
-        />
-        <p className="mt-1 text-center text-[15px] font-bold tracking-wide" style={{ color: 'rgba(205,220,250,0.92)' }}>
-          あなたの毎日を、もっとシンプルに。
-        </p>
-      </header>
-
-      {/* ── 主要導線：上段=メモ/予定/AI（やや大きめ）、中段=各一覧、下段=AIアシスト＋設定。
-            ロゴとの間に少し余白（mt-3）を確保 ── */}
-      <section className="mt-3 flex flex-col gap-3">
-        {/* 上段：メイン機能（縦型カード・ラベル＋説明文・1行3列） */}
-        <div className="grid grid-cols-3 gap-3">
-          <HomeTile big href="/memos" color="#22E5A8" title="メモ" desc="思いつきを保存" icon={<FileTextIcon size={28} />} />
-          <HomeTile big href="/reservations" color="#38BDF8" title="予定" desc="予定を管理" icon={<CalendarIcon size={28} />} />
-          <HomeTile big href="/consult" color="#A66BFF" title="AI" desc="メモから相談" icon={<ChatIcon size={28} />} />
-        </div>
-        {/* 中段：各一覧（同寸・控えめ表示・登録件数を表示） */}
-        <div className="grid grid-cols-3 gap-3">
-          <HomeTile href="/history?view=memos" color="#22E5A8" title="メモ一覧" count={memos.length} icon={<FileTextIcon size={26} />} subtle />
-          <HomeTile href="/history?view=reservations" color="#38BDF8" title="予定一覧" count={reservations.length} icon={<CalendarIcon size={26} />} subtle />
-          <HomeTile href="/history" color="#A66BFF" title="AI一覧" count={turnsCount} icon={<ChatIcon size={26} />} subtle />
-        </div>
-        {/* 下段：検索バー（2/3幅・長め）＋設定（1/3幅・テキストのみ／ギアなし）。同じホームデザインで統一 */}
-        <div className="grid grid-cols-3 gap-3">
-          {/* メモ・予定を検索：実際の入力フィールド。Enter / 検索ボタンで /history?q= へ遷移。長め（2/3幅） */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              submitSearch();
-            }}
-            role="search"
-            className="col-span-2 flex min-h-[52px] items-center gap-2.5 rounded-2xl px-4 py-2.5"
-            style={{
-              background: 'linear-gradient(160deg, rgba(99,102,241,0.14) 0%, rgba(8,12,28,0.72) 75%)',
-              border: '1px solid rgba(99,102,241,0.40)',
-              boxShadow: '0 0 18px rgba(99,102,241,0.16) inset, 0 8px 22px rgba(0,0,0,0.35)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-            }}>
-            <button
-              type="submit"
-              aria-label="検索"
-              className="flex shrink-0 items-center justify-center active:opacity-60"
-              style={{ color: '#818cf8', filter: 'drop-shadow(0 0 5px rgba(129,140,248,0.6))' }}>
-              <SearchIcon size={20} />
-            </button>
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="メモ・予定を検索"
-              enterKeyHint="search"
-              aria-label="メモ・予定を検索"
-              className="min-w-0 flex-1 bg-transparent text-[14px] font-semibold outline-none placeholder:font-normal placeholder:text-[#7a86b8]"
-              style={{ color: '#e0e7ff', caretColor: '#818cf8' }}
-            />
-          </form>
-          {/* 設定：テキストのみ（ギアアイコンは表示しない） */}
-          <Link
-            href="/settings"
-            aria-label="設定"
-            className="flex min-h-[52px] items-center justify-center rounded-2xl px-3 py-3 active:scale-95"
-            style={{
-              background: 'linear-gradient(160deg, rgba(120,160,255,0.12) 0%, rgba(8,12,28,0.7) 75%)',
-              border: '1px solid rgba(120,160,255,0.38)',
-              color: '#c7d2fe',
-              boxShadow: '0 0 16px rgba(99,102,241,0.16), 0 8px 22px rgba(0,0,0,0.35)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-            }}>
-            <span className="text-[14px] font-bold">設定</span>
-          </Link>
-        </div>
-      </section>
-
-      {/* 文字起こし（PCローカル環境のみ・スマホでは非表示。3×2グリッドの下に配置） */}
-      {local && (
-        <div className="hidden md:block">
-          <ActionCard
-            href="/transcribe"
-            color="#7BA6FF"
-            icon={<MicIcon size={22} />}
-            title="文字起こし"
-            desc="音声ファイルをローカルWhisperでメモ化（PC用）"
+        {/* 1. MyBrainロゴ */}
+        <header className="flex flex-col items-center pt-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/mybrain-original-logo-transparent.png"
+            alt="MYBRAIN マイブレイン"
+            className="h-auto object-contain"
+            style={{ width: 'clamp(200px, 58vw, 300px)' }}
           />
-        </div>
-      )}
+        </header>
 
-      {/* 今日の予定（最下部・コンパクトカード）。最大3件、超過時のみ「予定一覧へ」を表示 */}
-      <section className="rounded-3xl p-4" style={TODAY_CARD}>
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-[14px] font-bold" style={{ color: '#ffffff' }}>
-            今日の予定
-          </h2>
-          {todays.length > 3 && (
-            <Link
-              href="/reservations"
-              className="flex items-center gap-0.5 text-[12px] font-semibold active:opacity-60"
-              style={{ color: '#7dd3fc' }}>
-              予定一覧へ
-              <ChevronRightIcon size={14} />
-            </Link>
-          )}
-        </div>
-        {todaysTop.length === 0 ? (
-          <p className="text-[13px]" style={{ color: '#9fb0e0' }}>
-            今日の予定はありません
+        {/* 2. 案内メッセージ表示枠（メモ本文枠に近い雰囲気・表示専用・タップで読み上げ） */}
+        <button
+          type="button"
+          onClick={speakGuide}
+          aria-label="案内を読み上げる"
+          className="flex min-h-[220px] w-full items-center justify-center rounded-2xl border px-5 py-8 text-center transition active:opacity-90"
+          style={{
+            background: 'rgba(8,10,24,0.78)',
+            borderColor: 'rgba(120,160,255,0.4)',
+            boxShadow: '0 0 18px rgba(80,140,255,0.12) inset, 0 10px 28px rgba(0,0,0,0.35)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+          }}>
+          <span className="text-[22px] font-bold leading-relaxed" style={{ color: '#e6edff' }}>
+            {typed}
+            <span aria-hidden style={{ color: '#7BA6FF', animation: 'mbBlink 1s step-end infinite' }}>
+              ｜
+            </span>
+          </span>
+        </button>
+
+        {/* 認識できなかった/未対応のときの案内（表示枠の下） */}
+        {hint && (
+          <p className="-mt-3 text-center text-[13px] font-semibold" style={{ color: '#f2d58a' }}>
+            {hint}
           </p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {todaysTop.map((r) => (
-              <li key={r.id} className="flex items-start gap-3">
-                <span className="w-12 shrink-0 text-[12px] font-bold" style={{ color: '#7dd3fc' }}>
-                  {r.allDay ? '終日' : hhmm(r.scheduleAt ?? r.startAt)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-semibold" style={{ color: '#dbeafe' }}>
-                    {r.title || '無題の予定'}
-                  </span>
-                  {(r.content ?? '').trim().length > 0 && (
-                    <span className="block truncate text-[12px]" style={{ color: '#9fb0e0' }}>
-                      {r.content.trim()}
-                    </span>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
         )}
-      </section>
 
-      {!configured && (
-        <p className="rounded-xl border p-3 text-xs" style={{ borderColor: 'rgba(242,213,138,0.4)', background: 'rgba(242,213,138,0.10)', color: '#f2d58a' }}>
-          Supabase 未設定のため件数・一覧は表示されません（.env.local 設定後に有効）。
-        </p>
-      )}
+        {/* 3. マイクボタン（音声入力を開始 → 結果で遷移）。大きめ・聞き取り中は発光強め */}
+        <button
+          type="button"
+          onClick={startVoiceInput}
+          aria-label={listening ? '音声入力中' : '音声入力を開始'}
+          className="flex h-20 w-20 items-center justify-center rounded-full text-white transition active:scale-95"
+          style={{
+            background: listening
+              ? 'linear-gradient(135deg, #7B5FFF, #C06BFF)'
+              : 'linear-gradient(135deg, #2E7EFF, #7B5FFF)',
+            boxShadow: listening
+              ? '0 0 34px rgba(140,90,255,0.7), 0 10px 28px rgba(0,0,0,0.4)'
+              : '0 0 26px rgba(60,120,255,0.5), 0 10px 28px rgba(0,0,0,0.4)',
+          }}>
+          {/* マイク画像（メイン操作として大きめ・中央表示）。invert＋screen でネオングラデ上に白マイクとして自然に重ねる */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/mic-icon.jpg"
+            alt=""
+            aria-hidden
+            className="h-14 w-14 object-contain"
+            style={{ filter: 'invert(1)', mixBlendMode: 'screen' }}
+          />
+        </button>
+        <span className="-mt-2 text-[12px] font-semibold" style={{ color: 'rgba(170,200,255,0.85)' }}>
+          {listening ? '聞き取り中…' : 'マイクで話す'}
+        </span>
       </div>
+
+      {/* 4. 下部固定ナビ（メモ / 予定 / 設定）。メモ管理画面の下部ボタンと同じネオンデザイン */}
+      <nav
+        className="fixed inset-x-0 z-30 mx-auto w-full max-w-md px-5"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
+        <div className="grid grid-cols-3 gap-3">
+          <NeonNavCard href="/memos" color="#22E5A8" title="メモ" icon={<NeonMemoIcon color="#22E5A8" />} />
+          <NeonNavCard href="/reservations" color="#38BDF8" title="予定" icon={<NeonCalendarIcon color="#38BDF8" />} />
+          <NeonNavCard href="/settings" color="#A66BFF" title="設定" icon={<NeonSettingsIcon color="#A66BFF" />} />
+        </div>
+      </nav>
     </div>
     </>
   );
 }
 
-/** #RRGGBB + alpha → rgba() */
+/* ── 下部ネオンナビカード（メモ管理画面 NeonCard 非アクティブ表示と同一デザイン） ── */
+function NeonNavCard({
+  href,
+  color,
+  title,
+  icon,
+}: {
+  href: string;
+  color: string;
+  title: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <Link href={href} aria-label={title} className="block active:scale-95">
+      <div
+        className="relative flex h-full flex-col items-center gap-2 rounded-2xl px-2 py-3 text-center"
+        style={{
+          background: 'linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(10,12,28,0.6) 70%)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          boxShadow: 'none',
+        }}>
+        <span style={{ opacity: 0.85 }}>{icon}</span>
+        <span className="text-[14px] font-bold" style={{ color: 'rgba(255,255,255,0.82)' }}>
+          {title}
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+/* ── ネオンSVGアイコン（メモ管理画面と同一） ── */
 function hexA(hex: string, a: number): string {
   const m = hex.replace('#', '');
   const r = parseInt(m.slice(0, 2), 16);
@@ -259,138 +322,45 @@ function hexA(hex: string, a: number): string {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-/** ローカル日付で「今日」か判定（日時 ms）。 */
-function isToday(ms: number): boolean {
-  const d = new Date(ms);
-  const n = new Date();
+function glow(color: string) {
+  return { filter: `drop-shadow(0 0 5px ${color}) drop-shadow(0 0 12px ${hexA(color, 0.5)})` };
+}
+
+function NeonMemoIcon({ color }: { color: string }) {
   return (
-    d.getFullYear() === n.getFullYear() &&
-    d.getMonth() === n.getMonth() &&
-    d.getDate() === n.getDate()
+    <svg width="38" height="38" viewBox="0 0 48 48" fill="none" style={glow(color)}>
+      <rect x="9" y="5" width="24" height="32" rx="3.5" stroke={color} strokeWidth="2.2" />
+      <line x1="14" y1="13" x2="27" y2="13" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <line x1="14" y1="19" x2="27" y2="19" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <line x1="14" y1="25" x2="22" y2="25" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M31 30 L41 20 L44 23 L34 33 Z" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+    </svg>
   );
 }
 
-/** epoch ms → "HH:mm"（時刻のみ）。null/不正は空文字。 */
-function hhmm(ms: number | null): string {
-  if (ms === null || !Number.isFinite(ms)) return '';
-  const d = new Date(ms);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-// 今日の予定カード（予定テーマの青系グラス）。
-const TODAY_CARD: React.CSSProperties = {
-  background: 'rgba(10,14,35,0.6)',
-  border: '1px solid rgba(56,189,248,0.25)',
-  boxShadow: '0 0 18px rgba(56,189,248,0.10), 0 10px 28px rgba(0,0,0,0.35)',
-  backdropFilter: 'blur(12px)',
-  WebkitBackdropFilter: 'blur(12px)',
-};
-
-/**
- * ホーム主要導線タイル。上段（メモ/予定/AI）と下段（各一覧）を統一スタイルで表示。
- * - subtle = true で一覧用の控えめ表示（色は同系統のまま、彩度・発光を弱める）。
- * - big = true でやや高い縦型カード。desc を渡すとラベル下に小さな説明文を表示。
- */
-function HomeTile({
-  href,
-  color,
-  icon,
-  title,
-  desc,
-  count,
-  subtle = false,
-  big = false,
-}: {
-  href: string;
-  color: string;
-  icon: React.ReactNode;
-  title: string;
-  desc?: string;
-  count?: number;
-  subtle?: boolean;
-  big?: boolean;
-}) {
+function NeonCalendarIcon({ color }: { color: string }) {
   return (
-    <Link
-      href={href}
-      aria-label={title}
-      className={`flex ${big ? 'min-h-[132px] gap-1.5 py-4' : 'min-h-[96px] gap-2 py-4'} flex-col items-center justify-center rounded-2xl px-1.5 text-center active:scale-95`}
-      style={{
-        background: `linear-gradient(160deg, ${hexA(color, subtle ? 0.1 : 0.16)} 0%, rgba(8,12,28,0.72) 72%)`,
-        border: `1.5px solid ${hexA(color, subtle ? 0.4 : 0.6)}`,
-        boxShadow: subtle
-          ? `0 0 16px ${hexA(color, 0.16)}, 0 8px 22px rgba(0,0,0,0.35)`
-          : `0 0 22px ${hexA(color, 0.3)}, 0 10px 26px rgba(0,0,0,0.4)`,
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-      }}>
-      <span style={{ color, filter: `drop-shadow(0 0 5px ${color}) drop-shadow(0 0 12px ${hexA(color, 0.6)})` }}>
-        {icon}
-      </span>
-      <span className={`${big ? 'text-[16px]' : 'text-[14px]'} font-extrabold leading-tight`} style={{ color, textShadow: `0 0 10px ${hexA(color, 0.55)}` }}>
-        {title}
-      </span>
-      {desc && (
-        <span className="text-[10px] font-medium leading-tight" style={{ color: 'rgba(225,232,255,0.78)' }}>
-          {desc}
-        </span>
-      )}
-      {typeof count === 'number' && (
-        <span className="text-[11px] font-bold leading-none" style={{ color: hexA(color, 0.95) }}>
-          {count}件
-        </span>
-      )}
-    </Link>
+    <svg width="38" height="38" viewBox="0 0 48 48" fill="none" style={glow(color)}>
+      <rect x="6" y="9" width="36" height="31" rx="4" stroke={color} strokeWidth="2.2" />
+      <line x1="6" y1="18" x2="42" y2="18" stroke={color} strokeWidth="2" />
+      <line x1="16" y1="5" x2="16" y2="13" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="32" y1="5" x2="32" y2="13" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="15" cy="26" r="2.3" fill={color} /><circle cx="24" cy="26" r="2.3" fill={color} /><circle cx="33" cy="26" r="2.3" fill={color} />
+      <circle cx="15" cy="33" r="2.3" fill={color} /><circle cx="24" cy="33" r="2.3" fill={color} />
+    </svg>
   );
 }
 
-function ActionCard({
-  href,
-  color,
-  icon,
-  title,
-  desc,
-}: {
-  href: string;
-  color: string;
-  icon: React.ReactNode;
-  title: React.ReactNode;
-  desc: React.ReactNode;
-}) {
+function NeonSettingsIcon({ color }: { color: string }) {
   return (
-    <Link
-      href={href}
-      className="flex items-center gap-4 rounded-3xl px-4 py-4 active:opacity-70"
-      style={{
-        background: `linear-gradient(160deg, ${hexA(color, 0.14)} 0%, rgba(10,14,32,0.7) 72%)`,
-        border: `1px solid ${hexA(color, 0.4)}`,
-        boxShadow: `0 0 18px ${hexA(color, 0.16)}, 0 10px 28px rgba(0,0,0,0.35)`,
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-      }}>
-      {/* 左：ネオン円アイコン */}
-      <span
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
-        style={{ backgroundColor: hexA(color, 0.18), color }}>
-        {icon}
-      </span>
-      {/* 中：タイトル＋説明 */}
-      <span className="flex flex-1 flex-col gap-0.5">
-        <span className="text-[15px] font-bold" style={{ color: '#ffffff' }}>
-          {title}
-        </span>
-        <span className="text-[12px] leading-tight" style={{ color: '#9fb0e0' }}>
-          {desc}
-        </span>
-      </span>
-      {/* 右：丸矢印 */}
-      <span
-        aria-hidden
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-        style={{ backgroundColor: hexA(color, 0.9), color: '#06121f' }}>
-        <ChevronRightIcon size={14} />
-      </span>
-    </Link>
+    <svg width="38" height="38" viewBox="0 0 48 48" fill="none" style={glow(color)}>
+      <circle cx="24" cy="24" r="6.5" stroke={color} strokeWidth="2.2" />
+      <path
+        d="M24 6 v5 M24 37 v5 M6 24 h5 M37 24 h5 M11.3 11.3 l3.6 3.6 M33.1 33.1 l3.6 3.6 M36.7 11.3 l-3.6 3.6 M14.9 33.1 l-3.6 3.6"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
