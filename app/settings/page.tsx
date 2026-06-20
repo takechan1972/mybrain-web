@@ -13,7 +13,33 @@ import {
   type OllamaSettings,
 } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
+import {
+  DEFAULT_ACCOUNT_SETTINGS,
+  loadAccountSettings,
+  planLabel as planLabelOf,
+  saveAccountSettings,
+  type AccountSettings,
+} from '@/lib/account-store';
 import DesktopSettings from '@/components/DesktopSettings';
+
+// サンプルログイン（デモ用アカウント）の判定。
+// 専用の課金/アカウント基盤が未実装のため、メールアドレスで暫定判定する。
+// 実データ接続時はここを差し替えるだけでよい（戻り値が true のとき編集系UIを無効化する）。
+const SAMPLE_EMAILS = new Set([
+  'sample@mybrain.app',
+  'demo@mybrain.app',
+  'guest@mybrain.app',
+  'sample@example.com',
+  'demo@example.com',
+  'test@example.com',
+]);
+function isSampleUser(email: string | null): boolean {
+  if (!email) return false;
+  const e = email.trim().toLowerCase();
+  if (SAMPLE_EMAILS.has(e)) return true;
+  // example.com ドメイン、または sample / demo で始まるローカル部はサンプル扱い
+  return e.endsWith('@example.com') || e.startsWith('sample') || e.startsWith('demo');
+}
 
 // ホーム／ログインと統一したガラスカード（ダーク・ネオン・グラス）
 const GLASS_CARD: React.CSSProperties = {
@@ -35,8 +61,6 @@ function LogoutIcon({ size = 18 }: { size?: number }) {
 }
 
 type SheetKey =
-  | 'account'
-  | 'plan'
   | 'billing'
   | 'plugin'
   | 'contact'
@@ -48,21 +72,70 @@ export default function SettingsPage() {
   const configured = isSupabaseConfigured();
   const [email, setEmail] = useState<string | null>(null);
 
+  // アカウント情報（氏名・電話番号・利用プラン）の端末ローカル保存
+  const [account, setAccount] = useState<AccountSettings>(DEFAULT_ACCOUNT_SETTINGS);
+
+  // パスワード変更（入力UIのみ。認証ストアの実際の現在パスワードは取得・表示しない）
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   // Ollama（ローカルAI）設定
   const [ollama, setOllama] = useState<OllamaSettings>(DEFAULT_OLLAMA_SETTINGS);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [local, setLocal] = useState(false);
-  // カテゴリ設定トップ：開いているボトムシート／AI設定の展開状態
+  // カテゴリ設定トップ：開いているボトムシート／AI設定・アカウント情報の展開状態
   const [sheet, setSheet] = useState<SheetKey | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
+  // アカウント情報は既定で折りたたみ
+  const [accountOpen, setAccountOpen] = useState(false);
 
   useEffect(() => {
     const sb = getSupabaseBrowserClient();
-    sb?.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+    sb?.auth.getUser().then(({ data }) => {
+      setEmail(data.user?.email ?? null);
+    });
+    setAccount(loadAccountSettings());
     setOllama(loadOllamaSettings());
     setLocal(isLocalHost());
   }, []);
+
+  // アカウント情報（氏名・電話番号・プラン）をローカル保存（既存の設定保存パターンと同一）
+  function updateAccount(patch: Partial<AccountSettings>) {
+    setAccount((prev) => {
+      const next = { ...prev, ...patch };
+      saveAccountSettings(next);
+      return next;
+    });
+  }
+
+  // パスワード変更（Supabase Auth）。サンプルユーザー・未ログイン時は実行しない。
+  // 入力された新パスワードのみを更新に使う（既存の現在パスワードは読み取らない）。
+  async function handleChangePassword() {
+    const sb = getSupabaseBrowserClient();
+    if (!sb) return;
+    if (isSample) {
+      setPwMsg({ ok: false, text: 'サンプルログインのため変更できません。' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPwMsg({ ok: false, text: 'パスワードは6文字以上で入力してください。' });
+      return;
+    }
+    setPwBusy(true);
+    setPwMsg(null);
+    const { error } = await sb.auth.updateUser({ password: newPassword });
+    setPwBusy(false);
+    if (error) {
+      setPwMsg({ ok: false, text: `変更に失敗しました：${error.message}` });
+      return;
+    }
+    setNewPassword('');
+    setShowPassword(false);
+    setPwMsg({ ok: true, text: 'パスワードを変更しました。' });
+  }
 
   function updateOllama(patch: Partial<OllamaSettings>) {
     setOllama((prev) => {
@@ -90,6 +163,31 @@ export default function SettingsPage() {
 
   const loggedIn = Boolean(email);
   const initial = email ? email.trim().charAt(0).toUpperCase() : 'G';
+
+  // プラン状態（ユーザーは設定画面から変更不可。将来はシステム/決済側で管理する想定の暫定ローカル値）
+  const plan = account.plan;
+  const planLabel = planLabelOf(plan);
+  // 有料プラン（Standard / Premium）のときだけ「AI設定」を表示する
+  const isPaid = plan === 'standard' || plan === 'premium';
+  const isSample = isSampleUser(email);
+  const editDisabled = isSample || !loggedIn;
+
+  // ストレージ使用量（表示専用・暫定モック。実計測は未実装）
+  // プラン別の上限：無料 1GB / スタンダード 10GB / プレミアム 50GB
+  const storageLimitGb = plan === 'premium' ? 50 : plan === 'standard' ? 10 : 1;
+  const storageUsedGb = 0.2; // 仮の使用量（実データ接続前のモック値）
+  const storagePct = Math.min(100, Math.round((storageUsedGb / storageLimitGb) * 100));
+  // しきい値：〜69%=通常 / 70〜89%=注意 / 90%〜=警告
+  const storageLevel: 'normal' | 'caution' | 'warning' =
+    storagePct >= 90 ? 'warning' : storagePct >= 70 ? 'caution' : 'normal';
+  const storageColor =
+    storageLevel === 'warning' ? '#ff6b6b' : storageLevel === 'caution' ? '#F2C14E' : '#22E5A8';
+  const storageNote =
+    storageLevel === 'warning'
+      ? '空き容量がわずかです。プランの見直しをご検討ください。'
+      : storageLevel === 'caution'
+      ? '使用量が増えています。'
+      : '十分な空き容量があります。';
 
   return (
     <>
@@ -147,8 +245,15 @@ export default function SettingsPage() {
             {initial}
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="text-[12px] font-semibold" style={{ color: '#9fb0e0' }}>
-              ログイン中・無料プラン
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: '#9fb0e0' }}>
+              {loggedIn ? `ログイン中・${planLabel}` : '未ログイン'}
+              {isSample && (
+                <span
+                  className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                  style={{ background: 'rgba(242,213,138,0.18)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.4)' }}>
+                  サンプル
+                </span>
+              )}
             </span>
             <span className="truncate text-[15px] font-bold" style={{ color: loggedIn ? '#ffffff' : '#9fb0e0' }}>
               {email ?? '未ログイン'}
@@ -156,16 +261,146 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* グループ1：登録者情報／ご利用プラン／契約・お支払い */}
+        {/* アカウント情報（重複セクションは廃止し、ここに一本化・既定で折りたたみ） */}
         <section className="overflow-hidden rounded-3xl" style={GLASS_CARD}>
-          <SettingRow emoji="👤" title="登録者情報" desc="プラン・ログインID・パスワード" onClick={() => setSheet('account')} />
-          <Divider />
-          <SettingRow emoji="🎫" title="ご利用プラン" desc="無料プラン" onClick={() => setSheet('plan')} />
-          <Divider />
+          <button
+            type="button"
+            onClick={() => setAccountOpen((v) => !v)}
+            aria-expanded={accountOpen}
+            className="flex w-full min-h-[56px] items-center gap-3 px-5 py-4 text-left active:opacity-70">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[16px]" style={{ backgroundColor: 'rgba(99,102,241,0.16)' }}>
+              👤
+            </span>
+            <span className="flex flex-1 flex-col">
+              <span className="text-[15px] font-semibold" style={{ color: '#e6edff' }}>アカウント情報</span>
+              <span className="text-[12px]" style={{ color: '#9fb0e0' }}>
+                メール（ID）・氏名・電話番号・パスワード{isSample ? '（編集不可）' : ''}
+              </span>
+            </span>
+            <span className="shrink-0 transition-transform" style={{ color: '#9aa6e0', transform: accountOpen ? 'rotate(90deg)' : 'none' }}>
+              <ChevronRightIcon size={18} />
+            </span>
+          </button>
+
+          {accountOpen && (
+          <div className="flex flex-col gap-3.5 px-5 pb-5 pt-1" style={{ borderTop: '1px solid rgba(120,160,255,0.12)' }}>
+            {/* メールアドレス（ログインID・表示のみ） */}
+            <InfoRow label="メールアドレス（ID）">
+              <span
+                className="block truncate text-right text-[13px] font-semibold"
+                style={{ color: loggedIn ? '#e6edff' : '#7a86b8' }}>
+                {email ?? '未ログイン'}
+              </span>
+            </InfoRow>
+
+            {/* 氏名（編集系：サンプル/未ログインは無効・灰色） */}
+            <AccountField label="氏名">
+              <input
+                type="text"
+                value={account.name}
+                disabled={editDisabled}
+                onChange={(e) => updateAccount({ name: e.target.value })}
+                placeholder={editDisabled ? '—' : '例）山田 太郎'}
+                className="min-h-[44px] w-full rounded-2xl px-4 py-2.5 text-[14px] outline-none placeholder:text-[#7d89bd] disabled:cursor-not-allowed"
+                style={{
+                  background: editDisabled ? 'rgba(40,44,60,0.5)' : 'rgba(10,14,32,0.5)',
+                  border: '1px solid rgba(130,165,255,0.4)',
+                  color: editDisabled ? '#7a86b8' : '#ffffff',
+                  caretColor: '#818cf8',
+                }}
+              />
+            </AccountField>
+
+            {/* 電話番号（編集系） */}
+            <AccountField label="電話番号">
+              <input
+                type="tel"
+                inputMode="tel"
+                value={account.phone}
+                disabled={editDisabled}
+                onChange={(e) => updateAccount({ phone: e.target.value })}
+                placeholder={editDisabled ? '—' : '例）090-1234-5678'}
+                className="min-h-[44px] w-full rounded-2xl px-4 py-2.5 text-[14px] outline-none placeholder:text-[#7d89bd] disabled:cursor-not-allowed"
+                style={{
+                  background: editDisabled ? 'rgba(40,44,60,0.5)' : 'rgba(10,14,32,0.5)',
+                  border: '1px solid rgba(130,165,255,0.4)',
+                  color: editDisabled ? '#7a86b8' : '#ffffff',
+                  caretColor: '#818cf8',
+                }}
+              />
+            </AccountField>
+
+            {/* パスワード（入力UIのみ・既定は ******** マスク。表示/非表示で入力値を切替表示） */}
+            <AccountField label="パスワード" last>
+              <div className="flex items-center gap-2">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  disabled={editDisabled}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="********"
+                  autoComplete="new-password"
+                  className="min-h-[44px] w-full flex-1 rounded-2xl px-4 py-2.5 text-[14px] outline-none placeholder:text-[#7d89bd] disabled:cursor-not-allowed"
+                  style={{
+                    background: editDisabled ? 'rgba(40,44,60,0.5)' : 'rgba(10,14,32,0.5)',
+                    border: '1px solid rgba(130,165,255,0.4)',
+                    color: editDisabled ? '#7a86b8' : '#ffffff',
+                    caretColor: '#818cf8',
+                    letterSpacing: showPassword ? 'normal' : '0.12em',
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={editDisabled}
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-pressed={showPassword}
+                  className="min-h-[44px] shrink-0 rounded-2xl px-3 text-[12px] font-bold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{
+                    background: 'rgba(99,102,241,0.16)',
+                    border: '1px solid rgba(130,165,255,0.4)',
+                    color: '#c7d2fe',
+                  }}>
+                  {showPassword ? '非表示' : '表示'}
+                </button>
+              </div>
+
+              {pwMsg && (
+                <p
+                  className="mt-2 rounded-xl px-3 py-2 text-[12px] font-semibold"
+                  style={
+                    pwMsg.ok
+                      ? { background: 'rgba(34,229,168,0.15)', color: '#86efac', border: '1px solid rgba(34,229,168,0.35)' }
+                      : { background: 'rgba(224,85,85,0.15)', color: '#ff9b9b', border: '1px solid rgba(224,85,85,0.35)' }
+                  }>
+                  {pwMsg.ok ? '✅ ' : '⚠️ '}{pwMsg.text}
+                </p>
+              )}
+
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="text-[11px]" style={{ color: '#7a86b8' }}>
+                  {editDisabled ? 'サンプルログインのため変更できません' : '新しいパスワード（6文字以上）'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleChangePassword}
+                  disabled={editDisabled || pwBusy || newPassword.length === 0}
+                  className="min-h-[40px] shrink-0 rounded-full px-4 text-[13px] font-bold text-white transition active:scale-95 disabled:opacity-45"
+                  style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 18px rgba(60,120,255,0.35)' }}>
+                  {pwBusy ? '変更中…' : '変更する'}
+                </button>
+              </div>
+            </AccountField>
+          </div>
+          )}
+        </section>
+
+        {/* 契約・お支払い（プラン状態はシステム/決済側で管理。ここでは選択UIを持たない） */}
+        <section className="overflow-hidden rounded-3xl" style={GLASS_CARD}>
           <SettingRow emoji="💳" title="契約・お支払い" desc="基本料金・支払い方法" onClick={() => setSheet('billing')} />
         </section>
 
-        {/* グループ2：AI設定（展開）／プラグイン */}
+        {/* AI設定（有料プラン＝Standard / Premium のときのみ表示。無料プランでは非表示） */}
+        {isPaid && (
         <section className="overflow-hidden rounded-3xl" style={GLASS_CARD}>
           {/* AI設定（展開式・既存の Ollama 設定をそのまま内包） */}
           <button
@@ -285,7 +520,11 @@ export default function SettingsPage() {
             </div>
           )}
 
-          <Divider />
+        </section>
+        )}
+
+        {/* プラグイン（プランに関わらず常時表示） */}
+        <section className="overflow-hidden rounded-3xl" style={GLASS_CARD}>
           <SettingRow emoji="🧩" title="プラグイン" desc="準備中" onClick={() => setSheet('plugin')} />
         </section>
 
@@ -326,41 +565,6 @@ export default function SettingsPage() {
       </div>
 
       {/* ── ボトムシート群（fixed・モバイルのみ） ── */}
-      {sheet === 'account' && (
-        <BottomSheet title="登録者情報" onClose={() => setSheet(null)}>
-          <p className="mb-1.5 text-[12px] font-bold" style={{ color: '#86efac' }}>現在のプラン</p>
-          <FieldGroup>
-            <Field label="プラン" value="無料プラン" />
-            <Field label="ログインID" value={email ?? '未ログイン'} />
-            <Field label="パスワード" value="登録済み" />
-            <Field label="パスワード変更" value="準備中" muted />
-          </FieldGroup>
-          <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>有料プラン登録情報（準備中）</p>
-          <FieldGroup>
-            <Field label="プラン" value="有料プラン" muted />
-            <Field label="氏名" value="準備中" muted />
-            <Field label="連絡先" value="準備中" muted />
-            <Field label="メールアドレス" value={email ?? '準備中'} muted />
-            <Field label="契約期間" value="準備中" muted />
-            <Field label="登録決済会社" value="準備中" muted />
-            <Field label="支払い方法" value="登録済み（準備中）" muted />
-          </FieldGroup>
-          <p className="mt-3 text-[11px]" style={{ color: '#7a86b8' }}>
-            ※ 実際のパスワードやクレジットカード番号は表示・保存されません。
-          </p>
-        </BottomSheet>
-      )}
-
-      {sheet === 'plan' && (
-        <BottomSheet title="ご利用プラン" onClose={() => setSheet(null)}>
-          <FieldGroup>
-            <Field label="現在のプラン" value="無料プラン" />
-            <Field label="スタンダードプラン" value="準備中" muted />
-            <Field label="有料プラン管理" value="準備中" muted />
-          </FieldGroup>
-        </BottomSheet>
-      )}
-
       {sheet === 'billing' && (
         <BottomSheet title="契約・お支払い" onClose={() => setSheet(null)}>
           <FieldGroup>
@@ -369,6 +573,44 @@ export default function SettingsPage() {
             <Field label="契約合計金額" value="0円" />
             <Field label="支払い方法" value="未登録（準備中）" muted />
           </FieldGroup>
+
+          {/* ストレージ使用量（表示専用・暫定モック） */}
+          <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>ストレージ使用量</p>
+          <div
+            className="rounded-2xl px-4 py-3.5"
+            style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(120,160,255,0.18)' }}>
+            <div className="flex items-end justify-between gap-3">
+              <span className="text-[15px] font-bold text-white">
+                {storageUsedGb}GB
+                <span className="ml-1 text-[13px] font-semibold" style={{ color: '#9fb0e0' }}>/ {storageLimitGb}GB</span>
+              </span>
+              <span className="text-[14px] font-extrabold" style={{ color: storageColor }}>{storagePct}%</span>
+            </div>
+
+            {/* プログレスバー（使用率を視覚化・しきい値で配色変化） */}
+            <div
+              className="mt-2.5 h-3 w-full overflow-hidden rounded-full"
+              role="progressbar"
+              aria-valuenow={storagePct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              style={{ background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.max(storagePct, 2)}%`,
+                  background: `linear-gradient(90deg, ${storageColor}cc, ${storageColor})`,
+                  boxShadow: `0 0 10px ${storageColor}`,
+                }}
+              />
+            </div>
+
+            <p className="mt-2 text-[11px] font-semibold" style={{ color: storageColor }}>{storageNote}</p>
+            <p className="mt-1 text-[11px]" style={{ color: '#7a86b8' }}>
+              {planLabel} の上限 {storageLimitGb}GB ／ ※ 表示は暫定値（実計測は未実装）
+            </p>
+          </div>
+
           <p className="mt-3 text-[11px]" style={{ color: '#7a86b8' }}>
             ※ クレジットカード番号などの決済情報は保存されません。
           </p>
@@ -483,6 +725,38 @@ function BottomSheet({
         </div>
         {children}
       </div>
+    </div>
+  );
+}
+
+// ユーザー情報セクションの行（ラベル＋任意の値ノード・横並び表示用）
+function InfoRow({
+  label,
+  children,
+  last,
+}: {
+  label: string;
+  children: React.ReactNode;
+  last?: boolean;
+}) {
+  return (
+    <div
+      className="flex items-center justify-between gap-3 pb-3.5"
+      style={last ? undefined : { borderBottom: '1px solid rgba(120,160,255,0.14)' }}>
+      <span className="shrink-0 text-[13px]" style={{ color: '#9fb0e0' }}>{label}</span>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+// アカウント情報セクションの編集フィールド（ラベルを上・入力を下に置く縦並び）
+function AccountField({ label, children, last }: { label: string; children: React.ReactNode; last?: boolean }) {
+  return (
+    <div
+      className="flex flex-col gap-1.5 pb-3.5"
+      style={last ? undefined : { borderBottom: '1px solid rgba(120,160,255,0.14)' }}>
+      <span className="text-[12px] font-semibold" style={{ color: '#9fb0e0' }}>{label}</span>
+      {children}
     </div>
   );
 }
