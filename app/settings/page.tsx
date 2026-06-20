@@ -13,6 +13,7 @@ import {
   type OllamaSettings,
 } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
+import { createContactInquiry } from '@/lib/contact';
 import {
   DEFAULT_ACCOUNT_SETTINGS,
   loadAccountSettings,
@@ -89,6 +90,7 @@ export default function SettingsPage() {
   const [contactAgree, setContactAgree] = useState(false); // 利用規約確認チェック
   const [contactTermsOpen, setContactTermsOpen] = useState(false); // 利用規約ポップアップ
   const [contactStep, setContactStep] = useState<'input' | 'confirm'>('input'); // 入力→確認の段階
+  const [contactBusy, setContactBusy] = useState(false); // 送信中（Supabase保存中）
   const [contactError, setContactError] = useState<string | null>(null);
   const [contactDone, setContactDone] = useState(false);
 
@@ -155,9 +157,25 @@ export default function SettingsPage() {
   // 送信タップ直後に、完了画面の「閉じる」が同じ位置でゴーストクリックされ即閉じるのを防ぐガード
   const contactCloseGuardRef = useRef(false);
 
-  // お問い合わせ：送信（確認画面で実行。今回はメール送信／DB保存はせず完了表示のみ）
-  // ここではシートは閉じない（完了画面を表示し、ユーザーが「閉じる」を押すまで開いたまま）。
-  function submitContact() {
+  // お問い合わせ：送信（確認画面で実行）。contact_inquiries テーブルへ保存する。
+  // ここではシートは閉じない（成功時は完了画面を表示し、ユーザーが「閉じる」を押すまで開いたまま）。
+  // 保存失敗時は確認画面に留まり、エラーメッセージを表示する。
+  async function submitContact() {
+    if (contactBusy) return;
+    setContactBusy(true);
+    setContactError(null);
+    const res = await createContactInquiry({
+      userName: account.name.trim() || '未登録',
+      userEmail: email ?? '',
+      category: contactCategory,
+      message: contactBody.trim(),
+      imageFilename: contactImageName,
+    });
+    setContactBusy(false);
+    if (!res.ok) {
+      setContactError(res.error ?? 'お問い合わせの送信に失敗しました。時間をおいて再度お試しください。');
+      return;
+    }
     setContactDone(true);
     contactCloseGuardRef.current = true;
     window.setTimeout(() => {
@@ -182,6 +200,7 @@ export default function SettingsPage() {
     setContactAgree(false);
     setContactTermsOpen(false);
     setContactStep('input');
+    setContactBusy(false);
     setContactError(null);
     setContactDone(false);
   }
@@ -755,6 +774,15 @@ export default function SettingsPage() {
                 <p className="text-[13px]" style={{ color: '#7a86b8' }}>なし</p>
               )}
 
+              {/* 保存失敗時のエラー（確認画面に留まり完了画面へ進まない） */}
+              {contactError && (
+                <p
+                  className="mt-4 rounded-xl px-3 py-2 text-[12px] font-semibold"
+                  style={{ background: 'rgba(224,85,85,0.15)', color: '#ff9b9b', border: '1px solid rgba(224,85,85,0.35)' }}>
+                  ⚠️ {contactError}
+                </p>
+              )}
+
               {/* 送信ボタンの上の補足説明 */}
               <p className="mt-5 text-[12px] leading-snug" style={{ color: '#9fb0e0' }}>
                 ※お問い合わせの内容により、回答まで1週間ほどお時間をいただく場合があります。
@@ -765,16 +793,18 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setContactStep('input')}
-                  className="min-h-[48px] flex-1 rounded-full text-[14px] font-semibold"
+                  disabled={contactBusy}
+                  className="min-h-[48px] flex-1 rounded-full text-[14px] font-semibold disabled:opacity-50"
                   style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#c7d2fe', background: 'rgba(0,0,0,0.3)' }}>
                   戻る
                 </button>
                 <button
                   type="button"
                   onClick={submitContact}
-                  className="min-h-[48px] flex-1 rounded-full text-[14px] font-bold text-white active:scale-[0.98]"
+                  disabled={contactBusy}
+                  className="min-h-[48px] flex-1 rounded-full text-[14px] font-bold text-white active:scale-[0.98] disabled:opacity-60"
                   style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 8px 24px rgba(60,120,255,0.4)' }}>
-                  送信
+                  {contactBusy ? '送信中…' : '送信'}
                 </button>
               </div>
             </>
