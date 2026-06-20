@@ -60,6 +60,9 @@ function LogoutIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+// お問い合わせ項目（選択式）
+const CONTACT_CATEGORIES = ['アプリについて', 'プランについて', '解約について', 'その他'];
+
 type SheetKey =
   | 'billing'
   | 'plugin'
@@ -71,9 +74,23 @@ type SheetKey =
 export default function SettingsPage() {
   const configured = isSupabaseConfigured();
   const [email, setEmail] = useState<string | null>(null);
+  // 登録者情報の ID（お問い合わせの自動表示用・読み取り専用）
+  const [userId, setUserId] = useState<string | null>(null);
 
   // アカウント情報（氏名・電話番号・利用プラン）の端末ローカル保存
   const [account, setAccount] = useState<AccountSettings>(DEFAULT_ACCOUNT_SETTINGS);
+
+  // お問い合わせフォーム（アプリ内・送信はモック。登録者情報は自動表示）
+  const [contactCategory, setContactCategory] = useState('');
+  const [contactCatOpen, setContactCatOpen] = useState(false); // 項目選択ポップアップ
+  const [contactBody, setContactBody] = useState('');
+  const [contactImageName, setContactImageName] = useState<string | null>(null); // 添付画像（任意）
+  const [contactImagePreview, setContactImagePreview] = useState<string | null>(null);
+  const [contactAgree, setContactAgree] = useState(false); // 利用規約確認チェック
+  const [contactTermsOpen, setContactTermsOpen] = useState(false); // 利用規約ポップアップ
+  const [contactStep, setContactStep] = useState<'input' | 'confirm'>('input'); // 入力→確認の段階
+  const [contactError, setContactError] = useState<string | null>(null);
+  const [contactDone, setContactDone] = useState(false);
 
   // パスワード変更（入力UIのみ。認証ストアの実際の現在パスワードは取得・表示しない）
   const [newPassword, setNewPassword] = useState('');
@@ -96,11 +113,64 @@ export default function SettingsPage() {
     const sb = getSupabaseBrowserClient();
     sb?.auth.getUser().then(({ data }) => {
       setEmail(data.user?.email ?? null);
+      setUserId(data.user?.id ?? null);
     });
     setAccount(loadAccountSettings());
     setOllama(loadOllamaSettings());
     setLocal(isLocalHost());
   }, []);
+
+  // 添付画像（任意）の選択。実アップロードはせず、ファイル名＋プレビューを画面表示するのみ。
+  function onContactImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setContactImageName(null);
+      setContactImagePreview(null);
+      return;
+    }
+    setContactImageName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => setContactImagePreview(typeof reader.result === 'string' ? reader.result : null);
+    reader.readAsDataURL(file);
+  }
+
+  // お問い合わせ：確認画面へ（入力チェック。問題なければ確認ステップへ進む）
+  function goConfirm() {
+    if (!contactCategory) {
+      setContactError('お問い合わせ項目を選択してください。');
+      return;
+    }
+    if (contactBody.trim().length === 0) {
+      setContactError('お問い合わせ内容を入力してください。');
+      return;
+    }
+    if (!contactAgree) {
+      setContactError('利用規約の確認にチェックしてください。');
+      return;
+    }
+    setContactError(null);
+    setContactStep('confirm');
+  }
+
+  // お問い合わせ：送信（確認画面で実行。今回はメール送信／DB保存はせず完了表示のみ）
+  function submitContact() {
+    setContactDone(true);
+  }
+
+  // お問い合わせ：閉じる（キャンセル含む。送信せず入力内容をリセット）
+  function closeContact() {
+    setSheet(null);
+    setContactCatOpen(false);
+    setContactCategory('');
+    setContactBody('');
+    setContactImageName(null);
+    setContactImagePreview(null);
+    setContactAgree(false);
+    setContactTermsOpen(false);
+    setContactStep('input');
+    setContactError(null);
+    setContactDone(false);
+  }
 
   // アカウント情報（氏名・電話番号・プラン）をローカル保存（既存の設定保存パターンと同一）
   function updateAccount(patch: Partial<AccountSettings>) {
@@ -618,7 +688,336 @@ export default function SettingsPage() {
       )}
 
       {sheet === 'plugin' && <SoonSheet title="プラグイン" onClose={() => setSheet(null)} />}
-      {sheet === 'contact' && <SoonSheet title="お問い合わせ" onClose={() => setSheet(null)} />}
+      {sheet === 'contact' && (
+        <BottomSheet title="お問い合わせ" onClose={closeContact}>
+          {contactDone ? (
+            // 送信完了表示（今回はメール送信／DB保存はせずモック）
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full text-[26px]" style={{ background: 'rgba(34,229,168,0.16)' }}>
+                ✅
+              </span>
+              <p className="text-[15px] font-bold" style={{ color: '#e6edff' }}>お問い合わせを受け付けました</p>
+              <p className="text-[12px]" style={{ color: '#9fb0e0' }}>
+                内容を確認のうえ、必要に応じてご登録のメールアドレスへご連絡します。
+              </p>
+              <button
+                type="button"
+                onClick={closeContact}
+                className="mt-2 min-h-[48px] w-full rounded-full text-[14px] font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 8px 24px rgba(60,120,255,0.4)' }}>
+                閉じる
+              </button>
+            </div>
+          ) : contactStep === 'confirm' ? (
+            // 入力内容の確認画面（送信前）
+            <>
+              <p className="mb-1.5 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>入力内容の確認</p>
+              <FieldGroup>
+                <Field label="名前" value={account.name.trim() || '未登録'} muted={!account.name.trim()} />
+                <Field label="メールアドレス" value={email ?? '未登録'} muted={!email} />
+                <Field label="ID" value={userId ?? '未登録'} muted={!userId} />
+                <Field label="お問い合わせ項目" value={contactCategory || '未選択'} muted={!contactCategory} />
+              </FieldGroup>
+
+              {/* お問い合わせ内容（複数行をそのまま表示） */}
+              <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>お問い合わせ内容</p>
+              <div
+                className="whitespace-pre-line rounded-2xl px-4 py-3 text-[14px] leading-relaxed"
+                style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(120,160,255,0.18)', color: '#e6edff' }}>
+                {contactBody}
+              </div>
+
+              {/* 添付画像（あればファイル名＋プレビュー、無ければ「なし」） */}
+              <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>添付画像</p>
+              {contactImagePreview ? (
+                <div
+                  className="flex items-center gap-3 rounded-2xl p-2.5"
+                  style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(120,160,255,0.18)' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={contactImagePreview} alt="添付画像プレビュー" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                  <span className="min-w-0 flex-1 truncate text-[12px]" style={{ color: '#e6edff' }}>{contactImageName}</span>
+                </div>
+              ) : (
+                <p className="text-[13px]" style={{ color: '#7a86b8' }}>なし</p>
+              )}
+
+              {/* 送信ボタンの上の補足説明 */}
+              <p className="mt-5 text-[12px] leading-snug" style={{ color: '#9fb0e0' }}>
+                ※お問い合わせの内容により、回答まで1週間ほどお時間をいただく場合があります。
+              </p>
+
+              {/* 戻る / 送信 */}
+              <div className="mt-3 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setContactStep('input')}
+                  className="min-h-[48px] flex-1 rounded-full text-[14px] font-semibold"
+                  style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#c7d2fe', background: 'rgba(0,0,0,0.3)' }}>
+                  戻る
+                </button>
+                <button
+                  type="button"
+                  onClick={submitContact}
+                  className="min-h-[48px] flex-1 rounded-full text-[14px] font-bold text-white active:scale-[0.98]"
+                  style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 8px 24px rgba(60,120,255,0.4)' }}>
+                  送信
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* 登録者情報（自動表示・読み取り専用。手入力欄にはしない） */}
+              <p className="mb-1.5 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>登録者情報</p>
+              <FieldGroup>
+                <Field label="名前" value={account.name.trim() || '未登録'} muted={!account.name.trim()} />
+                <Field label="メールアドレス" value={email ?? '未登録'} muted={!email} />
+                <Field label="ID" value={userId ?? '未登録'} muted={!userId} />
+              </FieldGroup>
+
+              {/* お問い合わせ項目（タップでポップアップ選択） */}
+              <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>お問い合わせ項目</p>
+              <button
+                type="button"
+                onClick={() => setContactCatOpen(true)}
+                className="flex min-h-[48px] w-full items-center justify-between rounded-2xl px-4 text-left text-[14px] active:opacity-80"
+                style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(130,165,255,0.4)' }}>
+                <span style={{ color: contactCategory ? '#ffffff' : '#7d89bd' }}>
+                  {contactCategory || '項目を選択してください'}
+                </span>
+                <span aria-hidden style={{ color: '#9aa6e0' }}>
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </span>
+              </button>
+
+              {/* お問い合わせ内容（複数行） */}
+              <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>お問い合わせ内容</p>
+              <textarea
+                value={contactBody}
+                onChange={(e) => {
+                  setContactBody(e.target.value);
+                  setContactError(null);
+                }}
+                placeholder="お問い合わせ内容を入力してください"
+                className="min-h-[120px] w-full resize-none rounded-2xl px-4 py-3 text-[14px] text-white outline-none placeholder:text-[#7d89bd]"
+                style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(130,165,255,0.4)', caretColor: '#818cf8' }}
+              />
+
+              {/* 画像添付（任意・実アップロードなし。ファイル名＋プレビュー表示のみ） */}
+              <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>
+                画像添付 <span className="font-medium" style={{ color: '#7a86b8' }}>（任意）</span>
+              </p>
+              <label
+                className="flex min-h-[48px] cursor-pointer items-center gap-2 rounded-2xl px-4 active:opacity-80"
+                style={{ background: 'rgba(10,14,32,0.5)', border: '1px dashed rgba(130,165,255,0.45)' }}>
+                <input type="file" accept="image/*" onChange={onContactImageChange} className="hidden" />
+                <span aria-hidden style={{ color: '#9B7BFF' }}>
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="3" />
+                    <circle cx="8.5" cy="8.5" r="1.6" />
+                    <path d="M21 15l-5-5L5 21" />
+                  </svg>
+                </span>
+                <span className="text-[13px] font-semibold" style={{ color: '#c7d2fe' }}>
+                  {contactImageName ? '画像を変更' : '画像を選択'}
+                </span>
+              </label>
+              {/* 画像添付の補足説明（小さめ・薄め） */}
+              <p className="mt-1.5 text-[11px]" style={{ color: '#7a86b8' }}>
+                ※お問い合わせに関する画像があれば添付ください
+              </p>
+              {contactImagePreview && (
+                <div
+                  className="mt-2 flex items-center gap-3 rounded-2xl p-2.5"
+                  style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(120,160,255,0.18)' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={contactImagePreview} alt="添付画像プレビュー" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                  <span className="min-w-0 flex-1 truncate text-[12px]" style={{ color: '#e6edff' }}>{contactImageName}</span>
+                  <button
+                    type="button"
+                    aria-label="添付画像を削除"
+                    onClick={() => {
+                      setContactImageName(null);
+                      setContactImagePreview(null);
+                    }}
+                    className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold active:opacity-70"
+                    style={{ background: 'rgba(224,85,85,0.16)', color: '#ff9b9b', border: '1px solid rgba(224,85,85,0.3)' }}>
+                    削除
+                  </button>
+                </div>
+              )}
+
+              {/* 利用規約確認チェック（送信ボタンの上に配置） */}
+              <label className="mt-4 flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={contactAgree}
+                  onChange={(e) => {
+                    setContactAgree(e.target.checked);
+                    setContactError(null);
+                  }}
+                  className="mt-0.5 h-5 w-5 shrink-0 rounded"
+                  style={{ accentColor: '#7B5FFF' }}
+                />
+                <span className="text-[13px] leading-snug" style={{ color: '#dbe4ff' }}>
+                  利用規約を確認後、送信します
+                </span>
+              </label>
+              {/* 利用規約を確認する（画面内ポップアップで表示） */}
+              <button
+                type="button"
+                onClick={() => setContactTermsOpen(true)}
+                className="mt-2 inline-flex items-center gap-1 text-[12px] font-bold underline-offset-2 active:opacity-70"
+                style={{ color: '#9cc4ff', textDecoration: 'underline' }}>
+                利用規約を確認する
+                <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </button>
+
+              {contactError && (
+                <p
+                  className="mt-3 rounded-xl px-3 py-2 text-[12px] font-semibold"
+                  style={{ background: 'rgba(224,85,85,0.15)', color: '#ff9b9b', border: '1px solid rgba(224,85,85,0.35)' }}>
+                  ⚠️ {contactError}
+                </p>
+              )}
+
+              {/* ボタン：キャンセル / 送信 */}
+              <div className="mt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={closeContact}
+                  className="min-h-[48px] flex-1 rounded-full text-[14px] font-semibold"
+                  style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#c7d2fe', background: 'rgba(0,0,0,0.3)' }}>
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  onClick={goConfirm}
+                  className="min-h-[48px] flex-1 rounded-full text-[14px] font-bold text-white active:scale-[0.98]"
+                  style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 8px 24px rgba(60,120,255,0.4)' }}>
+                  確認
+                </button>
+              </div>
+
+              <p className="mt-3 text-[11px]" style={{ color: '#7a86b8' }}>
+                ※ 登録者情報（名前・メール・ID）は自動で送信内容に含まれます。
+              </p>
+            </>
+          )}
+        </BottomSheet>
+      )}
+
+      {/* お問い合わせ項目の選択ポップアップ（ボトムシートより手前に表示） */}
+      {sheet === 'contact' && contactCatOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/55" onClick={() => setContactCatOpen(false)} />
+          <div
+            className="relative w-full max-w-md rounded-t-3xl px-5 pt-3 sm:rounded-3xl"
+            style={{
+              paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+              background: 'rgba(16,20,42,0.98)',
+              border: '1px solid rgba(120,160,255,0.28)',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.5), 0 0 24px rgba(99,102,241,0.14)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }}>
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: 'rgba(255,255,255,0.18)' }} />
+            <h2 className="mb-3 text-[16px] font-bold" style={{ color: '#ffffff' }}>お問い合わせ項目を選択</h2>
+            <div className="flex flex-col gap-2">
+              {CONTACT_CATEGORIES.map((c) => {
+                const active = contactCategory === c;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => {
+                      setContactCategory(c);
+                      setContactError(null);
+                      setContactCatOpen(false);
+                    }}
+                    className="flex min-h-[48px] items-center justify-between rounded-2xl px-4 text-left text-[14px] font-semibold transition active:scale-[0.98]"
+                    style={
+                      active
+                        ? {
+                            background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)',
+                            color: '#ffffff',
+                            boxShadow: '0 0 14px rgba(99,102,241,0.5)',
+                            border: '1px solid rgba(130,165,255,0.6)',
+                          }
+                        : {
+                            background: 'rgba(10,14,32,0.5)',
+                            color: '#e6edff',
+                            border: '1px solid rgba(130,165,255,0.3)',
+                          }
+                    }>
+                    {c}
+                    {active && (
+                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 利用規約ポップアップ（お問い合わせ画面内で確認・遷移なし） */}
+      {sheet === 'contact' && contactTermsOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/55" onClick={() => setContactTermsOpen(false)} />
+          <div
+            className="relative flex max-h-[80vh] w-full max-w-md flex-col rounded-t-3xl px-5 pt-3 sm:rounded-3xl"
+            style={{
+              paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+              background: 'rgba(16,20,42,0.98)',
+              border: '1px solid rgba(120,160,255,0.28)',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.5), 0 0 24px rgba(99,102,241,0.14)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }}>
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: 'rgba(255,255,255,0.18)' }} />
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[16px] font-bold" style={{ color: '#ffffff' }}>利用規約</h2>
+              <button
+                type="button"
+                aria-label="閉じる"
+                onClick={() => setContactTermsOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full active:opacity-60"
+                style={{ color: '#c7d2fe' }}>
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto text-[13px] leading-relaxed" style={{ color: '#dbe4ff' }}>
+              <p className="mb-2 font-bold" style={{ color: '#c4b5fd' }}>MyBrain 利用規約（簡易版）</p>
+              <p className="mb-2">1. 本アプリはメモ・予定・AIアシスト等の機能を提供します。</p>
+              <p className="mb-2">2. 入力されたデータは、利用者の環境・設定に従って保存・処理されます。</p>
+              <p className="mb-2">3. AIの回答は参考情報であり、内容の正確性を保証するものではありません。</p>
+              <p className="mb-2">4. 法令・公序良俗に反する利用、第三者の権利を侵害する利用は禁止します。</p>
+              <p className="mb-2">5. お問い合わせで送信された情報は、対応のために利用されます。</p>
+              <p className="mb-2">6. 本規約は予告なく改定される場合があります。</p>
+              <p className="mt-3 text-[11px]" style={{ color: '#7a86b8' }}>
+                ※ 正式な利用規約は今後のアップデートで公開予定です。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setContactTermsOpen(false)}
+              className="mt-4 min-h-[48px] w-full rounded-full text-[14px] font-bold text-white"
+              style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 8px 24px rgba(60,120,255,0.4)' }}>
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
+
       {sheet === 'privacy' && <SoonSheet title="プライバシーポリシー" onClose={() => setSheet(null)} />}
       {sheet === 'company' && <SoonSheet title="会社情報" onClose={() => setSheet(null)} />}
 
