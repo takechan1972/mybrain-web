@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import {
@@ -152,9 +152,23 @@ export default function SettingsPage() {
     setContactStep('confirm');
   }
 
+  // 送信タップ直後に、完了画面の「閉じる」が同じ位置でゴーストクリックされ即閉じるのを防ぐガード
+  const contactCloseGuardRef = useRef(false);
+
   // お問い合わせ：送信（確認画面で実行。今回はメール送信／DB保存はせず完了表示のみ）
+  // ここではシートは閉じない（完了画面を表示し、ユーザーが「閉じる」を押すまで開いたまま）。
   function submitContact() {
     setContactDone(true);
+    contactCloseGuardRef.current = true;
+    window.setTimeout(() => {
+      contactCloseGuardRef.current = false;
+    }, 500);
+  }
+
+  // 完了画面の「閉じる」：送信直後の誤タップ（ゴーストクリック）は無視し、ユーザー操作のみで閉じる
+  function finishContact() {
+    if (contactCloseGuardRef.current) return;
+    closeContact();
   }
 
   // お問い合わせ：閉じる（キャンセル含む。送信せず入力内容をリセット）
@@ -689,7 +703,7 @@ export default function SettingsPage() {
 
       {sheet === 'plugin' && <SoonSheet title="プラグイン" onClose={() => setSheet(null)} />}
       {sheet === 'contact' && (
-        <BottomSheet title="お問い合わせ" onClose={closeContact}>
+        <BottomSheet title="お問い合わせ" onClose={finishContact}>
           {contactDone ? (
             // 送信完了表示（今回はメール送信／DB保存はせずモック）
             <div className="flex flex-col items-center gap-3 py-8 text-center">
@@ -702,7 +716,7 @@ export default function SettingsPage() {
               </p>
               <button
                 type="button"
-                onClick={closeContact}
+                onClick={finishContact}
                 className="mt-2 min-h-[48px] w-full rounded-full text-[14px] font-bold text-white"
                 style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 8px 24px rgba(60,120,255,0.4)' }}>
                 閉じる
