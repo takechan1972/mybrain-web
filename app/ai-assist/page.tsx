@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import NextImage from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import VoiceInput from '@/components/VoiceInput';
 import {
   DEFAULT_AI_ASSIST_SETTINGS,
@@ -22,6 +22,22 @@ export default function AiAssistPage() {
     setS(loadAiAssistSettings());
   }, []);
 
+  // ホームのAI検索バーから ?q= で渡された質問を、初回マウント時に一度だけ自動実行する。
+  // - useRef のフラグで再レンダー時の重複実行を防止
+  // - q が無い／空のときは何もしない（通常どおりの AIアシスト画面）
+  const autoRanRef = useRef(false);
+  useEffect(() => {
+    if (autoRanRef.current) return;
+    if (typeof window === 'undefined') return;
+    // URLSearchParams が安全にデコードした値を使う
+    const q = (new URLSearchParams(window.location.search).get('q') ?? '').trim();
+    if (!q) return;
+    autoRanRef.current = true;
+    setAsk(q); // 入力欄にも反映（既存の入力UIを維持）
+    goConsult(q, true); // 既存の送信関数で自動実行（自動転送は replace で戻る導線を自然に）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function update(patch: Partial<AiAssistSettings>) {
     setS((prev) => {
       const next = { ...prev, ...patch };
@@ -30,15 +46,20 @@ export default function AiAssistPage() {
     });
   }
 
-  // 入力内容を /consult へ受け渡す。/consult は ?q= を読み取って入力欄へ反映する既存仕様を利用。
-  function goConsult() {
-    const q = ask.trim();
+  // 入力内容を /consult へ受け渡す（既存の AIアシスト送信処理）。
+  // /consult は ?q= を読み取り、回答まで自動生成・表示する。
+  // - text 省略時は入力欄の値を使う（手動送信）
+  // - replace=true のときは履歴を置換（ホームからの自動転送用）
+  function goConsult(text?: string, replace = false) {
+    const q = (text ?? ask).trim();
     if (q.length === 0) {
       setAskHint('AIに相談したい内容を入力してください。');
       return;
     }
     setAskHint(null);
-    router.push(`/consult?q=${encodeURIComponent(q)}`);
+    const url = `/consult?q=${encodeURIComponent(q)}`;
+    if (replace) router.replace(url);
+    else router.push(url);
   }
 
   return (
@@ -146,7 +167,7 @@ export default function AiAssistPage() {
           <div className="mt-3 flex gap-2">
             <button
               type="button"
-              onClick={goConsult}
+              onClick={() => goConsult()}
               className="flex h-[50px] flex-[1.6] items-center justify-center rounded-full px-1 text-[14px] font-extrabold text-white transition active:scale-95"
               style={{
                 background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)',

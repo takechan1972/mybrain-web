@@ -63,11 +63,12 @@ export default function HomePage() {
     };
   }, [configured]);
 
-  // AI検索バー送信：入力内容を AI（/consult）へ受け渡す（ai-assist 画面と同じ既存仕様 ?q=）。
+  // AI検索バー送信：入力内容を AIアシスト（/ai-assist）へ ?q= で受け渡す。
+  // 受け取った側で自動実行され、再入力なしで回答まで表示される。
   function submitSearch() {
     const q = query.trim();
     if (q.length === 0) return;
-    router.push(`/consult?q=${encodeURIComponent(q)}`);
+    router.push(`/ai-assist?q=${encodeURIComponent(q)}`);
   }
 
   // 今日の予定（開始時刻の昇順）。データが無い／未設定は除外。
