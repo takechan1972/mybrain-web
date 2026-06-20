@@ -59,19 +59,31 @@ export default function ConsultPage() {
   const [memos, setMemos] = useState<Memo[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const baseRef = useRef('');
+  // ホーム→AIアシスト（/ai-assist?q=）から ?q= で来たときの自動実行用
+  const [dataReady, setDataReady] = useState(false);
+  const autoRunDoneRef = useRef(false);
+  const pendingQRef = useRef<string | null>(null);
 
   // マウント後にクライアント側でのみ履歴（localStorage）と参照データ（Supabase）を読み込む
   useEffect(() => {
     setTurns(loadConsultTurns());
     setLoaded(true);
-    const q = new URLSearchParams(window.location.search).get('q');
-    if (q) setText(q);
-    if (!isSupabaseConfigured()) return;
+    // ?q= は URLSearchParams が安全にデコード。入力欄へ反映しつつ自動実行用に保持。
+    const q = (new URLSearchParams(window.location.search).get('q') ?? '').trim();
+    if (q) {
+      setText(q);
+      pendingQRef.current = q;
+    }
+    if (!isSupabaseConfigured()) {
+      // 参照データが無い環境でも自動実行できるよう準備完了にする
+      setDataReady(true);
+      return;
+    }
 
     const isDev = process.env.NODE_ENV !== 'production';
     // 最新のメモ・予定を取得（保存直後に相談画面へ来ても古いデータを参照しないよう毎回再取得）
     const loadData = () => {
-      void listMemos().then(({ memos }) => {
+      const p1 = listMemos().then(({ memos }) => {
         setMemos(memos);
         if (isDev) {
           const latest = [...memos].sort(
@@ -84,7 +96,7 @@ export default function ConsultPage() {
           });
         }
       });
-      void listReservations().then(({ reservations }) => {
+      const p2 = listReservations().then(({ reservations }) => {
         setReservations(reservations);
         if (isDev) {
           const latest = [...reservations].sort((a, b) => (b.scheduleAt ?? 0) - (a.scheduleAt ?? 0))[0];
@@ -95,6 +107,8 @@ export default function ConsultPage() {
           });
         }
       });
+      // メモ・予定の取得が揃ってから自動実行できるよう準備完了フラグを立てる
+      void Promise.allSettled([p1, p2]).then(() => setDataReady(true));
     };
     loadData();
     // 他画面（予定保存など）から戻ってきたら最新を再取得（古い予定を参照し続けない）
@@ -115,6 +129,21 @@ export default function ConsultPage() {
     if (!loaded) return;
     saveConsultTurns(turns);
   }, [turns, loaded]);
+
+  // ?q= で来たときの自動実行：参照データの読み込み完了後に一度だけ send() する。
+  // - autoRunDoneRef で再レンダー／StrictMode の二重実行を防止
+  // - q の値を直接 send() に渡す（text ステートの更新完了を待たない）
+  // - q が無い／空のときは何もしない（手動入力には影響しない）
+  useEffect(() => {
+    if (autoRunDoneRef.current) return;
+    if (!dataReady) return;
+    const q = pendingQRef.current;
+    if (!q) return;
+    autoRunDoneRef.current = true;
+    pendingQRef.current = null;
+    void send(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataReady]);
 
   function showToast(msg: string) {
     setToast(msg);
