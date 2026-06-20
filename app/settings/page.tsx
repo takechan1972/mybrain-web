@@ -13,7 +13,7 @@ import {
   type OllamaSettings,
 } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
-import { createContactInquiry } from '@/lib/contact';
+import { createContactInquiry, listMyInquiries, type ContactInquiry } from '@/lib/contact';
 import {
   DEFAULT_ACCOUNT_SETTINGS,
   loadAccountSettings,
@@ -249,10 +249,30 @@ type SheetKey =
   | 'billing'
   | 'plugin'
   | 'contact'
+  | 'history'
   | 'terms'
   | 'privacy'
   | 'company'
   | 'logout';
+
+// 日時(epoch ms) → "YYYY/MM/DD HH:mm"
+function formatInquiryDateTime(ms: number): string {
+  if (!ms || !Number.isFinite(ms)) return '日時不明';
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// 対応状況のラベル配色（済/完了=緑、中=青、それ以外=アンバー）
+function statusChipStyle(s: string): React.CSSProperties {
+  if (/済|完了|クローズ/.test(s)) {
+    return { background: 'rgba(34,229,168,0.16)', color: '#86efac', border: '1px solid rgba(34,229,168,0.4)' };
+  }
+  if (/中/.test(s)) {
+    return { background: 'rgba(56,189,248,0.16)', color: '#7dd3fc', border: '1px solid rgba(56,189,248,0.4)' };
+  }
+  return { background: 'rgba(242,213,138,0.16)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.4)' };
+}
 
 export default function SettingsPage() {
   const configured = isSupabaseConfigured();
@@ -275,6 +295,12 @@ export default function SettingsPage() {
   const [contactBusy, setContactBusy] = useState(false); // 送信中（Supabase保存中）
   const [contactError, setContactError] = useState<string | null>(null);
   const [contactDone, setContactDone] = useState(false);
+
+  // お問い合わせ履歴（本人分のみ）
+  const [inquiries, setInquiries] = useState<ContactInquiry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [selectedInquiry, setSelectedInquiry] = useState<ContactInquiry | null>(null);
 
   // パスワード変更（入力UIのみ。認証ストアの実際の現在パスワードは取得・表示しない）
   const [newPassword, setNewPassword] = useState('');
@@ -385,6 +411,28 @@ export default function SettingsPage() {
     setContactBusy(false);
     setContactError(null);
     setContactDone(false);
+  }
+
+  // お問い合わせ履歴：本人分を読み込む
+  async function loadHistory() {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    setSelectedInquiry(null);
+    const res = await listMyInquiries();
+    setHistoryLoading(false);
+    if (res.error) {
+      setHistoryError(res.error);
+      setInquiries([]);
+      return;
+    }
+    setInquiries(res.inquiries);
+  }
+
+  // お問い合わせ履歴：シートを開いて読み込み開始
+  function openHistory() {
+    setSelectedInquiry(null);
+    setSheet('history');
+    void loadHistory();
   }
 
   // アカウント情報（氏名・電話番号・プラン）をローカル保存（既存の設定保存パターンと同一）
@@ -813,9 +861,11 @@ export default function SettingsPage() {
           <SettingRow emoji="🧩" title="プラグイン" desc="準備中" onClick={() => setSheet('plugin')} />
         </section>
 
-        {/* グループ3：お問い合わせ／利用規約／プライバシーポリシー／会社情報 */}
+        {/* グループ3：お問い合わせ／お問い合わせ履歴／利用規約／プライバシーポリシー／会社情報 */}
         <section className="overflow-hidden rounded-3xl" style={GLASS_CARD}>
           <SettingRow emoji="✉️" title="お問い合わせ" desc="ご質問・ご要望はこちら" onClick={() => setSheet('contact')} />
+          <Divider />
+          <SettingRow emoji="🗂️" title="お問い合わせ履歴" desc="送信したお問い合わせの確認" onClick={openHistory} />
           <Divider />
           <SettingRow emoji="📄" title="利用規約" desc="サービスのご利用条件" onClick={() => setSheet('terms')} />
           <Divider />
@@ -1235,6 +1285,136 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {sheet === 'history' && (
+        <BottomSheet
+          title={selectedInquiry ? 'お問い合わせ詳細' : 'お問い合わせ履歴'}
+          onClose={() => {
+            setSheet(null);
+            setSelectedInquiry(null);
+          }}>
+          {historyLoading ? (
+            // 読み込み中
+            <div className="flex flex-col items-center gap-3 py-12 text-center">
+              <span
+                className="h-8 w-8 animate-spin rounded-full"
+                style={{ border: '3px solid rgba(120,160,255,0.25)', borderTopColor: '#7B5FFF' }}
+              />
+              <p className="text-[13px]" style={{ color: '#9fb0e0' }}>読み込み中…</p>
+            </div>
+          ) : historyError ? (
+            // 取得エラー
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full text-[26px]" style={{ background: 'rgba(224,85,85,0.16)' }}>
+                ⚠️
+              </span>
+              <p className="text-[14px] font-bold" style={{ color: '#ff9b9b' }}>取得に失敗しました</p>
+              <p className="text-[12px]" style={{ color: '#9fb0e0' }}>{historyError}</p>
+              <button
+                type="button"
+                onClick={() => void loadHistory()}
+                className="mt-1 min-h-[44px] rounded-full px-6 text-[13px] font-bold text-white active:scale-95"
+                style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 18px rgba(60,120,255,0.35)' }}>
+                再読み込み
+              </button>
+            </div>
+          ) : selectedInquiry ? (
+            // 詳細表示
+            <>
+              <button
+                type="button"
+                onClick={() => setSelectedInquiry(null)}
+                className="mb-3 inline-flex items-center gap-1 text-[13px] font-bold active:opacity-70"
+                style={{ color: '#9cc4ff' }}>
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 6l-6 6 6 6" />
+                </svg>
+                一覧へ戻る
+              </button>
+
+              <FieldGroup>
+                <Field label="作成日時" value={formatInquiryDateTime(selectedInquiry.createdAt)} />
+                <Field label="お問い合わせ項目" value={selectedInquiry.category || '未分類'} muted={!selectedInquiry.category} />
+                <Field label="status" value={selectedInquiry.status} />
+                <Field label="reply_status" value={selectedInquiry.replyStatus} />
+                <Field label="添付画像" value={selectedInquiry.imageFilename || 'なし'} muted={!selectedInquiry.imageFilename} />
+              </FieldGroup>
+
+              {/* お問い合わせ内容 */}
+              <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>お問い合わせ内容</p>
+              <div
+                className="whitespace-pre-line rounded-2xl px-4 py-3 text-[14px] leading-relaxed"
+                style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(120,160,255,0.18)', color: '#e6edff' }}>
+                {selectedInquiry.message}
+              </div>
+
+              {/* 運営からの返信 */}
+              <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>運営からの返信</p>
+              {selectedInquiry.adminReply ? (
+                <div
+                  className="whitespace-pre-line rounded-2xl px-4 py-3 text-[14px] leading-relaxed"
+                  style={{ background: 'rgba(34,229,168,0.10)', border: '1px solid rgba(34,229,168,0.35)', color: '#d7ffe9' }}>
+                  {selectedInquiry.adminReply}
+                </div>
+              ) : (
+                <p
+                  className="rounded-2xl px-4 py-3 text-[13px]"
+                  style={{ background: 'rgba(10,14,32,0.5)', border: '1px dashed rgba(120,160,255,0.3)', color: '#9fb0e0' }}>
+                  まだ返信はありません
+                </p>
+              )}
+            </>
+          ) : inquiries.length === 0 ? (
+            // データなし
+            <div className="flex flex-col items-center gap-3 py-12 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full text-[26px]" style={{ background: 'rgba(99,102,241,0.16)' }}>
+                📭
+              </span>
+              <p className="text-[14px] font-bold" style={{ color: '#e6edff' }}>お問い合わせ履歴はありません</p>
+              <p className="text-[12px]" style={{ color: '#9fb0e0' }}>
+                お問い合わせを送信すると、ここに表示されます。
+              </p>
+            </div>
+          ) : (
+            // 一覧
+            <div className="flex flex-col gap-2.5">
+              {inquiries.map((q) => (
+                <button
+                  key={q.id}
+                  type="button"
+                  onClick={() => setSelectedInquiry(q)}
+                  className="w-full text-left active:opacity-70">
+                  <div
+                    className="rounded-2xl px-4 py-3"
+                    style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(120,160,255,0.22)' }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-medium" style={{ color: '#9fb0e0' }}>
+                        {formatInquiryDateTime(q.createdAt)}
+                      </span>
+                      <div className="flex shrink-0 gap-1.5">
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={statusChipStyle(q.status)}>
+                          {q.status}
+                        </span>
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={statusChipStyle(q.replyStatus)}>
+                          返信:{q.replyStatus}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className="mt-1.5 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                      style={{ background: 'rgba(166,107,255,0.18)', color: '#d8b4fe', border: '1px solid rgba(166,107,255,0.4)' }}>
+                      {q.category || '未分類'}
+                    </span>
+                    <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: '#dbe4ff' }}>
+                      {q.message}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </BottomSheet>
       )}
 
       {sheet === 'terms' && (

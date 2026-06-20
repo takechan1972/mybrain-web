@@ -75,3 +75,80 @@ export async function createContactInquiry(input: ContactInquiryInput): Promise<
   }
   return { ok: true, error: null };
 }
+
+// ── お問い合わせ履歴（本人分のみ取得） ──────────────────────────
+
+/** 画面表示用に整形したお問い合わせ1件 */
+export interface ContactInquiry {
+  id: string;
+  category: string;
+  message: string;
+  imageFilename: string | null;
+  status: string;
+  replyStatus: string;
+  adminReply: string | null;
+  /** 作成日時（epoch ms） */
+  createdAt: number;
+}
+
+export interface ListInquiriesResult {
+  inquiries: ContactInquiry[];
+  error: string | null;
+}
+
+interface InquiryRow {
+  id: string;
+  inquiry_category: string | null;
+  inquiry_message: string | null;
+  attached_image_filename: string | null;
+  status: string | null;
+  reply_status: string | null;
+  admin_reply: string | null;
+  created_at: string | null;
+}
+
+function toMs(iso: string | null): number {
+  if (!iso) return 0;
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function mapInquiry(r: InquiryRow): ContactInquiry {
+  return {
+    id: r.id,
+    category: r.inquiry_category ?? '',
+    message: r.inquiry_message ?? '',
+    imageFilename: r.attached_image_filename,
+    status: r.status ?? '未対応',
+    replyStatus: r.reply_status ?? '未対応',
+    adminReply: r.admin_reply,
+    createdAt: toMs(r.created_at),
+  };
+}
+
+/**
+ * ログイン中ユーザー本人のお問い合わせ履歴を取得する（新しい順）。
+ * - RLS により本人の行のみ select 可能。加えて user_id でも明示的に絞り込む（多重防御）。
+ * - 他ユーザーのお問い合わせは取得しない。
+ */
+export async function listMyInquiries(): Promise<ListInquiriesResult> {
+  const sb = getSupabaseBrowserClient();
+  if (!sb) return { inquiries: [], error: 'Supabaseが未設定です（.env.local を確認してください）。' };
+
+  const { data: userData, error: userErr } = await sb.auth.getUser();
+  if (userErr) {
+    console.error('[contact] getUser error:', userErr);
+    return { inquiries: [], error: 'お問い合わせ履歴の表示にはログインが必要です。' };
+  }
+  const uid = userData.user?.id;
+  if (!uid) return { inquiries: [], error: 'お問い合わせ履歴の表示にはログインが必要です。' };
+
+  const { data, error } = await sb
+    .from('contact_inquiries')
+    .select('id, inquiry_category, inquiry_message, attached_image_filename, status, reply_status, admin_reply, created_at')
+    .eq('user_id', uid)
+    .order('created_at', { ascending: false });
+
+  if (error) return { inquiries: [], error: formatError(error, 'お問い合わせ履歴の取得に失敗しました。') };
+  return { inquiries: (data as InquiryRow[]).map(mapInquiry), error: null };
+}
