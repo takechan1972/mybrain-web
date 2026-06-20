@@ -151,10 +151,105 @@ const COMPANY_INFO: { label: string; value: string }[] = [
   { label: 'お問い合わせ', value: 'アプリ内お問い合わせフォーム' },
 ];
 
+// 利用規約（簡易版・実装に即した内容）。設定の「利用規約」とお問い合わせ内の「利用規約を確認」で共通表示。
+const TERMS_SECTIONS: { title: string; lines: string[] }[] = [
+  {
+    title: 'はじめに',
+    lines: [
+      '本規約は、MyBrain（以下「本サービス」）の利用条件を定めるものです。本サービスをご利用いただいた場合、本規約に同意いただいたものとみなします。',
+    ],
+  },
+  {
+    title: 'サービス内容',
+    lines: [
+      '本サービスは、メモ・予定の管理、AIアシスト、その他関連する機能を提供するアプリです。提供内容は、改善等のため予告なく変更・追加・終了する場合があります。',
+    ],
+  },
+  {
+    title: 'アカウント管理',
+    lines: [
+      '一部の機能はアカウント登録が必要です。登録情報は正確に登録し、メールアドレスやパスワード等はご自身で適切に管理してください。',
+      '管理不十分や第三者の利用による損害について、当方は責任を負いかねます。',
+    ],
+  },
+  {
+    title: 'メモ・予定・入力データの扱い',
+    lines: [
+      '利用者が入力したメモ・予定等のデータは、サービス提供のために保存・処理されます。データの具体的な取り扱いは、別途定めるプライバシーポリシーに従います。',
+    ],
+  },
+  {
+    title: 'AI機能について',
+    lines: [
+      'AIアシスト等が生成する回答は参考情報であり、正確性・完全性・有用性を保証するものではありません。重要な判断は、利用者ご自身の責任で行ってください。',
+    ],
+  },
+  {
+    title: '音声入力・画像添付',
+    lines: [
+      '音声入力は端末（ブラウザ）の音声認識機能を利用してテキスト化されます。画像添付は、メモやお問い合わせの補助としてご利用いただけます。',
+      '法令や第三者の権利を侵害する音声・画像の利用は禁止します。',
+    ],
+  },
+  {
+    title: 'お問い合わせ',
+    lines: [
+      'お問い合わせは、アプリ内のお問い合わせフォームよりご連絡ください。送信された内容は、対応および品質向上のために利用されます。',
+    ],
+  },
+  {
+    title: '禁止事項',
+    lines: [
+      '利用者は、次の行為を行ってはなりません。',
+      '・法令または公序良俗に反する行為',
+      '・第三者の権利・利益を侵害する行為',
+      '・本サービスの運営を妨げる行為、不正アクセス',
+      '・虚偽の情報の登録、なりすまし',
+    ],
+  },
+  {
+    title: '有料プラン・プラグイン',
+    lines: [
+      '本サービスでは、将来的に有料プランや追加機能（プラグイン）を提供する場合があります。提供する場合の料金・内容・条件は、別途画面等でご案内します。',
+    ],
+  },
+  {
+    title: 'データのバックアップ',
+    lines: [
+      '利用者は、必要に応じてご自身でデータのバックアップを行ってください。データの消失・破損について、当方は可能な範囲で対応しますが、復旧を保証するものではありません。',
+    ],
+  },
+  {
+    title: '免責事項',
+    lines: [
+      '本サービスは、現状有姿で提供されます。本サービスの利用または利用できないことにより生じた損害について、当方は法令で認められる範囲で責任を負いません。',
+    ],
+  },
+  {
+    title: '規約の変更',
+    lines: [
+      '本規約は、サービスの改善や法令の改正等に応じて予告なく変更される場合があります。変更後の規約は、本画面に表示した時点から効力を生じます。',
+    ],
+  },
+  {
+    title: '準拠法・協議',
+    lines: [
+      '本規約の解釈・適用は、日本法に準拠します。本サービスに関して紛争が生じた場合は、当方と利用者が誠実に協議のうえ、解決を図るものとします。',
+    ],
+  },
+  {
+    title: 'お問い合わせ窓口',
+    lines: [
+      '本規約に関するお問い合わせは、アプリ内のお問い合わせフォームよりご連絡ください。',
+    ],
+  },
+];
+
 type SheetKey =
   | 'billing'
   | 'plugin'
   | 'contact'
+  | 'terms'
   | 'privacy'
   | 'company'
   | 'logout';
@@ -718,13 +813,15 @@ export default function SettingsPage() {
           <SettingRow emoji="🧩" title="プラグイン" desc="準備中" onClick={() => setSheet('plugin')} />
         </section>
 
-        {/* グループ3：お問い合わせ／プライバシーポリシー／会社情報 */}
+        {/* グループ3：お問い合わせ／利用規約／プライバシーポリシー／会社情報 */}
         <section className="overflow-hidden rounded-3xl" style={GLASS_CARD}>
-          <SettingRow emoji="✉️" title="お問い合わせ" desc="準備中" onClick={() => setSheet('contact')} />
+          <SettingRow emoji="✉️" title="お問い合わせ" desc="ご質問・ご要望はこちら" onClick={() => setSheet('contact')} />
           <Divider />
-          <SettingRow emoji="🔒" title="プライバシーポリシー" desc="準備中" onClick={() => setSheet('privacy')} />
+          <SettingRow emoji="📄" title="利用規約" desc="サービスのご利用条件" onClick={() => setSheet('terms')} />
           <Divider />
-          <SettingRow emoji="🏢" title="会社情報" desc="準備中" onClick={() => setSheet('company')} />
+          <SettingRow emoji="🔒" title="プライバシーポリシー" desc="個人情報・データの取り扱い" onClick={() => setSheet('privacy')} />
+          <Divider />
+          <SettingRow emoji="🏢" title="会社情報" desc="運営者・所在地など" onClick={() => setSheet('company')} />
         </section>
 
         {/* グループ4：ログアウト（確認モーダルを開く） */}
@@ -1126,17 +1223,8 @@ export default function SettingsPage() {
                 </svg>
               </button>
             </div>
-            <div className="overflow-y-auto text-[13px] leading-relaxed" style={{ color: '#dbe4ff' }}>
-              <p className="mb-2 font-bold" style={{ color: '#c4b5fd' }}>MyBrain 利用規約（簡易版）</p>
-              <p className="mb-2">1. 本アプリはメモ・予定・AIアシスト等の機能を提供します。</p>
-              <p className="mb-2">2. 入力されたデータは、利用者の環境・設定に従って保存・処理されます。</p>
-              <p className="mb-2">3. AIの回答は参考情報であり、内容の正確性を保証するものではありません。</p>
-              <p className="mb-2">4. 法令・公序良俗に反する利用、第三者の権利を侵害する利用は禁止します。</p>
-              <p className="mb-2">5. お問い合わせで送信された情報は、対応のために利用されます。</p>
-              <p className="mb-2">6. 本規約は予告なく改定される場合があります。</p>
-              <p className="mt-3 text-[11px]" style={{ color: '#7a86b8' }}>
-                ※ 正式な利用規約は今後のアップデートで公開予定です。
-              </p>
+            <div className="overflow-y-auto">
+              <TermsContent />
             </div>
             <button
               type="button"
@@ -1147,6 +1235,12 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {sheet === 'terms' && (
+        <BottomSheet title="利用規約" onClose={() => setSheet(null)}>
+          <TermsContent />
+        </BottomSheet>
       )}
 
       {sheet === 'privacy' && (
@@ -1390,6 +1484,55 @@ function FieldGroup({ children }: { children: React.ReactNode }) {
     <div className="rounded-2xl px-4" style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(120,160,255,0.18)' }}>
       {children}
     </div>
+  );
+}
+
+// 利用規約の本文（設定の「利用規約」とお問い合わせ内ポップアップで共通使用）。
+function TermsContent() {
+  return (
+    <>
+      <p className="mb-3 text-[12px] leading-relaxed" style={{ color: '#9fb0e0' }}>
+        MyBrain（以下「本サービス」）のご利用にあたっての条件を、以下のとおり定めます。
+      </p>
+      <div className="flex flex-col gap-4">
+        {TERMS_SECTIONS.map((s, i) => (
+          <section key={s.title}>
+            <h3 className="mb-1 text-[13px] font-bold" style={{ color: '#c4b5fd' }}>
+              {i + 1}. {s.title}
+            </h3>
+            <div className="flex flex-col gap-1">
+              {s.lines.map((ln, j) => (
+                <p key={j} className="text-[12.5px] leading-relaxed" style={{ color: '#dbe4ff' }}>
+                  {ln}
+                </p>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+
+      {/* 制定日・運営者・お問い合わせ（末尾の情報） */}
+      <div
+        className="mt-5 flex flex-col gap-1.5 rounded-2xl px-4 py-3.5"
+        style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(120,160,255,0.18)' }}>
+        <div className="flex items-start gap-2">
+          <span className="shrink-0 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>制定日</span>
+          <span className="text-[12.5px]" style={{ color: '#e6edff' }}>2026年6月</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <span className="shrink-0 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>運営者</span>
+          <span className="text-[12.5px]" style={{ color: '#e6edff' }}>MyBrain運営</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <span className="shrink-0 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>お問い合わせ</span>
+          <span className="text-[12.5px]" style={{ color: '#e6edff' }}>アプリ内お問い合わせフォーム</span>
+        </div>
+      </div>
+
+      <p className="mt-4 text-[11px]" style={{ color: '#7a86b8' }}>
+        ※ 本規約は、サービスの改善や法令の改正等に応じて予告なく改定される場合があります。最新版は本画面でご確認いただけます。
+      </p>
+    </>
   );
 }
 
