@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import VoiceInput from '@/components/VoiceInput';
 import { listMemos } from '@/lib/memos';
 import { listReservations } from '@/lib/reservations';
+import { loadConsultTurns } from '@/lib/consult-store';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import DesktopDashboard from '@/components/DesktopDashboard';
 import type { Memo, Reservation } from '@/lib/types';
@@ -36,8 +37,25 @@ export default function HomePage() {
   const [name, setName] = useState('ゲスト');
   const [memos, setMemos] = useState<Memo[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  // AIアシスト履歴の件数（localStorage 保存・Supabase 設定に依存しない）
+  const [aiCount, setAiCount] = useState(0);
   // AI検索バーの入力
   const [query, setQuery] = useState('');
+
+  // AI一覧の件数を読み込み（マウント時＋フォーカス／表示復帰時に更新）
+  useEffect(() => {
+    const loadAi = () => setAiCount(loadConsultTurns().length);
+    loadAi();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadAi();
+    };
+    window.addEventListener('focus', loadAi);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', loadAi);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
 
   // データ読み込み（PC版 DesktopDashboard ＋ スマホの「今日の予定」で使用）。
   useEffect(() => {
@@ -168,23 +186,18 @@ export default function HomePage() {
           </button>
         </form>
 
-        {/* 大ボタン：メモ / 予定 / AI（主要操作・見やすく） */}
+        {/* 大ボタン：メモ / 予定 / AI（縦長・一言説明つき・主要操作） */}
         <div className="grid grid-cols-3 gap-3">
-          <BigNav href="/memos" color="#22E5A8" title="メモ" icon={<NeonMemoIcon color="#22E5A8" />} />
-          <BigNav href="/reservations" color="#38BDF8" title="予定" icon={<NeonCalendarIcon color="#38BDF8" />} />
-          <BigNav href="/ai-assist" color="#A66BFF" title="AI" icon={<NeonChatIcon color="#A66BFF" />} />
+          <BigNav href="/memos" color="#22E5A8" title="メモ" desc="思いついたことをすぐ記録" icon={<NeonMemoIcon color="#22E5A8" />} />
+          <BigNav href="/reservations" color="#38BDF8" title="予定" desc="大切な予定をかんたん管理" icon={<NeonCalendarIcon color="#38BDF8" />} />
+          <BigNav href="/ai-assist" color="#A66BFF" title="AI" desc="メモと予定からアシスト" icon={<NeonChatIcon color="#A66BFF" />} />
         </div>
 
-        {/* 一覧ボタン：メモ一覧 / 予定一覧 / AI一覧（大ボタンと同じ正方形カード・3列グリッド） */}
-        <div className="flex flex-col gap-2.5">
-          <span className="px-1 text-[12px] font-bold" style={{ color: 'rgba(170,200,255,0.8)' }}>
-            一覧を見る
-          </span>
-          <div className="grid grid-cols-3 gap-3">
-            <ListNav href="/history?view=memos" color="#22E5A8" label="メモ一覧" icon={<NeonMemoIcon color="#22E5A8" />} />
-            <ListNav href="/history?view=reservations" color="#38BDF8" label="予定一覧" icon={<NeonCalendarIcon color="#38BDF8" />} />
-            <ListNav href="/history?tab=consult" color="#A66BFF" label="AI一覧" icon={<NeonChatIcon color="#A66BFF" />} />
-          </div>
+        {/* 一覧ボタン：メモ一覧 / 予定一覧 / AI一覧（件数つき・3列グリッド） */}
+        <div className="grid grid-cols-3 gap-3">
+          <ListNav href="/history?view=memos" color="#22E5A8" label="メモ一覧" count={memos.length} icon={<NeonMemoIcon color="#22E5A8" />} />
+          <ListNav href="/history?view=reservations" color="#38BDF8" label="予定一覧" count={reservations.length} icon={<NeonCalendarIcon color="#38BDF8" />} />
+          <ListNav href="/history?tab=consult" color="#A66BFF" label="AI一覧" count={aiCount} icon={<NeonChatIcon color="#A66BFF" />} />
         </div>
 
         {/* 設定ボタン */}
@@ -258,52 +271,59 @@ export default function HomePage() {
   );
 }
 
-/* ── 大ボタン（メモ / 予定 / AI・主要操作） ── */
+/* ── 大ボタン（メモ / 予定 / AI・縦長・一言説明つき・主要操作） ── */
 function BigNav({
   href,
   color,
   title,
+  desc,
   icon,
 }: {
   href: string;
   color: string;
   title: string;
+  desc: string;
   icon: React.ReactNode;
 }) {
   return (
     <Link href={href} aria-label={title} className="block active:scale-95">
       <div
-        className="flex h-full flex-col items-center gap-2 rounded-2xl px-2 py-4 text-center"
+        className="flex h-full min-h-[168px] flex-col items-center justify-center gap-2.5 rounded-2xl px-2 py-6 text-center"
         style={{
           background: `linear-gradient(160deg, ${hexA(color, 0.16)} 0%, rgba(10,12,28,0.66) 72%)`,
           border: `1px solid ${hexA(color, 0.45)}`,
           boxShadow: `0 0 18px ${hexA(color, 0.18)}, 0 8px 24px rgba(0,0,0,0.35)`,
         }}>
         <span>{icon}</span>
-        <span className="text-[15px] font-bold" style={{ color }}>
+        <span className="text-[16px] font-bold" style={{ color }}>
           {title}
+        </span>
+        <span className="text-[11px] font-medium leading-snug" style={{ color: 'rgba(220,230,255,0.72)' }}>
+          {desc}
         </span>
       </div>
     </Link>
   );
 }
 
-/* ── 一覧ボタン（メモ一覧 / 予定一覧 / AI一覧・大ボタンと同じ正方形カード） ── */
+/* ── 一覧ボタン（メモ一覧 / 予定一覧 / AI一覧・件数つき・大ボタンと同じカード） ── */
 function ListNav({
   href,
   color,
   label,
+  count,
   icon,
 }: {
   href: string;
   color: string;
   label: string;
+  count: number;
   icon: React.ReactNode;
 }) {
   return (
-    <Link href={href} aria-label={label} className="block active:scale-95">
+    <Link href={href} aria-label={`${label}（${count}件）`} className="block active:scale-95">
       <div
-        className="flex h-full flex-col items-center justify-center gap-2 rounded-2xl px-2 py-4 text-center"
+        className="flex h-full flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-4 text-center"
         style={{
           background: `linear-gradient(160deg, ${hexA(color, 0.16)} 0%, rgba(10,12,28,0.66) 72%)`,
           border: `1px solid ${hexA(color, 0.45)}`,
@@ -312,6 +332,9 @@ function ListNav({
         <span>{icon}</span>
         <span className="text-[13px] font-bold leading-tight" style={{ color }}>
           {label}
+        </span>
+        <span className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.88)' }}>
+          {count}件
         </span>
       </div>
     </Link>
