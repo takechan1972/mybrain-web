@@ -142,6 +142,15 @@ const PRIVACY_SECTIONS: { title: string; lines: string[] }[] = [
   },
 ];
 
+// 会社情報（アプリ内表示用）。設定の「会社情報」で表示。
+const COMPANY_INFO: { label: string; value: string }[] = [
+  { label: 'サービス名', value: 'MyBrain' },
+  { label: '運営者', value: 'MyBrain運営' },
+  { label: '所在地', value: '和歌山県和歌山市' },
+  { label: '事業内容', value: 'AIメモアプリ・業務支援アプリの開発、AI活用支援' },
+  { label: 'お問い合わせ', value: 'アプリ内お問い合わせフォーム' },
+];
+
 type SheetKey =
   | 'billing'
   | 'plugin'
@@ -1185,7 +1194,42 @@ export default function SettingsPage() {
           </p>
         </BottomSheet>
       )}
-      {sheet === 'company' && <SoonSheet title="会社情報" onClose={() => setSheet(null)} />}
+      {sheet === 'company' && (
+        <BottomSheet title="会社情報" onClose={() => setSheet(null)}>
+          {/* 会社情報カード（読みやすいラベル＋値・値は折り返し可） */}
+          <div
+            className="rounded-2xl px-4"
+            style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(120,160,255,0.18)' }}>
+            {COMPANY_INFO.map((r) => (
+              <div
+                key={r.label}
+                className="flex items-start gap-3 border-b py-3 last:border-b-0"
+                style={{ borderColor: 'rgba(120,160,255,0.14)' }}>
+                <span className="w-24 shrink-0 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>{r.label}</span>
+                <span className="flex-1 text-[13px] leading-relaxed" style={{ color: '#e6edff' }}>{r.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* 備考 */}
+          <p className="mt-3 text-[12px] leading-relaxed" style={{ color: '#9fb0e0' }}>
+            <span className="font-bold" style={{ color: '#c4b5fd' }}>備考：</span>
+            サービス内容・運営情報は必要に応じて更新します。
+          </p>
+
+          {/* お問い合わせフォームへ誘導 */}
+          <button
+            type="button"
+            onClick={() => {
+              closeContact(); // 念のためフォームを初期化してから
+              setSheet('contact');
+            }}
+            className="mt-4 min-h-[48px] w-full rounded-full text-[14px] font-bold text-white active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 8px 24px rgba(60,120,255,0.4)' }}>
+            お問い合わせフォームを開く
+          </button>
+        </BottomSheet>
+      )}
 
       {sheet === 'logout' && (
         <BottomSheet title="ログアウト" onClose={() => setSheet(null)}>
