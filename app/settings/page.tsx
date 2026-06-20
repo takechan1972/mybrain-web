@@ -1161,6 +1161,25 @@ export default function SettingsPage() {
               </section>
             ))}
           </div>
+
+          {/* 制定日・運営者・お問い合わせ（末尾の情報） */}
+          <div
+            className="mt-5 flex flex-col gap-1.5 rounded-2xl px-4 py-3.5"
+            style={{ background: 'rgba(10,14,32,0.5)', border: '1px solid rgba(120,160,255,0.18)' }}>
+            <div className="flex items-start gap-2">
+              <span className="shrink-0 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>制定日</span>
+              <span className="text-[12.5px]" style={{ color: '#e6edff' }}>2026年6月</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="shrink-0 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>運営者</span>
+              <span className="text-[12.5px]" style={{ color: '#e6edff' }}>MyBrain運営</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="shrink-0 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>お問い合わせ</span>
+              <span className="text-[12.5px]" style={{ color: '#e6edff' }}>アプリ内お問い合わせフォーム</span>
+            </div>
+          </div>
+
           <p className="mt-4 text-[11px]" style={{ color: '#7a86b8' }}>
             ※ 本ポリシーは、サービスの改善や法令の改正等に応じて予告なく改定される場合があります。最新版は本画面でご確認いただけます。
           </p>
