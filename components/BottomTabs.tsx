@@ -11,7 +11,8 @@ import { ClockIcon, HomeIcon, SettingsIcon } from './icons';
 // /settings はダークUIに統一し、画面内の戻る/ホーム導線を使うため共通ナビを隠す
 const HIDE_ON = ['/', '/welcome', '/login', '/memos', '/reservations', '/ai-assist', '/consult', '/history', '/settings'];
 // 詳細／編集ページ（/memos/<id>・/reservations/<id>）も独自ナビを出すため隠す
-const HIDE_PREFIXES = ['/memos/', '/reservations/'];
+// /admin/* は運営者用の管理画面（独自レイアウト）のため共通ナビを隠す
+const HIDE_PREFIXES = ['/memos/', '/reservations/', '/admin/'];
 
 const NAVY = '#223A70';
 const MUTED = '#8A94A6';

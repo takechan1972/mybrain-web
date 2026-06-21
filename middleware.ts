@@ -4,7 +4,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 // 認証が必要なパス（未ログインは /login へ誘導）
-const PROTECTED_PREFIXES = ['/memos', '/reservations', '/consult', '/chat', '/history', '/settings'];
+// /admin は管理者専用。未ログインは /login へ、ログイン済みでも非管理者はページ側で弾く。
+const PROTECTED_PREFIXES = ['/memos', '/reservations', '/consult', '/chat', '/history', '/settings', '/admin'];
 
 export async function middleware(req: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

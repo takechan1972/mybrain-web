@@ -167,6 +167,12 @@ drop policy if exists "contact_inquiries_insert_own" on public.contact_inquiries
 create policy "contact_inquiries_insert_own" on public.contact_inquiries
   for insert with check (auth.uid() = user_id);
 
+-- 管理者（許可メールアドレス）は全件 select 可能（運営のお問い合わせ管理画面用）。
+-- 当面は許可メールアドレス方式。将来は admins テーブル等に置き換え可能。
+drop policy if exists "contact_inquiries_select_admin" on public.contact_inquiries;
+create policy "contact_inquiries_select_admin" on public.contact_inquiries
+  for select using ((auth.jwt() ->> 'email') = 'designat5take@gmail.com');
+
 -- ------------------------------------------------------------
 -- ロール権限（GRANT）
 --   RLS は「行レベル」の制御。これとは別に、テーブルへの基本権限を

@@ -152,3 +152,49 @@ export async function listMyInquiries(): Promise<ListInquiriesResult> {
   if (error) return { inquiries: [], error: formatError(error, 'お問い合わせ履歴の取得に失敗しました。') };
   return { inquiries: (data as InquiryRow[]).map(mapInquiry), error: null };
 }
+
+// ── 管理者用：全件取得（ユーザー名・メール含む） ──────────────────
+
+/** 管理画面表示用のお問い合わせ1件（ユーザー名・メールを含む） */
+export interface AdminInquiry extends ContactInquiry {
+  userName: string;
+  userEmail: string;
+}
+
+export interface ListAdminInquiriesResult {
+  inquiries: AdminInquiry[];
+  error: string | null;
+}
+
+interface AdminInquiryRow extends InquiryRow {
+  user_name: string | null;
+  user_email: string | null;
+}
+
+function mapAdminInquiry(r: AdminInquiryRow): AdminInquiry {
+  return {
+    ...mapInquiry(r),
+    userName: r.user_name ?? '',
+    userEmail: r.user_email ?? '',
+  };
+}
+
+/**
+ * 管理者用：お問い合わせを全件取得する（新しい順）。
+ * - 取得可否は Supabase の RLS（管理者＝許可メールの select ポリシー）で制御される。
+ * - 非管理者が呼んでも、RLS により自分の行しか返らない（画面側でも管理者判定で出し分ける）。
+ */
+export async function listAllInquiriesForAdmin(): Promise<ListAdminInquiriesResult> {
+  const sb = getSupabaseBrowserClient();
+  if (!sb) return { inquiries: [], error: 'Supabaseが未設定です（.env.local を確認してください）。' };
+
+  const { data, error } = await sb
+    .from('contact_inquiries')
+    .select(
+      'id, user_name, user_email, inquiry_category, inquiry_message, attached_image_filename, status, reply_status, admin_reply, created_at',
+    )
+    .order('created_at', { ascending: false });
+
+  if (error) return { inquiries: [], error: formatError(error, 'お問い合わせの取得に失敗しました。') };
+  return { inquiries: (data as AdminInquiryRow[]).map(mapAdminInquiry), error: null };
+}
