@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import {
   listAllInquiriesForAdmin,
@@ -9,6 +10,18 @@ import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/c
 
 // アクセスを許可する管理者メールアドレス（当面は許可リスト方式）。
 const ADMIN_EMAILS = ['designat5take@gmail.com'];
+
+// 左メニュー。今回は inquiries のみ実装済み、他は「準備中」。
+type MenuKey = 'home' | 'inquiries' | 'users' | 'plans' | 'plugins' | 'faq' | 'usage';
+const MENU: { key: MenuKey; label: string; icon: string; ready?: boolean }[] = [
+  { key: 'home', label: '管理画面ホーム', icon: '🏠' },
+  { key: 'inquiries', label: 'お問い合わせ管理', icon: '✉️', ready: true },
+  { key: 'users', label: '登録者管理', icon: '👥' },
+  { key: 'plans', label: 'プラン管理', icon: '🎫' },
+  { key: 'plugins', label: 'プラグイン管理', icon: '🧩' },
+  { key: 'faq', label: 'チャットボットFAQ管理', icon: '🤖' },
+  { key: 'usage', label: '利用状況', icon: '📊' },
+];
 
 // 日時(epoch ms) → "YYYY/MM/DD HH:mm"
 function formatDateTime(ms: number): string {
@@ -51,6 +64,7 @@ export default function AdminInquiriesPage() {
   const configured = isSupabaseConfigured();
   const [access, setAccess] = useState<Access>('checking');
   const [adminEmail, setAdminEmail] = useState<string | null>(null);
+  const [activeMenu, setActiveMenu] = useState<MenuKey>('inquiries');
 
   const [inquiries, setInquiries] = useState<AdminInquiry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -89,48 +103,50 @@ export default function AdminInquiriesPage() {
     });
   }, [configured, load]);
 
+  function selectMenu(key: MenuKey) {
+    setActiveMenu(key);
+    setSelected(null);
+  }
+
   return (
     // ルートレイアウトの max-w-md モバイルシェルから抜け出して全幅表示にするため fixed で全画面化。
-    <div className="fixed inset-0 z-40 overflow-y-auto" style={{ backgroundColor: '#070b1c' }}>
-      {/* 背景（控えめなグラデ・管理画面向け） */}
+    // overflow-x-hidden で画面全体の横スクロールは出さない（横スクロールはテーブル内のみ）。
+    <div className="fixed inset-0 z-40 overflow-y-auto overflow-x-hidden" style={{ backgroundColor: '#070b1c' }}>
+      {/* テーブル横スクロールバーを細く・デザインに馴染む暗色にする */}
+      <style>{`
+        .admin-scroll { scrollbar-width: thin; scrollbar-color: rgba(120,160,255,0.35) transparent; }
+        .admin-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+        .admin-scroll::-webkit-scrollbar-track { background: transparent; }
+        .admin-scroll::-webkit-scrollbar-thumb { background: rgba(120,160,255,0.32); border-radius: 9999px; }
+        .admin-scroll::-webkit-scrollbar-thumb:hover { background: rgba(120,160,255,0.5); }
+      `}</style>
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 z-0"
         style={{
           background:
-            'radial-gradient(1200px 600px at 20% -10%, rgba(99,102,241,0.12), transparent 60%), radial-gradient(900px 500px at 100% 0%, rgba(56,189,248,0.10), transparent 55%)',
+            'radial-gradient(1200px 600px at 18% -10%, rgba(99,102,241,0.12), transparent 60%), radial-gradient(900px 500px at 100% 0%, rgba(56,189,248,0.10), transparent 55%)',
         }}
       />
 
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-3 py-5 sm:px-4 sm:py-7">
         {/* ヘッダー */}
-        <header className="mb-5 flex flex-col gap-2 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
+        <header className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-[20px] font-bold sm:text-[24px]" style={{ color: '#ffffff', textShadow: '0 0 14px rgba(99,102,241,0.4)' }}>
-              お問い合わせ管理
+              MyBrain 管理コンソール
             </h1>
             <p className="mt-0.5 text-[12px] sm:text-[13px]" style={{ color: '#9fb0e0' }}>
-              運営者用 ・ Supabase: contact_inquiries（確認専用）
+              運営者用 ・ 確認専用
             </p>
           </div>
-          {access === 'granted' && (
-            <div className="flex items-center gap-3">
-              <span className="text-[12px]" style={{ color: '#9fb0e0' }}>
-                {adminEmail} ・ <span style={{ color: '#c7d2fe', fontWeight: 700 }}>{inquiries.length}件</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => void load()}
-                disabled={loading}
-                className="min-h-[40px] rounded-full px-4 text-[13px] font-bold text-white transition active:scale-95 disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 18px rgba(60,120,255,0.35)' }}>
-                {loading ? '更新中…' : '再読み込み'}
-              </button>
-            </div>
+          {access === 'granted' && adminEmail && (
+            <span className="text-[12px]" style={{ color: '#9fb0e0' }}>
+              ログイン中：<span style={{ color: '#c7d2fe', fontWeight: 700 }}>{adminEmail}</span>
+            </span>
           )}
         </header>
 
-        {/* アクセス判定 */}
         {access === 'checking' ? (
           <Centered>
             <Spinner />
@@ -147,177 +163,334 @@ export default function AdminInquiriesPage() {
                 ? 'この画面は運営者（許可されたアカウント）のみ利用できます。'
                 : 'Supabase が未設定のため表示できません。'}
             </p>
+            <Link href="/settings" className="mt-4 inline-block text-[13px] font-bold" style={{ color: '#9cc4ff' }}>
+              ← 設定へ戻る
+            </Link>
           </div>
         ) : (
-          // granted
-          <>
-            {loading ? (
-              <Centered>
-                <Spinner />
-                <p className="text-[13px]" style={{ color: '#9fb0e0' }}>読み込み中…</p>
-              </Centered>
-            ) : error ? (
-              <div className="rounded-3xl p-6 text-center sm:p-10" style={GLASS}>
-                <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[26px]" style={{ background: 'rgba(224,85,85,0.16)' }}>
-                  ⚠️
-                </span>
-                <p className="text-[15px] font-bold" style={{ color: '#ff9b9b' }}>取得に失敗しました</p>
-                <p className="mt-1 text-[12px]" style={{ color: '#9fb0e0' }}>{error}</p>
-                <button
-                  type="button"
-                  onClick={() => void load()}
-                  className="mt-4 min-h-[44px] rounded-full px-6 text-[13px] font-bold text-white active:scale-95"
-                  style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 18px rgba(60,120,255,0.35)' }}>
-                  再読み込み
-                </button>
-              </div>
-            ) : inquiries.length === 0 ? (
-              <div className="rounded-3xl p-10 text-center" style={GLASS}>
-                <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[26px]" style={{ background: 'rgba(99,102,241,0.16)' }}>
-                  📭
-                </span>
-                <p className="text-[15px] font-bold" style={{ color: '#ffffff' }}>お問い合わせはありません</p>
-                <p className="mt-1 text-[12px]" style={{ color: '#9fb0e0' }}>ユーザーからの送信があると、ここに表示されます。</p>
-              </div>
-            ) : (
-              <>
-                {/* PC / iPad：テーブル表示 */}
-                <div className="hidden overflow-hidden rounded-2xl md:block" style={GLASS}>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[860px] border-collapse text-left">
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid rgba(120,160,255,0.2)' }}>
-                          {['作成日時', 'ユーザー名', 'メール', '項目', '内容', '画像', 'status', 'reply'].map((h) => (
-                            <th key={h} className="px-3 py-3 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {inquiries.map((q) => (
-                          <tr
-                            key={q.id}
-                            onClick={() => setSelected(q)}
-                            className="cursor-pointer transition hover:bg-white/[0.04]"
-                            style={{ borderBottom: '1px solid rgba(120,160,255,0.10)' }}>
-                            <td className="whitespace-nowrap px-3 py-3 text-[12px]" style={{ color: '#c7d2fe' }}>{formatDateTime(q.createdAt)}</td>
-                            <td className="px-3 py-3 text-[13px] font-semibold" style={{ color: '#ffffff' }}>{q.userName || '—'}</td>
-                            <td className="px-3 py-3 text-[12px]" style={{ color: '#9fb0e0' }}>{q.userEmail || '—'}</td>
-                            <td className="whitespace-nowrap px-3 py-3 text-[12px]" style={{ color: '#d8b4fe' }}>{q.category || '未分類'}</td>
-                            <td className="max-w-[280px] px-3 py-3 text-[12px]" style={{ color: '#dbe4ff' }}>
-                              <span className="line-clamp-1">{q.message}</span>
-                            </td>
-                            <td className="max-w-[140px] px-3 py-3 text-[12px]" style={{ color: q.imageFilename ? '#bae6fd' : '#7a86b8' }}>
-                              <span className="line-clamp-1">{q.imageFilename || 'なし'}</span>
-                            </td>
-                            <td className="px-3 py-3"><StatusChip label={q.status} /></td>
-                            <td className="px-3 py-3"><StatusChip label={q.replyStatus} /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* スマホ：カード表示 */}
-                <div className="flex flex-col gap-3 md:hidden">
-                  {inquiries.map((q) => (
-                    <button key={q.id} type="button" onClick={() => setSelected(q)} className="w-full text-left active:opacity-70">
-                      <div className="rounded-2xl p-4" style={GLASS}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[11px]" style={{ color: '#9fb0e0' }}>{formatDateTime(q.createdAt)}</span>
-                          <div className="flex gap-1.5">
-                            <StatusChip label={q.status} />
-                            <StatusChip label={q.replyStatus} />
-                          </div>
-                        </div>
-                        <p className="mt-1.5 text-[14px] font-bold text-white">{q.userName || '—'}</p>
-                        <p className="text-[12px]" style={{ color: '#9fb0e0' }}>{q.userEmail || '—'}</p>
-                        <span
-                          className="mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-                          style={{ background: 'rgba(166,107,255,0.18)', color: '#d8b4fe', border: '1px solid rgba(166,107,255,0.4)' }}>
-                          {q.category || '未分類'}
+          // granted：3カラム（PC/iPad）／縦並び（スマホ）
+          <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[240px_minmax(0,1fr)_280px] lg:items-start lg:gap-5">
+            {/* 左カラム：管理メニュー（PCでは固定風サイドバー） */}
+            <aside className="rounded-2xl p-2.5 lg:sticky lg:top-6" style={GLASS}>
+              <p className="px-2.5 py-1.5 text-[11px] font-bold tracking-wide" style={{ color: '#7a86b8' }}>
+                管理メニュー
+              </p>
+              <nav className="flex flex-col gap-1">
+                {MENU.map((m) => {
+                  const active = activeMenu === m.key;
+                  return (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => selectMenu(m.key)}
+                      className="flex items-center gap-2 rounded-xl px-2.5 py-2.5 text-left text-[13px] font-semibold transition active:scale-[0.98]"
+                      style={
+                        active
+                          ? {
+                              background: 'linear-gradient(135deg, rgba(46,126,255,0.30), rgba(123,95,255,0.30))',
+                              color: '#ffffff',
+                              border: '1px solid rgba(130,165,255,0.6)',
+                              boxShadow: '0 0 14px rgba(99,102,241,0.35)',
+                            }
+                          : { color: '#c7d2fe', border: '1px solid transparent' }
+                      }>
+                      <span className="shrink-0 text-[15px]">{m.icon}</span>
+                      <span className="flex-1 whitespace-nowrap">{m.label}</span>
+                      {m.ready && (
+                        <span className="shrink-0 rounded-full px-1.5 py-px text-[9px] font-bold" style={{ background: 'rgba(34,229,168,0.2)', color: '#86efac' }}>
+                          実装済
                         </span>
-                        <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: '#dbe4ff' }}>{q.message}</p>
-                        {q.imageFilename && (
-                          <p className="mt-1 text-[11px]" style={{ color: '#bae6fd' }}>🖼 {q.imageFilename}</p>
-                        )}
-                      </div>
+                      )}
                     </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </>
+                  );
+                })}
+              </nav>
+              <div className="my-2 h-px" style={{ background: 'rgba(120,160,255,0.15)' }} />
+              <Link
+                href="/settings"
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition active:scale-[0.98]"
+                style={{ color: '#9fb0e0' }}>
+                <span className="text-[15px]">↩️</span>
+                設定へ戻る
+              </Link>
+            </aside>
+
+            {/* 中央カラム：選択中の管理内容 */}
+            <section className="min-w-0">
+              {activeMenu === 'inquiries' ? (
+                <InquiriesPanel
+                  inquiries={inquiries}
+                  loading={loading}
+                  error={error}
+                  selected={selected}
+                  onSelect={setSelected}
+                  onReload={() => void load()}
+                />
+              ) : (
+                <SoonPanel label={MENU.find((m) => m.key === activeMenu)?.label ?? ''} />
+              )}
+            </section>
+
+            {/* 右カラム：AIアシスト（入力欄＋送信のみ・本接続は未実装） */}
+            <aside className="lg:sticky lg:top-6">
+              <AiAssistPanel selected={selected} />
+            </aside>
+          </div>
         )}
       </div>
+    </div>
+  );
+}
 
-      {/* 詳細モーダル */}
-      {selected && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
-          <div className="absolute inset-0 bg-black/55" onClick={() => setSelected(null)} />
-          <div
-            className="relative flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl"
-            style={{ ...GLASS, background: 'rgba(14,18,40,0.98)' }}>
-            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(120,160,255,0.18)' }}>
-              <h2 className="text-[16px] font-bold" style={{ color: '#ffffff' }}>お問い合わせ詳細</h2>
-              <button
-                type="button"
-                aria-label="閉じる"
-                onClick={() => setSelected(null)}
-                className="flex h-9 w-9 items-center justify-center rounded-full active:opacity-60"
-                style={{ color: '#c7d2fe' }}>
-                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
-            </div>
+// ── 中央：お問い合わせ管理（一覧／詳細） ──────────────────────────
+function InquiriesPanel({
+  inquiries,
+  loading,
+  error,
+  selected,
+  onSelect,
+  onReload,
+}: {
+  inquiries: AdminInquiry[];
+  loading: boolean;
+  error: string | null;
+  selected: AdminInquiry | null;
+  onSelect: (q: AdminInquiry | null) => void;
+  onReload: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-[17px] font-bold" style={{ color: '#ffffff' }}>お問い合わせ管理</h2>
+          <p className="text-[12px]" style={{ color: '#9fb0e0' }}>contact_inquiries（{inquiries.length}件）</p>
+        </div>
+        <button
+          type="button"
+          onClick={onReload}
+          disabled={loading}
+          className="min-h-[40px] rounded-full px-4 text-[13px] font-bold text-white transition active:scale-95 disabled:opacity-60"
+          style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 18px rgba(60,120,255,0.35)' }}>
+          {loading ? '更新中…' : '再読み込み'}
+        </button>
+      </div>
 
-            <div className="flex flex-col gap-4 overflow-y-auto px-5 py-5">
-              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-                <DetailField label="作成日時" value={formatDateTime(selected.createdAt)} />
-                <DetailField label="お問い合わせ項目" value={selected.category || '未分類'} />
-                <DetailField label="ユーザー名" value={selected.userName || '—'} />
-                <DetailField label="メールアドレス" value={selected.userEmail || '—'} />
-                <DetailField label="添付画像ファイル名" value={selected.imageFilename || 'なし'} muted={!selected.imageFilename} />
-                <div className="flex items-center gap-2">
-                  <span className="text-[12px] font-bold" style={{ color: '#9fb0e0' }}>status</span>
-                  <StatusChip label={selected.status} />
-                  <span className="ml-2 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>reply</span>
-                  <StatusChip label={selected.replyStatus} />
-                </div>
-              </div>
+      {loading ? (
+        <div className="rounded-2xl" style={GLASS}>
+          <Centered>
+            <Spinner />
+            <p className="text-[13px]" style={{ color: '#9fb0e0' }}>読み込み中…</p>
+          </Centered>
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl p-6 text-center sm:p-8" style={GLASS}>
+          <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[26px]" style={{ background: 'rgba(224,85,85,0.16)' }}>
+            ⚠️
+          </span>
+          <p className="text-[15px] font-bold" style={{ color: '#ff9b9b' }}>取得に失敗しました</p>
+          <p className="mt-1 text-[12px]" style={{ color: '#9fb0e0' }}>{error}</p>
+          <button
+            type="button"
+            onClick={onReload}
+            className="mt-4 min-h-[44px] rounded-full px-6 text-[13px] font-bold text-white active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 18px rgba(60,120,255,0.35)' }}>
+            再読み込み
+          </button>
+        </div>
+      ) : selected ? (
+        // 詳細（中央に表示・一覧へ戻る）
+        <div className="rounded-2xl p-5" style={GLASS}>
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className="mb-3 inline-flex items-center gap-1 text-[13px] font-bold active:opacity-70"
+            style={{ color: '#9cc4ff' }}>
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+            一覧へ戻る
+          </button>
 
-              <div>
-                <p className="mb-1.5 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>お問い合わせ内容</p>
-                <div
-                  className="whitespace-pre-line rounded-2xl px-4 py-3 text-[14px] leading-relaxed"
-                  style={{ background: 'rgba(10,14,32,0.6)', border: '1px solid rgba(120,160,255,0.18)', color: '#e6edff' }}>
-                  {selected.message}
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-1.5 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>運営からの返信</p>
-                {selected.adminReply ? (
-                  <div
-                    className="whitespace-pre-line rounded-2xl px-4 py-3 text-[14px] leading-relaxed"
-                    style={{ background: 'rgba(34,229,168,0.10)', border: '1px solid rgba(34,229,168,0.35)', color: '#d7ffe9' }}>
-                    {selected.adminReply}
-                  </div>
-                ) : (
-                  <p className="rounded-2xl px-4 py-3 text-[13px]" style={{ background: 'rgba(10,14,32,0.6)', border: '1px dashed rgba(120,160,255,0.3)', color: '#9fb0e0' }}>
-                    まだ返信はありません（返信機能は今後実装予定）
-                  </p>
-                )}
-              </div>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+            <DetailField label="作成日時" value={formatDateTime(selected.createdAt)} />
+            <DetailField label="お問い合わせ項目" value={selected.category || '未分類'} />
+            <DetailField label="ユーザー名" value={selected.userName || '—'} />
+            <DetailField label="メールアドレス" value={selected.userEmail || '—'} />
+            <DetailField label="添付画像ファイル名" value={selected.imageFilename || 'なし'} muted={!selected.imageFilename} />
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-bold" style={{ color: '#9fb0e0' }}>status</span>
+              <StatusChip label={selected.status} />
+              <span className="ml-2 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>reply</span>
+              <StatusChip label={selected.replyStatus} />
             </div>
           </div>
+
+          <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>お問い合わせ内容</p>
+          <div
+            className="whitespace-pre-line rounded-2xl px-4 py-3 text-[14px] leading-relaxed"
+            style={{ background: 'rgba(10,14,32,0.6)', border: '1px solid rgba(120,160,255,0.18)', color: '#e6edff' }}>
+            {selected.message}
+          </div>
+
+          <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>運営からの返信</p>
+          {selected.adminReply ? (
+            <div
+              className="whitespace-pre-line rounded-2xl px-4 py-3 text-[14px] leading-relaxed"
+              style={{ background: 'rgba(34,229,168,0.10)', border: '1px solid rgba(34,229,168,0.35)', color: '#d7ffe9' }}>
+              {selected.adminReply}
+            </div>
+          ) : (
+            <p className="rounded-2xl px-4 py-3 text-[13px]" style={{ background: 'rgba(10,14,32,0.6)', border: '1px dashed rgba(120,160,255,0.3)', color: '#9fb0e0' }}>
+              まだ返信はありません（返信機能は今後実装予定）
+            </p>
+          )}
         </div>
+      ) : inquiries.length === 0 ? (
+        <div className="rounded-2xl p-10 text-center" style={GLASS}>
+          <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[26px]" style={{ background: 'rgba(99,102,241,0.16)' }}>
+            📭
+          </span>
+          <p className="text-[15px] font-bold" style={{ color: '#ffffff' }}>お問い合わせはありません</p>
+          <p className="mt-1 text-[12px]" style={{ color: '#9fb0e0' }}>ユーザーからの送信があると、ここに表示されます。</p>
+        </div>
+      ) : (
+        <>
+          {/* PC / iPad：テーブル */}
+          <div className="hidden overflow-hidden rounded-2xl md:block" style={GLASS}>
+            <div className="admin-scroll overflow-x-auto">
+              <table className="w-full min-w-[680px] border-collapse text-left">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(120,160,255,0.2)' }}>
+                    {['作成日時', 'ユーザー名', 'メール', '項目', '内容', '画像', 'status', 'reply'].map((h) => (
+                      <th key={h} className="px-3 py-3 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {inquiries.map((q) => (
+                    <tr
+                      key={q.id}
+                      onClick={() => onSelect(q)}
+                      className="cursor-pointer transition hover:bg-white/[0.04]"
+                      style={{ borderBottom: '1px solid rgba(120,160,255,0.10)' }}>
+                      <td className="whitespace-nowrap px-3 py-3 text-[12px]" style={{ color: '#c7d2fe' }}>{formatDateTime(q.createdAt)}</td>
+                      <td className="px-3 py-3 text-[13px] font-semibold" style={{ color: '#ffffff' }}>{q.userName || '—'}</td>
+                      <td className="px-3 py-3 text-[12px]" style={{ color: '#9fb0e0' }}>{q.userEmail || '—'}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-[12px]" style={{ color: '#d8b4fe' }}>{q.category || '未分類'}</td>
+                      <td className="max-w-[260px] px-3 py-3 text-[12px]" style={{ color: '#dbe4ff' }}>
+                        <span className="line-clamp-1">{q.message}</span>
+                      </td>
+                      <td className="max-w-[130px] px-3 py-3 text-[12px]" style={{ color: q.imageFilename ? '#bae6fd' : '#7a86b8' }}>
+                        <span className="line-clamp-1">{q.imageFilename || 'なし'}</span>
+                      </td>
+                      <td className="px-3 py-3"><StatusChip label={q.status} /></td>
+                      <td className="px-3 py-3"><StatusChip label={q.replyStatus} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* スマホ：カード */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {inquiries.map((q) => (
+              <button key={q.id} type="button" onClick={() => onSelect(q)} className="w-full text-left active:opacity-70">
+                <div className="rounded-2xl p-4" style={GLASS}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px]" style={{ color: '#9fb0e0' }}>{formatDateTime(q.createdAt)}</span>
+                    <div className="flex gap-1.5">
+                      <StatusChip label={q.status} />
+                      <StatusChip label={q.replyStatus} />
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-[14px] font-bold text-white">{q.userName || '—'}</p>
+                  <p className="text-[12px]" style={{ color: '#9fb0e0' }}>{q.userEmail || '—'}</p>
+                  <span
+                    className="mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                    style={{ background: 'rgba(166,107,255,0.18)', color: '#d8b4fe', border: '1px solid rgba(166,107,255,0.4)' }}>
+                    {q.category || '未分類'}
+                  </span>
+                  <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: '#dbe4ff' }}>{q.message}</p>
+                  {q.imageFilename && <p className="mt-1 text-[11px]" style={{ color: '#bae6fd' }}>🖼 {q.imageFilename}</p>}
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
 }
 
+// ── 中央：未実装メニューの「準備中」 ──────────────────────────
+function SoonPanel({ label }: { label: string }) {
+  return (
+    <div className="rounded-2xl p-10 text-center" style={GLASS}>
+      <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[26px]" style={{ background: 'rgba(99,102,241,0.16)' }}>
+        🚧
+      </span>
+      <p className="text-[16px] font-bold" style={{ color: '#ffffff' }}>{label}</p>
+      <p className="mt-1 text-[12px]" style={{ color: '#9fb0e0' }}>この管理機能は準備中です。今後のアップデートで利用できるようになります。</p>
+    </div>
+  );
+}
+
+// ── 右：AIアシスト（入力欄＋送信のみ。将来、問い合わせ内容を参考に返信案を作る場所） ──
+function AiAssistPanel({ selected }: { selected: AdminInquiry | null }) {
+  const [text, setText] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+
+  function onSend() {
+    if (text.trim().length === 0) return;
+    setMsg('AI相談機能は準備中です');
+  }
+
+  return (
+    <div className="rounded-2xl p-4" style={GLASS}>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full text-[16px]" style={{ background: 'rgba(166,107,255,0.2)' }}>🤖</span>
+        <h2 className="text-[15px] font-bold" style={{ color: '#ffffff' }}>AIアシスト</h2>
+      </div>
+      <p className="mb-2 text-[11px] leading-relaxed" style={{ color: '#9fb0e0' }}>
+        問い合わせ対応の相談や、返信案づくりに使えるAIアシスタント（本接続は今後実装）。
+      </p>
+
+      {selected && (
+        <div className="mb-2 rounded-xl px-3 py-2 text-[11px]" style={{ background: 'rgba(10,14,32,0.6)', border: '1px solid rgba(120,160,255,0.18)', color: '#c7d2fe' }}>
+          対象：{selected.category || '未分類'} ／ {selected.userName || '—'}
+        </div>
+      )}
+
+      <textarea
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setMsg(null);
+        }}
+        placeholder="問い合わせ対応についてAIに相談..."
+        className="min-h-[120px] w-full resize-none rounded-2xl px-4 py-3 text-[14px] text-white outline-none placeholder:text-[#7a86b8]"
+        style={{ background: 'rgba(10,14,32,0.6)', border: '1px solid rgba(120,160,255,0.3)', caretColor: '#818cf8' }}
+      />
+
+      {msg && (
+        <p className="mt-2 rounded-xl px-3 py-2 text-[12px] font-semibold" style={{ background: 'rgba(242,213,138,0.12)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.35)' }}>
+          {msg}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={onSend}
+        className="mt-3 min-h-[46px] w-full rounded-full text-[14px] font-bold text-white transition active:scale-[0.98]"
+        style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 8px 24px rgba(60,120,255,0.4)' }}>
+        AIに相談する
+      </button>
+    </div>
+  );
+}
+
+// ── 共通の小コンポーネント ──────────────────────────
 function Centered({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-col items-center gap-3 py-16 text-center">{children}</div>;
 }
