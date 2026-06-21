@@ -13,7 +13,9 @@ import {
   findSimilarQa,
   generateInquiryQaDraft,
   getQaForInquiry,
+  listKnowledge,
   saveQaFromInquiry,
+  setKnowledgePublic,
   type QaRecord,
 } from '@/lib/knowledge';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
@@ -29,7 +31,7 @@ const MENU: { key: MenuKey; label: string; icon: string; ready?: boolean }[] = [
   { key: 'users', label: '登録者管理', icon: '👥' },
   { key: 'plans', label: 'プラン管理', icon: '🎫' },
   { key: 'plugins', label: 'プラグイン管理', icon: '🧩' },
-  { key: 'faq', label: 'チャットボットFAQ管理', icon: '🤖' },
+  { key: 'faq', label: 'チャットボットFAQ管理', icon: '🤖', ready: true },
   { key: 'usage', label: '利用状況', icon: '📊' },
 ];
 
@@ -243,6 +245,8 @@ export default function AdminInquiriesPage() {
                   onReload={() => void load()}
                   onReplied={handleReplied}
                 />
+              ) : activeMenu === 'faq' ? (
+                <FaqPanel />
               ) : (
                 <SoonPanel label={MENU.find((m) => m.key === activeMenu)?.label ?? ''} />
               )}
@@ -768,6 +772,157 @@ function InquiryDetail({
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── 中央：チャットボットFAQ管理（chatbot_knowledge 一覧・公開トグル） ──────────
+function FaqPanel() {
+  const [records, setRecords] = useState<QaRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const res = await listKnowledge();
+    setLoading(false);
+    if (res.error) {
+      setError(res.error);
+      setRecords([]);
+      return;
+    }
+    setRecords(res.records);
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // 公開/非公開の切り替え（RLSで管理者の update が許可されている場合のみ成功）。
+  async function toggle(rec: QaRecord) {
+    if (togglingId) return;
+    setTogglingId(rec.id);
+    setMsg(null);
+    const res = await setKnowledgePublic(rec.id, !rec.isPublic);
+    setTogglingId(null);
+    if (!res.ok || !res.record) {
+      setMsg({ ok: false, text: res.error ?? '公開状態の更新に失敗しました。' });
+      return;
+    }
+    setRecords((prev) => prev.map((r) => (r.id === res.record!.id ? res.record! : r)));
+    setMsg({ ok: true, text: res.record.isPublic ? '公開にしました。' : '非公開にしました。' });
+  }
+
+  const publicCount = records.filter((r) => r.isPublic).length;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-[17px] font-bold" style={{ color: '#ffffff' }}>チャットボットFAQ管理</h2>
+          <p className="text-[12px]" style={{ color: '#9fb0e0' }}>
+            chatbot_knowledge（{records.length}件 ・ 公開 {publicCount}件）
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void load()}
+          disabled={loading}
+          className="min-h-[40px] rounded-full px-4 text-[13px] font-bold text-white transition active:scale-95 disabled:opacity-60"
+          style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 18px rgba(60,120,255,0.35)' }}>
+          {loading ? '更新中…' : '再読み込み'}
+        </button>
+      </div>
+
+      {msg && (
+        <p
+          className="rounded-xl px-3 py-2 text-[12px] font-semibold"
+          style={
+            msg.ok
+              ? { background: 'rgba(34,229,168,0.15)', color: '#86efac', border: '1px solid rgba(34,229,168,0.35)' }
+              : { background: 'rgba(224,85,85,0.15)', color: '#ff9b9b', border: '1px solid rgba(224,85,85,0.35)' }
+          }>
+          {msg.ok ? '✅ ' : '⚠️ '}{msg.text}
+        </p>
+      )}
+
+      {loading ? (
+        <div className="rounded-2xl" style={GLASS}>
+          <Centered>
+            <Spinner />
+            <p className="text-[13px]" style={{ color: '#9fb0e0' }}>読み込み中…</p>
+          </Centered>
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl p-6 text-center sm:p-8" style={GLASS}>
+          <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[26px]" style={{ background: 'rgba(224,85,85,0.16)' }}>
+            ⚠️
+          </span>
+          <p className="text-[15px] font-bold" style={{ color: '#ff9b9b' }}>取得に失敗しました</p>
+          <p className="mt-1 text-[12px]" style={{ color: '#9fb0e0' }}>{error}</p>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="mt-4 min-h-[44px] rounded-full px-6 text-[13px] font-bold text-white active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 18px rgba(60,120,255,0.35)' }}>
+            再読み込み
+          </button>
+        </div>
+      ) : records.length === 0 ? (
+        <div className="rounded-2xl p-10 text-center" style={GLASS}>
+          <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[26px]" style={{ background: 'rgba(99,102,241,0.16)' }}>
+            🤖
+          </span>
+          <p className="text-[15px] font-bold" style={{ color: '#ffffff' }}>Q&amp;Aはまだありません</p>
+          <p className="mt-1 text-[12px]" style={{ color: '#9fb0e0' }}>お問い合わせ管理から「Q&A案を作成」で登録すると、ここに表示されます。</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {records.map((r) => (
+            <div key={r.id} className="rounded-2xl p-4" style={GLASS}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                    style={{ background: 'rgba(166,107,255,0.18)', color: '#d8b4fe', border: '1px solid rgba(166,107,255,0.4)' }}>
+                    {r.category || '未分類'}
+                  </span>
+                  <span
+                    className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                    style={
+                      r.isPublic
+                        ? { background: 'rgba(34,229,168,0.16)', color: '#86efac', border: '1px solid rgba(34,229,168,0.4)' }
+                        : { background: 'rgba(242,213,138,0.16)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.4)' }
+                    }>
+                    {r.isPublic ? '公開' : '未公開'}
+                  </span>
+                  <span className="text-[11px]" style={{ color: '#7a86b8' }}>{formatDateTime(r.createdAt)}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void toggle(r)}
+                  disabled={togglingId === r.id}
+                  className="shrink-0 rounded-full px-3.5 py-2 text-[12px] font-bold transition active:scale-95 disabled:opacity-60"
+                  style={
+                    r.isPublic
+                      ? { background: 'rgba(242,213,138,0.14)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.45)' }
+                      : { background: 'rgba(34,229,168,0.14)', color: '#86efac', border: '1px solid rgba(34,229,168,0.45)' }
+                  }>
+                  {togglingId === r.id ? '更新中…' : r.isPublic ? '非公開にする' : '公開にする'}
+                </button>
+              </div>
+
+              <p className="mt-3 text-[11px] font-bold" style={{ color: '#9fb0e0' }}>Q</p>
+              <p className="text-[14px] font-semibold leading-relaxed" style={{ color: '#ffffff' }}>{r.question}</p>
+              <p className="mt-2 text-[11px] font-bold" style={{ color: '#9fb0e0' }}>A</p>
+              <p className="whitespace-pre-line text-[13px] leading-relaxed" style={{ color: '#dbe4ff' }}>{r.answer}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

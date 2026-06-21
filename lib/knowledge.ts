@@ -222,6 +222,41 @@ export async function saveQaFromInquiry(input: {
   return { ok: true, error: null, record: mapRow(data as KnowledgeRow) };
 }
 
+// ── 一覧取得・公開トグル（FAQ管理画面用） ──────────────────────
+
+/** 登録済みQ&Aを新しい順に取得する（管理者のFAQ管理画面用）。 */
+export async function listKnowledge(): Promise<{ records: QaRecord[]; error: string | null }> {
+  const sb = getSupabaseBrowserClient();
+  if (!sb) return { records: [], error: 'Supabaseが未設定です（.env.local を確認してください）。' };
+  const { data, error } = await sb
+    .from('chatbot_knowledge')
+    .select(KNOWLEDGE_SELECT)
+    .order('created_at', { ascending: false });
+  if (error) return { records: [], error: formatError(error, 'Q&A一覧の取得に失敗しました。') };
+  return { records: (data as KnowledgeRow[]).map(mapRow), error: null };
+}
+
+/**
+ * 公開状態（is_public）を切り替える。
+ * RLS（管理者の update ポリシー）で許可されている場合のみ成功する。
+ * スキーマは変更しない（既存カラムの更新のみ）。
+ */
+export async function setKnowledgePublic(
+  id: string,
+  isPublic: boolean,
+): Promise<{ ok: boolean; error: string | null; record: QaRecord | null }> {
+  const sb = getSupabaseBrowserClient();
+  if (!sb) return { ok: false, error: 'Supabaseが未設定です。', record: null };
+  const { data, error } = await sb
+    .from('chatbot_knowledge')
+    .update({ is_public: isPublic, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select(KNOWLEDGE_SELECT)
+    .single();
+  if (error) return { ok: false, error: formatError(error, '公開状態の更新に失敗しました。'), record: null };
+  return { ok: true, error: null, record: mapRow(data as KnowledgeRow) };
+}
+
 // ── 類似Q&Aの簡易判定（重複注意の表示用） ──────────────────────
 
 /** 文字バイグラムの重なり（overlap係数）で簡易な類似度を出す（0〜1） */
