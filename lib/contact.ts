@@ -155,10 +155,12 @@ export async function listMyInquiries(): Promise<ListInquiriesResult> {
 
 // ── 管理者用：全件取得（ユーザー名・メール含む） ──────────────────
 
-/** 管理画面表示用のお問い合わせ1件（ユーザー名・メールを含む） */
+/** 管理画面表示用のお問い合わせ1件（ユーザー名・メール・AI返信案を含む） */
 export interface AdminInquiry extends ContactInquiry {
   userName: string;
   userEmail: string;
+  /** AIが作成した返信案（管理者のみ参照・編集前の下書き） */
+  aiDraftReply: string | null;
 }
 
 export interface ListAdminInquiriesResult {
@@ -169,13 +171,19 @@ export interface ListAdminInquiriesResult {
 interface AdminInquiryRow extends InquiryRow {
   user_name: string | null;
   user_email: string | null;
+  ai_draft_reply: string | null;
 }
+
+// 管理者取得用の select 列（ai_draft_reply を含む・各所で共通利用）
+const ADMIN_SELECT =
+  'id, user_name, user_email, inquiry_category, inquiry_message, attached_image_filename, status, reply_status, admin_reply, ai_draft_reply, created_at';
 
 function mapAdminInquiry(r: AdminInquiryRow): AdminInquiry {
   return {
     ...mapInquiry(r),
     userName: r.user_name ?? '',
     userEmail: r.user_email ?? '',
+    aiDraftReply: r.ai_draft_reply ?? null,
   };
 }
 
@@ -190,9 +198,7 @@ export async function listAllInquiriesForAdmin(): Promise<ListAdminInquiriesResu
 
   const { data, error } = await sb
     .from('contact_inquiries')
-    .select(
-      'id, user_name, user_email, inquiry_category, inquiry_message, attached_image_filename, status, reply_status, admin_reply, created_at',
-    )
+    .select(ADMIN_SELECT)
     .order('created_at', { ascending: false });
 
   if (error) return { inquiries: [], error: formatError(error, 'お問い合わせの取得に失敗しました。') };
@@ -233,11 +239,88 @@ export async function saveAdminReply(id: string, reply: string): Promise<SaveRep
       replied_by: uid,
     })
     .eq('id', id)
-    .select(
-      'id, user_name, user_email, inquiry_category, inquiry_message, attached_image_filename, status, reply_status, admin_reply, created_at',
-    )
+    .select(ADMIN_SELECT)
     .single();
 
   if (error) return { ok: false, error: formatError(error, '返信の保存に失敗しました。'), inquiry: null };
   return { ok: true, error: null, inquiry: mapAdminInquiry(data as AdminInquiryRow) };
+}
+
+/**
+ * 管理者：AI返信案（ai_draft_reply）を保存する。
+ * - admin_reply / status / reply_status は変更しない（あくまで下書きの保存）。
+ * - 実際に更新できるのは Supabase の RLS（管理者 update ポリシー）により許可メールのみ。
+ */
+export async function saveAiDraftReply(id: string, draft: string): Promise<SaveReplyResult> {
+  const sb = getSupabaseBrowserClient();
+  if (!sb) return { ok: false, error: 'Supabaseが未設定です（.env.local を確認してください）。', inquiry: null };
+
+  const { data: userData, error: userErr } = await sb.auth.getUser();
+  if (userErr) {
+    console.error('[contact] getUser error:', userErr);
+    return { ok: false, error: 'AI返信案の保存にはログインが必要です。', inquiry: null };
+  }
+  if (!userData.user?.id) return { ok: false, error: 'AI返信案の保存にはログインが必要です。', inquiry: null };
+
+  const { data, error } = await sb
+    .from('contact_inquiries')
+    .update({ ai_draft_reply: draft })
+    .eq('id', id)
+    .select(ADMIN_SELECT)
+    .single();
+
+  if (error) return { ok: false, error: formatError(error, 'AI返信案の保存に失敗しました。'), inquiry: null };
+  return { ok: true, error: null, inquiry: mapAdminInquiry(data as AdminInquiryRow) };
+}
+
+/**
+ * お問い合わせ内容から返信案（下書き）を生成する。
+ *
+ * いまはローカルの簡易テンプレート生成。将来 OpenAI 等の API に差し替えやすいよう、
+ * この関数のシグネチャ（入力 → Promise<返信案文字列>）を保ったまま中身だけ置き換えればよい。
+ * AIは送信せず、案を作るだけ（最終送信は管理者が「返信を保存」で行う）。
+ */
+export interface ReplyDraftInput {
+  userName: string;
+  category: string;
+  message: string;
+  replyStatus: string;
+}
+
+export async function generateInquiryReplyDraft(input: ReplyDraftInput): Promise<string> {
+  // 将来の API 接続を見据えて非同期。簡易生成のため軽い待機を入れる（UIの「作成中…」を活かす）。
+  await new Promise((r) => setTimeout(r, 350));
+
+  const name = (input.userName || '').trim();
+  const nameLine = name ? `${name} 様` : 'お客様';
+  const category = (input.category || '').trim();
+  const message = (input.message || '').trim();
+  const snippet = message.length > 60 ? `${message.slice(0, 60)}…` : message;
+
+  const topic = /解約/.test(category)
+    ? '解約に関するお手続き'
+    : /プラン/.test(category)
+    ? 'プランに関するご質問'
+    : /アプリ/.test(category)
+    ? 'アプリのご利用に関するお問い合わせ'
+    : 'お問い合わせ';
+
+  const lines: string[] = [
+    `${nameLine}`,
+    '',
+    'いつもMyBrainをご利用いただき、誠にありがとうございます。',
+    `このたびは${topic}をいただき、ありがとうございます。`,
+  ];
+  if (snippet) {
+    lines.push('', `いただいた内容（「${snippet}」）について確認いたしました。`);
+  }
+  lines.push(
+    '',
+    'お手数ですが、より正確にご案内するため、ご不明な点や詳しい状況がございましたら、あわせてお知らせいただけますと幸いです。',
+    '',
+    '必要に応じて、追加でご連絡ください。',
+    '',
+    'MyBrain運営',
+  );
+  return lines.join('\n');
 }

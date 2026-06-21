@@ -195,3 +195,44 @@ grant select, insert, update, delete on table public.reservations to authenticat
 -- お問い合わせはユーザーからは送信（insert）と自分の参照（select）。
 -- update は許可しているが、RLS により実際に更新できるのは管理者（許可メール）のみ。
 grant select, insert, update on table public.contact_inquiries to authenticated;
+
+-- ------------------------------------------------------------
+-- chatbot_knowledge：Q&A / FAQ ナレッジ
+--   お問い合わせと管理者返信をもとに、個人情報を除いた一般的なQ&Aとして保存する。
+--   管理者（許可メール）のみ参照・追加・更新可能。is_public=false（公開前提ではなく確認用）。
+--   同一お問い合わせからの重複登録は一意制約で防止する。
+-- ------------------------------------------------------------
+create table if not exists public.chatbot_knowledge (
+  id uuid primary key default gen_random_uuid(),
+  category text,
+  question text not null,
+  answer text not null,
+  source_type text not null default 'inquiry',
+  source_inquiry_id uuid references public.contact_inquiries (id) on delete set null,
+  is_public boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- 同一お問い合わせからの重複登録を防止（inquiry 由来のみ）
+create unique index if not exists chatbot_knowledge_source_inquiry_uniq
+  on public.chatbot_knowledge (source_inquiry_id)
+  where source_inquiry_id is not null;
+
+alter table public.chatbot_knowledge enable row level security;
+
+drop policy if exists "chatbot_knowledge_admin_select" on public.chatbot_knowledge;
+create policy "chatbot_knowledge_admin_select" on public.chatbot_knowledge
+  for select using ((auth.jwt() ->> 'email') = 'designat5take@gmail.com');
+
+drop policy if exists "chatbot_knowledge_admin_insert" on public.chatbot_knowledge;
+create policy "chatbot_knowledge_admin_insert" on public.chatbot_knowledge
+  for insert with check ((auth.jwt() ->> 'email') = 'designat5take@gmail.com');
+
+drop policy if exists "chatbot_knowledge_admin_update" on public.chatbot_knowledge;
+create policy "chatbot_knowledge_admin_update" on public.chatbot_knowledge
+  for update using ((auth.jwt() ->> 'email') = 'designat5take@gmail.com')
+  with check ((auth.jwt() ->> 'email') = 'designat5take@gmail.com');
+
+-- Q&Aナレッジは管理者のみ。RLS で許可メールに限定。
+grant select, insert, update on table public.chatbot_knowledge to authenticated;

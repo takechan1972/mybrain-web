@@ -3,10 +3,19 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  generateInquiryReplyDraft,
   listAllInquiriesForAdmin,
   saveAdminReply,
+  saveAiDraftReply,
   type AdminInquiry,
 } from '@/lib/contact';
+import {
+  findSimilarQa,
+  generateInquiryQaDraft,
+  getQaForInquiry,
+  saveQaFromInquiry,
+  type QaRecord,
+} from '@/lib/knowledge';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 // アクセスを許可する管理者メールアドレス（当面は許可リスト方式）。
@@ -400,7 +409,122 @@ function InquiryDetail({
 }) {
   const [reply, setReply] = useState(inquiry.adminReply ?? '');
   const [busy, setBusy] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Q&A（FAQ）登録
+  const [qaExisting, setQaExisting] = useState<QaRecord | null>(null);
+  const [qaOpen, setQaOpen] = useState(false);
+  const [qaGenerating, setQaGenerating] = useState(false);
+  const [qaBusy, setQaBusy] = useState(false);
+  const [qaCategory, setQaCategory] = useState(inquiry.category || '');
+  const [qaQuestion, setQaQuestion] = useState('');
+  const [qaAnswer, setQaAnswer] = useState('');
+  const [qaSimilar, setQaSimilar] = useState<QaRecord[]>([]);
+  const [qaMsg, setQaMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // 既存Q&Aの有無を取得（重複登録防止＋登録済み表示）。inquiry.id を key にしているため都度実行。
+  useEffect(() => {
+    let alive = true;
+    void getQaForInquiry(inquiry.id).then((res) => {
+      if (alive && res.record) setQaExisting(res.record);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [inquiry.id]);
+
+  // Q&A案を作成：個人情報を除いた案を生成し、編集欄を開く（すぐ保存はしない）。
+  // あわせて同カテゴリの類似Q&Aを探し、重複注意を表示する。
+  async function openQa() {
+    if (qaGenerating || qaBusy) return;
+    setQaGenerating(true);
+    setQaMsg(null);
+    setQaSimilar([]);
+    try {
+      const draft = await generateInquiryQaDraft({
+        category: inquiry.category,
+        message: inquiry.message,
+        reply: reply.trim() || inquiry.adminReply || '',
+        userName: inquiry.userName,
+      });
+      setQaCategory(draft.category);
+      setQaQuestion(draft.question);
+      setQaAnswer(draft.answer);
+      setQaOpen(true);
+      // 類似Q&A（同カテゴリ・自分の問い合わせ由来は除外）。失敗しても作成自体は続行。
+      const sim = await findSimilarQa({
+        category: draft.category,
+        question: draft.question,
+        excludeInquiryId: inquiry.id,
+      });
+      if (sim.records.length > 0) setQaSimilar(sim.records);
+    } catch (e) {
+      console.error('[admin] generate QA failed:', e);
+      setQaMsg({ ok: false, text: 'Q&A案の作成に失敗しました。時間をおいて再度お試しください。' });
+    } finally {
+      setQaGenerating(false);
+    }
+  }
+
+  // Q&Aを保存（is_public=false / source_type=inquiry）。重複は一意制約で防止。
+  async function saveQa() {
+    if (qaBusy) return;
+    if (qaQuestion.trim().length === 0 || qaAnswer.trim().length === 0) {
+      setQaMsg({ ok: false, text: '質問と回答を入力してください。' });
+      return;
+    }
+    setQaBusy(true);
+    setQaMsg(null);
+    const res = await saveQaFromInquiry({
+      question: qaQuestion.trim(),
+      answer: qaAnswer.trim(),
+      category: qaCategory.trim(),
+      sourceInquiryId: inquiry.id,
+    });
+    setQaBusy(false);
+    if (!res.ok || !res.record) {
+      if (res.duplicate) {
+        setQaOpen(false);
+        void getQaForInquiry(inquiry.id).then((r) => {
+          if (r.record) setQaExisting(r.record);
+        });
+      }
+      setQaMsg({ ok: false, text: res.error ?? 'Q&Aの保存に失敗しました。' });
+      return;
+    }
+    setQaExisting(res.record);
+    setQaOpen(false);
+    setQaMsg({ ok: true, text: 'Q&Aを登録しました（確認用・非公開）。' });
+  }
+
+  // AI返信案を作成 → 返信欄に自動入力し、ai_draft_reply にも保存（送信はしない）。
+  async function makeDraft() {
+    if (drafting || busy) return;
+    setDrafting(true);
+    setMsg(null);
+    try {
+      const draft = await generateInquiryReplyDraft({
+        userName: inquiry.userName,
+        category: inquiry.category,
+        message: inquiry.message,
+        replyStatus: inquiry.replyStatus,
+      });
+      setReply(draft); // 返信入力欄に自動入力（管理者が確認・修正できる）
+      const res = await saveAiDraftReply(inquiry.id, draft);
+      if (res.ok && res.inquiry) {
+        onReplied(res.inquiry);
+        setMsg({ ok: true, text: 'AI返信案を作成しました。内容を確認・修正のうえ「返信を保存」してください。' });
+      } else {
+        setMsg({ ok: false, text: res.error ?? 'AI返信案は入力しましたが、保存に失敗しました。' });
+      }
+    } catch (e) {
+      console.error('[admin] generate draft failed:', e);
+      setMsg({ ok: false, text: 'AI返信案の作成に失敗しました。時間をおいて再度お試しください。' });
+    } finally {
+      setDrafting(false);
+    }
+  }
 
   async function save() {
     if (busy) return;
@@ -454,15 +578,46 @@ function InquiryDetail({
         {inquiry.message}
       </div>
 
-      {/* 運営からの返信（編集・保存） */}
-      <div className="mt-4 flex items-center justify-between">
-        <p className="text-[12px] font-bold" style={{ color: '#c4b5fd' }}>運営からの返信</p>
-        {inquiry.adminReply && (
-          <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(34,229,168,0.16)', color: '#86efac', border: '1px solid rgba(34,229,168,0.4)' }}>
-            返信済み
-          </span>
-        )}
+      {/* 運営からの返信（AI返信案作成・編集・保存） */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <p className="text-[12px] font-bold" style={{ color: '#c4b5fd' }}>運営からの返信</p>
+          {inquiry.adminReply && (
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(34,229,168,0.16)', color: '#86efac', border: '1px solid rgba(34,229,168,0.4)' }}>
+              返信済み
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={makeDraft}
+          disabled={drafting || busy}
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold transition active:scale-95 disabled:opacity-60"
+          style={{ background: 'rgba(166,107,255,0.18)', color: '#d8b4fe', border: '1px solid rgba(166,107,255,0.5)' }}>
+          {drafting ? '作成中…' : '🤖 AI返信案を作成'}
+        </button>
       </div>
+
+      {/* 保存済みのAI返信案（あれば確認・反映） */}
+      {inquiry.aiDraftReply && (
+        <div className="mt-2 rounded-2xl p-3" style={{ background: 'rgba(166,107,255,0.08)', border: '1px solid rgba(166,107,255,0.3)' }}>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold" style={{ color: '#d8b4fe' }}>🤖 保存済みのAI返信案</span>
+            <button
+              type="button"
+              onClick={() => {
+                setReply(inquiry.aiDraftReply ?? '');
+                setMsg(null);
+              }}
+              className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold active:opacity-70"
+              style={{ background: 'rgba(166,107,255,0.2)', color: '#e9d5ff', border: '1px solid rgba(166,107,255,0.45)' }}>
+              返信欄に反映
+            </button>
+          </div>
+          <p className="whitespace-pre-line text-[12.5px] leading-relaxed" style={{ color: '#e9d5ff' }}>{inquiry.aiDraftReply}</p>
+        </div>
+      )}
+
       <textarea
         value={reply}
         onChange={(e) => {
@@ -498,6 +653,120 @@ function InquiryDetail({
         <span className="text-[11px]" style={{ color: '#7a86b8' }}>
           ※ 保存すると status=対応済み / reply=返信済み になります（メール送信はしません）。
         </span>
+      </div>
+
+      {/* Q&A / FAQ 登録（個人情報を除いた一般化Q&A・確認用に保存） */}
+      <div className="mt-5 border-t pt-4" style={{ borderColor: 'rgba(120,160,255,0.18)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[12px] font-bold" style={{ color: '#c4b5fd' }}>Q&amp;A / FAQ 登録</p>
+          {qaExisting ? (
+            <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold" style={{ background: 'rgba(34,229,168,0.16)', color: '#86efac', border: '1px solid rgba(34,229,168,0.4)' }}>
+              ✓ Q&amp;A登録済み
+            </span>
+          ) : !qaOpen ? (
+            <button
+              type="button"
+              onClick={openQa}
+              disabled={qaGenerating}
+              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3.5 text-[12px] font-bold transition active:scale-95 disabled:opacity-60"
+              style={{ background: 'rgba(56,189,248,0.16)', color: '#7dd3fc', border: '1px solid rgba(56,189,248,0.5)' }}>
+              {qaGenerating ? '作成中…' : '🛠 Q&A案を作成'}
+            </button>
+          ) : null}
+        </div>
+
+        {/* 登録済みQ&A（確認用・非公開） */}
+        {qaExisting && (
+          <div className="mt-2 rounded-2xl p-3" style={{ background: 'rgba(34,229,168,0.06)', border: '1px solid rgba(34,229,168,0.28)' }}>
+            <p className="text-[11px] font-bold" style={{ color: '#86efac' }}>Q（{qaExisting.category || '未分類'}）</p>
+            <p className="text-[13px] font-semibold" style={{ color: '#e6edff' }}>{qaExisting.question}</p>
+            <p className="mt-2 text-[11px] font-bold" style={{ color: '#86efac' }}>A</p>
+            <p className="whitespace-pre-line text-[12.5px] leading-relaxed" style={{ color: '#d7ffe9' }}>{qaExisting.answer}</p>
+            <p className="mt-2 text-[10px]" style={{ color: '#7a86b8' }}>is_public: false（確認用・未公開）</p>
+          </div>
+        )}
+
+        {/* Q&A編集（保存前に管理者が確認・修正） */}
+        {qaOpen && !qaExisting && (
+          <div className="mt-2 flex flex-col gap-2">
+            <p className="text-[11px] leading-relaxed" style={{ color: '#9fb0e0' }}>
+              ※ 個人情報を除いた一般的なQ&amp;A案です。内容を確認・修正してから保存してください（非公開で保存されます）。
+            </p>
+
+            {/* 類似Q&Aの重複注意（自動上書きはしない） */}
+            {qaSimilar.length > 0 && (
+              <div className="rounded-xl px-3 py-2.5" style={{ background: 'rgba(242,213,138,0.10)', border: '1px solid rgba(242,213,138,0.4)' }}>
+                <p className="text-[12px] font-bold" style={{ color: '#f2d58a' }}>
+                  ⚠️ 似ているQ&amp;Aがあります。重複に注意してください。
+                </p>
+                <ul className="mt-1.5 flex flex-col gap-1">
+                  {qaSimilar.map((s) => (
+                    <li key={s.id} className="text-[12px] leading-snug" style={{ color: '#e9dcb0' }}>
+                      ・<span style={{ color: '#9fb0e0' }}>[{s.category || '未分類'}]</span> {s.question}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-bold" style={{ color: '#9fb0e0' }}>カテゴリ</span>
+              <input
+                value={qaCategory}
+                onChange={(e) => { setQaCategory(e.target.value); setQaMsg(null); }}
+                className="min-h-[40px] rounded-xl px-3 text-[13px] text-white outline-none"
+                style={{ background: 'rgba(10,14,32,0.6)', border: '1px solid rgba(120,160,255,0.3)', caretColor: '#818cf8' }}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-bold" style={{ color: '#9fb0e0' }}>質問（Q）</span>
+              <textarea
+                value={qaQuestion}
+                onChange={(e) => { setQaQuestion(e.target.value); setQaMsg(null); }}
+                className="min-h-[60px] resize-none rounded-xl px-3 py-2 text-[13px] text-white outline-none"
+                style={{ background: 'rgba(10,14,32,0.6)', border: '1px solid rgba(120,160,255,0.3)', caretColor: '#818cf8' }}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-bold" style={{ color: '#9fb0e0' }}>回答（A）</span>
+              <textarea
+                value={qaAnswer}
+                onChange={(e) => { setQaAnswer(e.target.value); setQaMsg(null); }}
+                className="min-h-[120px] resize-none rounded-xl px-3 py-2 text-[13px] text-white outline-none"
+                style={{ background: 'rgba(10,14,32,0.6)', border: '1px solid rgba(120,160,255,0.3)', caretColor: '#818cf8' }}
+              />
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={saveQa}
+                disabled={qaBusy}
+                className="min-h-[44px] rounded-full px-5 text-[13px] font-bold text-white active:scale-[0.98] disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 18px rgba(60,120,255,0.35)' }}>
+                {qaBusy ? '保存中…' : 'Q&Aを保存'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setQaOpen(false); setQaMsg(null); setQaSimilar([]); }}
+                className="min-h-[44px] rounded-full px-5 text-[13px] font-semibold"
+                style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#c7d2fe', background: 'rgba(0,0,0,0.3)' }}>
+                キャンセル
+              </button>
+            </div>
+          </div>
+        )}
+
+        {qaMsg && (
+          <p
+            className="mt-2 rounded-xl px-3 py-2 text-[12px] font-semibold"
+            style={
+              qaMsg.ok
+                ? { background: 'rgba(34,229,168,0.15)', color: '#86efac', border: '1px solid rgba(34,229,168,0.35)' }
+                : { background: 'rgba(224,85,85,0.15)', color: '#ff9b9b', border: '1px solid rgba(224,85,85,0.35)' }
+            }>
+            {qaMsg.ok ? '✅ ' : '⚠️ '}{qaMsg.text}
+          </p>
+        )}
       </div>
     </div>
   );
