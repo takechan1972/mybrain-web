@@ -173,6 +173,13 @@ drop policy if exists "contact_inquiries_select_admin" on public.contact_inquiri
 create policy "contact_inquiries_select_admin" on public.contact_inquiries
   for select using ((auth.jwt() ->> 'email') = 'designat5take@gmail.com');
 
+-- 管理者（許可メールアドレス）は返信（admin_reply 等）の更新が可能。
+-- ユーザーは update 不可（自分のお問い合わせの内容も改変させない）。
+drop policy if exists "contact_inquiries_update_admin" on public.contact_inquiries;
+create policy "contact_inquiries_update_admin" on public.contact_inquiries
+  for update using ((auth.jwt() ->> 'email') = 'designat5take@gmail.com')
+  with check ((auth.jwt() ->> 'email') = 'designat5take@gmail.com');
+
 -- ------------------------------------------------------------
 -- ロール権限（GRANT）
 --   RLS は「行レベル」の制御。これとは別に、テーブルへの基本権限を
@@ -185,5 +192,6 @@ grant usage on schema public to authenticated;
 grant select, insert, update, delete on table public.profiles to authenticated;
 grant select, insert, update, delete on table public.memos to authenticated;
 grant select, insert, update, delete on table public.reservations to authenticated;
--- お問い合わせはユーザーからは送信（insert）と自分の参照（select）のみ。更新/削除は管理者側。
-grant select, insert on table public.contact_inquiries to authenticated;
+-- お問い合わせはユーザーからは送信（insert）と自分の参照（select）。
+-- update は許可しているが、RLS により実際に更新できるのは管理者（許可メール）のみ。
+grant select, insert, update on table public.contact_inquiries to authenticated;

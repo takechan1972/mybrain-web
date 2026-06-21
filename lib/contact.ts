@@ -198,3 +198,46 @@ export async function listAllInquiriesForAdmin(): Promise<ListAdminInquiriesResu
   if (error) return { inquiries: [], error: formatError(error, 'お問い合わせの取得に失敗しました。') };
   return { inquiries: (data as AdminInquiryRow[]).map(mapAdminInquiry), error: null };
 }
+
+export interface SaveReplyResult {
+  ok: boolean;
+  error: string | null;
+  inquiry: AdminInquiry | null;
+}
+
+/**
+ * 管理者：お問い合わせに返信を保存する。
+ * - admin_reply を更新し、reply_status='返信済み' / status='対応済み' / replied_at=現在時刻 / replied_by=管理者ユーザーID を設定。
+ * - 実際に更新できるのは Supabase の RLS（管理者 update ポリシー）により許可メールのみ。
+ * - メール送信・AI返信案生成は行わない（保存のみ）。
+ */
+export async function saveAdminReply(id: string, reply: string): Promise<SaveReplyResult> {
+  const sb = getSupabaseBrowserClient();
+  if (!sb) return { ok: false, error: 'Supabaseが未設定です（.env.local を確認してください）。', inquiry: null };
+
+  const { data: userData, error: userErr } = await sb.auth.getUser();
+  if (userErr) {
+    console.error('[contact] getUser error:', userErr);
+    return { ok: false, error: '返信の保存にはログインが必要です。', inquiry: null };
+  }
+  const uid = userData.user?.id;
+  if (!uid) return { ok: false, error: '返信の保存にはログインが必要です。', inquiry: null };
+
+  const { data, error } = await sb
+    .from('contact_inquiries')
+    .update({
+      admin_reply: reply,
+      reply_status: '返信済み',
+      status: '対応済み',
+      replied_at: new Date().toISOString(),
+      replied_by: uid,
+    })
+    .eq('id', id)
+    .select(
+      'id, user_name, user_email, inquiry_category, inquiry_message, attached_image_filename, status, reply_status, admin_reply, created_at',
+    )
+    .single();
+
+  if (error) return { ok: false, error: formatError(error, '返信の保存に失敗しました。'), inquiry: null };
+  return { ok: true, error: null, inquiry: mapAdminInquiry(data as AdminInquiryRow) };
+}

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import {
   listAllInquiriesForAdmin,
+  saveAdminReply,
   type AdminInquiry,
 } from '@/lib/contact';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
@@ -106,6 +107,12 @@ export default function AdminInquiriesPage() {
   function selectMenu(key: MenuKey) {
     setActiveMenu(key);
     setSelected(null);
+  }
+
+  // 返信保存後：一覧と選択中の詳細を更新（即時にUIへ反映）
+  function handleReplied(updated: AdminInquiry) {
+    setInquiries((prev) => prev.map((q) => (q.id === updated.id ? updated : q)));
+    setSelected(updated);
   }
 
   return (
@@ -225,6 +232,7 @@ export default function AdminInquiriesPage() {
                   selected={selected}
                   onSelect={setSelected}
                   onReload={() => void load()}
+                  onReplied={handleReplied}
                 />
               ) : (
                 <SoonPanel label={MENU.find((m) => m.key === activeMenu)?.label ?? ''} />
@@ -250,6 +258,7 @@ function InquiriesPanel({
   selected,
   onSelect,
   onReload,
+  onReplied,
 }: {
   inquiries: AdminInquiry[];
   loading: boolean;
@@ -257,6 +266,7 @@ function InquiriesPanel({
   selected: AdminInquiry | null;
   onSelect: (q: AdminInquiry | null) => void;
   onReload: () => void;
+  onReplied: (updated: AdminInquiry) => void;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -298,53 +308,8 @@ function InquiriesPanel({
           </button>
         </div>
       ) : selected ? (
-        // 詳細（中央に表示・一覧へ戻る）
-        <div className="rounded-2xl p-5" style={GLASS}>
-          <button
-            type="button"
-            onClick={() => onSelect(null)}
-            className="mb-3 inline-flex items-center gap-1 text-[13px] font-bold active:opacity-70"
-            style={{ color: '#9cc4ff' }}>
-            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 6l-6 6 6 6" />
-            </svg>
-            一覧へ戻る
-          </button>
-
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-            <DetailField label="作成日時" value={formatDateTime(selected.createdAt)} />
-            <DetailField label="お問い合わせ項目" value={selected.category || '未分類'} />
-            <DetailField label="ユーザー名" value={selected.userName || '—'} />
-            <DetailField label="メールアドレス" value={selected.userEmail || '—'} />
-            <DetailField label="添付画像ファイル名" value={selected.imageFilename || 'なし'} muted={!selected.imageFilename} />
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-bold" style={{ color: '#9fb0e0' }}>status</span>
-              <StatusChip label={selected.status} />
-              <span className="ml-2 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>reply</span>
-              <StatusChip label={selected.replyStatus} />
-            </div>
-          </div>
-
-          <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>お問い合わせ内容</p>
-          <div
-            className="whitespace-pre-line rounded-2xl px-4 py-3 text-[14px] leading-relaxed"
-            style={{ background: 'rgba(10,14,32,0.6)', border: '1px solid rgba(120,160,255,0.18)', color: '#e6edff' }}>
-            {selected.message}
-          </div>
-
-          <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>運営からの返信</p>
-          {selected.adminReply ? (
-            <div
-              className="whitespace-pre-line rounded-2xl px-4 py-3 text-[14px] leading-relaxed"
-              style={{ background: 'rgba(34,229,168,0.10)', border: '1px solid rgba(34,229,168,0.35)', color: '#d7ffe9' }}>
-              {selected.adminReply}
-            </div>
-          ) : (
-            <p className="rounded-2xl px-4 py-3 text-[13px]" style={{ background: 'rgba(10,14,32,0.6)', border: '1px dashed rgba(120,160,255,0.3)', color: '#9fb0e0' }}>
-              まだ返信はありません（返信機能は今後実装予定）
-            </p>
-          )}
-        </div>
+        // 詳細（中央に表示・返信編集つき）。inquiry.id を key にして返信の編集状態を問い合わせごとにリセット。
+        <InquiryDetail key={selected.id} inquiry={selected} onBack={() => onSelect(null)} onReplied={onReplied} />
       ) : inquiries.length === 0 ? (
         <div className="rounded-2xl p-10 text-center" style={GLASS}>
           <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full text-[26px]" style={{ background: 'rgba(99,102,241,0.16)' }}>
@@ -419,6 +384,121 @@ function InquiriesPanel({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── 中央：お問い合わせ詳細＋返信編集 ──────────────────────────
+function InquiryDetail({
+  inquiry,
+  onBack,
+  onReplied,
+}: {
+  inquiry: AdminInquiry;
+  onBack: () => void;
+  onReplied: (updated: AdminInquiry) => void;
+}) {
+  const [reply, setReply] = useState(inquiry.adminReply ?? '');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function save() {
+    if (busy) return;
+    if (reply.trim().length === 0) {
+      setMsg({ ok: false, text: '返信内容を入力してください。' });
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    const res = await saveAdminReply(inquiry.id, reply.trim());
+    setBusy(false);
+    if (!res.ok || !res.inquiry) {
+      setMsg({ ok: false, text: res.error ?? '返信の保存に失敗しました。' });
+      return;
+    }
+    setMsg({ ok: true, text: '返信を保存しました。ユーザーのお問い合わせ履歴に表示されます。' });
+    onReplied(res.inquiry);
+  }
+
+  return (
+    <div className="rounded-2xl p-5" style={GLASS}>
+      <button
+        type="button"
+        onClick={onBack}
+        className="mb-3 inline-flex items-center gap-1 text-[13px] font-bold active:opacity-70"
+        style={{ color: '#9cc4ff' }}>
+        <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+        一覧へ戻る
+      </button>
+
+      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+        <DetailField label="作成日時" value={formatDateTime(inquiry.createdAt)} />
+        <DetailField label="お問い合わせ項目" value={inquiry.category || '未分類'} />
+        <DetailField label="ユーザー名" value={inquiry.userName || '—'} />
+        <DetailField label="メールアドレス" value={inquiry.userEmail || '—'} />
+        <DetailField label="添付画像ファイル名" value={inquiry.imageFilename || 'なし'} muted={!inquiry.imageFilename} />
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] font-bold" style={{ color: '#9fb0e0' }}>status</span>
+          <StatusChip label={inquiry.status} />
+          <span className="ml-2 text-[12px] font-bold" style={{ color: '#9fb0e0' }}>reply</span>
+          <StatusChip label={inquiry.replyStatus} />
+        </div>
+      </div>
+
+      <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>お問い合わせ内容</p>
+      <div
+        className="whitespace-pre-line rounded-2xl px-4 py-3 text-[14px] leading-relaxed"
+        style={{ background: 'rgba(10,14,32,0.6)', border: '1px solid rgba(120,160,255,0.18)', color: '#e6edff' }}>
+        {inquiry.message}
+      </div>
+
+      {/* 運営からの返信（編集・保存） */}
+      <div className="mt-4 flex items-center justify-between">
+        <p className="text-[12px] font-bold" style={{ color: '#c4b5fd' }}>運営からの返信</p>
+        {inquiry.adminReply && (
+          <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(34,229,168,0.16)', color: '#86efac', border: '1px solid rgba(34,229,168,0.4)' }}>
+            返信済み
+          </span>
+        )}
+      </div>
+      <textarea
+        value={reply}
+        onChange={(e) => {
+          setReply(e.target.value);
+          setMsg(null);
+        }}
+        placeholder="ユーザーへの返信内容を入力..."
+        className="mt-1.5 min-h-[130px] w-full resize-none rounded-2xl px-4 py-3 text-[14px] text-white outline-none placeholder:text-[#7a86b8]"
+        style={{ background: 'rgba(10,14,32,0.6)', border: '1px solid rgba(120,160,255,0.3)', caretColor: '#818cf8' }}
+      />
+
+      {msg && (
+        <p
+          className="mt-2 rounded-xl px-3 py-2 text-[12px] font-semibold"
+          style={
+            msg.ok
+              ? { background: 'rgba(34,229,168,0.15)', color: '#86efac', border: '1px solid rgba(34,229,168,0.35)' }
+              : { background: 'rgba(224,85,85,0.15)', color: '#ff9b9b', border: '1px solid rgba(224,85,85,0.35)' }
+          }>
+          {msg.ok ? '✅ ' : '⚠️ '}{msg.text}
+        </p>
+      )}
+
+      <div className="mt-3 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy}
+          className="min-h-[46px] rounded-full px-6 text-[14px] font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
+          style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 8px 24px rgba(60,120,255,0.4)' }}>
+          {busy ? '保存中…' : '返信を保存'}
+        </button>
+        <span className="text-[11px]" style={{ color: '#7a86b8' }}>
+          ※ 保存すると status=対応済み / reply=返信済み になります（メール送信はしません）。
+        </span>
+      </div>
     </div>
   );
 }
