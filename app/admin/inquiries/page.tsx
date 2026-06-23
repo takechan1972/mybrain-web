@@ -97,14 +97,23 @@ export default function AdminInquiriesPage() {
   }, []);
 
   // アクセス判定（許可メールのみ）。許可されていれば一覧を取得。
+  // getUser() のエラー・例外・ハングでも「確認中…」で固まらないよう、
+  // 失敗時／タイムアウト時は denied に倒す（安全側）。
   useEffect(() => {
     if (!configured) {
       setAccess('denied');
       return;
     }
     const sb = getSupabaseBrowserClient();
-    sb?.auth.getUser().then(({ data }) => {
-      const email = data.user?.email ?? null;
+    if (!sb) {
+      setAccess('denied');
+      return;
+    }
+
+    let settled = false;
+    const decide = (email: string | null) => {
+      if (settled) return;
+      settled = true;
       setAdminEmail(email);
       if (email && ADMIN_EMAILS.includes(email.toLowerCase().trim())) {
         setAccess('granted');
@@ -112,7 +121,30 @@ export default function AdminInquiriesPage() {
       } else {
         setAccess('denied');
       }
-    });
+    };
+
+    // getUser() がハングしても確認中のまま固まらないよう、一定時間で打ち切る。
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        setAccess('denied');
+      }
+    }, 8000);
+
+    sb.auth
+      .getUser()
+      .then(({ data, error }) => {
+        // error（セッション切れ等）は拒否扱い。例外は下の catch で拾う。
+        decide(error ? null : data.user?.email ?? null);
+      })
+      .catch(() => decide(null))
+      .finally(() => clearTimeout(timer));
+
+    return () => {
+      // アンマウント後の setState を避けつつタイマーも解放。
+      settled = true;
+      clearTimeout(timer);
+    };
   }, [configured, load]);
 
   function selectMenu(key: MenuKey) {
