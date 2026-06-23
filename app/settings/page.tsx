@@ -1416,9 +1416,6 @@ export default function SettingsPage() {
                         <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={statusChipStyle(q.status)}>
                           {q.status}
                         </span>
-                        <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={statusChipStyle(q.replyStatus)}>
-                          返信:{q.replyStatus}
-                        </span>
                       </div>
                     </div>
                     <span
