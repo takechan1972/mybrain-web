@@ -281,6 +281,12 @@ function InquiriesPanel({
   onReload: () => void;
   onReplied: (updated: AdminInquiry) => void;
 }) {
+  // 未対応を先頭に、各グループ内は新しい順（表示だけの並べ替え。取得順・データは変更しない）。
+  const pendingRank = (s: string) => (/済|完了|クローズ/.test(s) ? 1 : 0); // 未対応=0（先頭） / 対応済み=1
+  const sortedInquiries = [...inquiries].sort(
+    (a, b) => pendingRank(a.status) - pendingRank(b.status) || b.createdAt - a.createdAt,
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -345,12 +351,16 @@ function InquiriesPanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {inquiries.map((q) => (
+                  {sortedInquiries.map((q) => (
                     <tr
                       key={q.id}
                       onClick={() => onSelect(q)}
                       className="cursor-pointer transition hover:bg-white/[0.04]"
-                      style={{ borderBottom: '1px solid rgba(120,160,255,0.10)' }}>
+                      style={
+                        pendingRank(q.status) === 0
+                          ? { borderBottom: '1px solid rgba(120,160,255,0.10)', background: 'rgba(242,213,138,0.06)' }
+                          : { borderBottom: '1px solid rgba(120,160,255,0.10)' }
+                      }>
                       <td className="whitespace-nowrap px-3 py-3 text-[12px]" style={{ color: '#c7d2fe' }}>{formatDateTime(q.createdAt)}</td>
                       <td className="px-3 py-3 text-[13px] font-semibold" style={{ color: '#ffffff' }}>{q.userName || '—'}</td>
                       <td className="px-3 py-3 text-[12px]" style={{ color: '#9fb0e0' }}>{q.userEmail || '—'}</td>
@@ -372,9 +382,15 @@ function InquiriesPanel({
 
           {/* スマホ：カード */}
           <div className="flex flex-col gap-3 md:hidden">
-            {inquiries.map((q) => (
+            {sortedInquiries.map((q) => (
               <button key={q.id} type="button" onClick={() => onSelect(q)} className="w-full text-left active:opacity-70">
-                <div className="rounded-2xl p-4" style={GLASS}>
+                <div
+                  className="rounded-2xl p-4"
+                  style={
+                    pendingRank(q.status) === 0
+                      ? { ...GLASS, border: '1px solid rgba(242,213,138,0.5)', background: 'rgba(242,213,138,0.07)' }
+                      : GLASS
+                  }>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px]" style={{ color: '#9fb0e0' }}>{formatDateTime(q.createdAt)}</span>
                     <div className="flex gap-1.5">
