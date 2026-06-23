@@ -263,6 +263,14 @@ function formatInquiryDateTime(ms: number): string {
   return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+// 返信日（YYYY-MM-DD）
+function formatInquiryDate(ms: number): string {
+  if (!ms || !Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 // 対応状況のラベル配色（済/完了=緑、中=青、それ以外=アンバー）
 function statusChipStyle(s: string): React.CSSProperties {
   if (/済|完了|クローズ/.test(s)) {
@@ -1351,6 +1359,11 @@ export default function SettingsPage() {
 
               {/* 運営からの返信 */}
               <p className="mb-1.5 mt-4 text-[12px] font-bold" style={{ color: '#c4b5fd' }}>運営からの返信</p>
+              {selectedInquiry.repliedAt && (
+                <p className="mb-1.5 text-[11px]" style={{ color: '#9fb0e0' }}>
+                  返信日：{formatInquiryDate(selectedInquiry.repliedAt)}
+                </p>
+              )}
               {selectedInquiry.adminReply ? (
                 <div
                   className="whitespace-pre-line rounded-2xl px-4 py-3 text-[14px] leading-relaxed"
@@ -1393,6 +1406,13 @@ export default function SettingsPage() {
                         {formatInquiryDateTime(q.createdAt)}
                       </span>
                       <div className="flex shrink-0 gap-1.5">
+                        {q.adminReply && (
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                            style={{ background: 'rgba(34,229,168,0.2)', color: '#86efac', border: '1px solid rgba(34,229,168,0.55)' }}>
+                            返信あり
+                          </span>
+                        )}
                         <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={statusChipStyle(q.status)}>
                           {q.status}
                         </span>

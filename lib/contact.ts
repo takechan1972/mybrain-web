@@ -87,6 +87,8 @@ export interface ContactInquiry {
   status: string;
   replyStatus: string;
   adminReply: string | null;
+  /** 運営が返信した日時（epoch ms）。未返信なら null */
+  repliedAt: number | null;
   /** 作成日時（epoch ms） */
   createdAt: number;
 }
@@ -104,6 +106,7 @@ interface InquiryRow {
   status: string | null;
   reply_status: string | null;
   admin_reply: string | null;
+  replied_at?: string | null;
   created_at: string | null;
 }
 
@@ -114,6 +117,7 @@ function toMs(iso: string | null): number {
 }
 
 function mapInquiry(r: InquiryRow): ContactInquiry {
+  const repliedMs = r.replied_at ? toMs(r.replied_at) : 0;
   return {
     id: r.id,
     category: r.inquiry_category ?? '',
@@ -122,6 +126,7 @@ function mapInquiry(r: InquiryRow): ContactInquiry {
     status: r.status ?? '未対応',
     replyStatus: r.reply_status ?? '未対応',
     adminReply: r.admin_reply,
+    repliedAt: repliedMs > 0 ? repliedMs : null,
     createdAt: toMs(r.created_at),
   };
 }
@@ -145,7 +150,7 @@ export async function listMyInquiries(): Promise<ListInquiriesResult> {
 
   const { data, error } = await sb
     .from('contact_inquiries')
-    .select('id, inquiry_category, inquiry_message, attached_image_filename, status, reply_status, admin_reply, created_at')
+    .select('id, inquiry_category, inquiry_message, attached_image_filename, status, reply_status, admin_reply, replied_at, created_at')
     .eq('user_id', uid)
     .order('created_at', { ascending: false });
 
