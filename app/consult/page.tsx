@@ -11,6 +11,7 @@ import {
   SendIcon,
 } from '@/components/icons';
 import ConsultRefCards from '@/components/ConsultRefCards';
+import ConsultFaqCards from '@/components/ConsultFaqCards';
 import {
   loadConsultTurns,
   saveConsultTurns,
@@ -18,6 +19,7 @@ import {
   type Turn,
 } from '@/lib/consult-store';
 import { buildConsultAnswer } from '@/lib/consult-engine';
+import { searchPublicFaq, type QaRecord } from '@/lib/knowledge';
 import { loadOllamaSettings } from '@/lib/ai/ollama';
 import { askOllamaConsult } from '@/lib/ai/consult-ollama';
 import { isLocalHost } from '@/lib/env';
@@ -58,6 +60,8 @@ export default function ConsultPage() {
   const [loaded, setLoaded] = useState(false);
   const [memos, setMemos] = useState<Memo[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  // ターンID → 関連する公開FAQ（参照カード用。履歴localStorageには保存しない）
+  const [faqByTurn, setFaqByTurn] = useState<Record<string, QaRecord[]>>({});
   const baseRef = useRef('');
   // ホーム→AIアシスト（/ai-assist?q=）から ?q= で来たときの自動実行用
   const [dataReady, setDataReady] = useState(false);
@@ -175,9 +179,10 @@ export default function ConsultPage() {
         }
       }
 
+      const id = safeUUID();
       setTurns((prev) => [
         {
-          id: safeUUID(),
+          id,
           question: q,
           answer,
           refTarget,
@@ -191,6 +196,14 @@ export default function ConsultPage() {
       ]);
       setText('');
       if (!useOllama) showToast('回答を作成しました');
+
+      // 関連する公開FAQ（is_public=true）を取得してこのターンに紐付け（参照カード表示用）。
+      // AIプロンプトには注入しない。失敗・該当なしのときは何も表示しない。
+      void searchPublicFaq(q).then((res) => {
+        if (res.records.length > 0) {
+          setFaqByTurn((prev) => ({ ...prev, [id]: res.records }));
+        }
+      });
     } catch (e) {
       console.error('[consult] 回答生成に失敗しました:', e);
       showToast('メモの読み込み中に問題が発生しました。保存データを確認してください。');
@@ -377,6 +390,8 @@ export default function ConsultPage() {
                 </div>
                 {/* 参照した予定・メモのタップ可能カード（詳細ページへ遷移） */}
                 <ConsultRefCards turn={t} reservations={reservations} memos={memos} />
+                {/* 関連する公開FAQ（chatbot_knowledge / is_public=true）。タップでその場開閉。 */}
+                <ConsultFaqCards items={faqByTurn[t.id] ?? []} />
                 {/* 参照先（件数つき） */}
                 <div className="flex flex-wrap items-center gap-2 border-t pt-3 text-[11px]"
                   style={{ borderColor: 'rgba(120,160,255,0.15)', color: 'rgba(200,215,245,0.6)' }}>

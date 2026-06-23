@@ -308,3 +308,40 @@ export async function findSimilarQa(input: {
 
   return { records, error: null };
 }
+
+// ── ユーザー向け：公開FAQの検索（参照カード用） ──────────────────
+
+/**
+ * 公開FAQ（is_public=true）から、質問文に近いものを上位N件返す。
+ * - /consult の「関連するよくある質問」参照カード用。AIプロンプトには注入しない。
+ * - RLS の公開ポリシーに加え、クエリでも is_public=true で限定（多重防御）。
+ * - 既存の文字バイグラム類似度で簡易ランキング（質問文・回答文の高い方を採用）。
+ */
+export async function searchPublicFaq(
+  query: string,
+  limit = 3,
+): Promise<{ records: QaRecord[]; error: string | null }> {
+  const sb = getSupabaseBrowserClient();
+  if (!sb) return { records: [], error: 'Supabaseが未設定です。' };
+
+  const text = (query || '').trim();
+  if (text.length === 0) return { records: [], error: null };
+
+  const { data, error } = await sb
+    .from('chatbot_knowledge')
+    .select(KNOWLEDGE_SELECT)
+    .eq('is_public', true)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) return { records: [], error: formatError(error, '公開FAQの取得に失敗しました。') };
+
+  const records = (data as KnowledgeRow[])
+    .map(mapRow)
+    .map((r) => ({ r, score: Math.max(similarityScore(text, r.question), similarityScore(text, r.answer)) }))
+    .filter((x) => x.score >= 0.2)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((x) => x.r);
+
+  return { records, error: null };
+}

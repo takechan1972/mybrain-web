@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import VoiceInput from './VoiceInput';
 import DesktopSidebar from './DesktopSidebar';
+import ConsultFaqCards from './ConsultFaqCards';
 import {
   CalendarIcon,
   ChatIcon,
@@ -18,6 +19,7 @@ import {
   type Turn,
 } from '@/lib/consult-store';
 import { buildConsultAnswer } from '@/lib/consult-engine';
+import { searchPublicFaq, type QaRecord } from '@/lib/knowledge';
 import { loadOllamaSettings, testOllama } from '@/lib/ai/ollama';
 import { askOllamaConsult } from '@/lib/ai/consult-ollama';
 import { isLocalHost } from '@/lib/env';
@@ -67,6 +69,8 @@ export default function DesktopConsult() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [memos, setMemos] = useState<Memo[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  // ターンID → 関連する公開FAQ（参照カード用。履歴localStorageには保存しない）
+  const [faqByTurn, setFaqByTurn] = useState<Record<string, QaRecord[]>>({});
   const [toast, setToast] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -169,6 +173,14 @@ export default function DesktopConsult() {
       setSelectedId(id);
       setText('');
       if (!useOllama) showToast('回答を作成しました');
+
+      // 関連する公開FAQ（is_public=true）を取得してこのターンに紐付け（参照カード表示用）。
+      // AIプロンプトには注入しない。失敗・該当なしのときは何も表示しない。
+      void searchPublicFaq(q).then((res) => {
+        if (res.records.length > 0) {
+          setFaqByTurn((prev) => ({ ...prev, [id]: res.records }));
+        }
+      });
     } catch (e) {
       console.error('[consult] 回答生成に失敗しました:', e);
       showToast('メモの読み込み中に問題が発生しました。保存データを確認してください。');
@@ -344,6 +356,8 @@ export default function DesktopConsult() {
                         <AnsBtn label="↻ 再生成" onClick={regenerate} />
                         <AnsBtn label="🗑 削除" danger onClick={() => setConfirmId(selected.id)} />
                       </div>
+                      {/* 関連する公開FAQ（chatbot_knowledge / is_public=true）。タップでその場開閉。 */}
+                      <ConsultFaqCards items={faqByTurn[selected.id] ?? []} variant="light" />
                     </div>
                   </div>
                 </div>
