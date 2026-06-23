@@ -319,6 +319,16 @@ function InquiriesPanel({
     (a, b) => pendingRank(a.status) - pendingRank(b.status) || b.createdAt - a.createdAt,
   );
 
+  // ステータス絞り込み（表示のみ。データ・並び順は変更しない）。
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'done'>('all');
+  const visibleInquiries = sortedInquiries.filter((q) =>
+    statusFilter === 'all'
+      ? true
+      : statusFilter === 'pending'
+      ? pendingRank(q.status) === 0
+      : pendingRank(q.status) === 1,
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -371,6 +381,39 @@ function InquiriesPanel({
         </div>
       ) : (
         <>
+          {/* ステータス絞り込み（表示のみ） */}
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { key: 'all', label: 'すべて' },
+                { key: 'pending', label: '未対応のみ' },
+                { key: 'done', label: '対応済み' },
+              ] as const
+            ).map((f) => {
+              const active = statusFilter === f.key;
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setStatusFilter(f.key)}
+                  className="min-h-[34px] rounded-full px-3.5 text-[12px] font-bold transition active:scale-95"
+                  style={
+                    active
+                      ? { background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', color: '#ffffff', border: '1px solid rgba(130,165,255,0.6)' }
+                      : { background: 'rgba(10,14,32,0.5)', color: '#c7d2fe', border: '1px solid rgba(120,160,255,0.28)' }
+                  }>
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {visibleInquiries.length === 0 ? (
+            <div className="rounded-2xl p-8 text-center" style={GLASS}>
+              <p className="text-[13px]" style={{ color: '#9fb0e0' }}>該当するお問い合わせはありません。</p>
+            </div>
+          ) : (
+            <>
           {/* PC / iPad：テーブル */}
           <div className="hidden overflow-hidden rounded-2xl md:block" style={GLASS}>
             <div className="admin-scroll overflow-x-auto">
@@ -383,7 +426,7 @@ function InquiriesPanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedInquiries.map((q) => (
+                  {visibleInquiries.map((q) => (
                     <tr
                       key={q.id}
                       onClick={() => onSelect(q)}
@@ -414,7 +457,7 @@ function InquiriesPanel({
 
           {/* スマホ：カード */}
           <div className="flex flex-col gap-3 md:hidden">
-            {sortedInquiries.map((q) => (
+            {visibleInquiries.map((q) => (
               <button key={q.id} type="button" onClick={() => onSelect(q)} className="w-full text-left active:opacity-70">
                 <div
                   className="rounded-2xl p-4"
@@ -443,6 +486,8 @@ function InquiriesPanel({
               </button>
             ))}
           </div>
+            </>
+          )}
         </>
       )}
     </div>
