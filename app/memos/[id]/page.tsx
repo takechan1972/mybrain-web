@@ -46,6 +46,17 @@ function formatDate(ts: number): string {
   return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+/** メモタイトルから安全な .md ファイル名を作る（空なら mybrain-memo.md） */
+function mdFilename(title: string): string {
+  const base = (title || '')
+    .replace(/[\\/:*?"<>|]/g, '') // ファイル名に使えない文字を除去
+    .replace(/[\x00-\x1f]/g, '') // 制御文字を除去
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+  return base.length > 0 ? `${base}.md` : 'mybrain-memo.md';
+}
+
 export default function MemoDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -301,6 +312,25 @@ export default function MemoDetailPage() {
       window.setTimeout(() => setMdCopied(false), 2000);
     } else {
       setActionError('Markdownをコピーできませんでした。テキストを選択してコピーしてください。');
+    }
+  }
+
+  // このメモを .md ファイルとしてダウンロード（保存はローカルのダウンロードのみ）
+  function downloadMarkdown() {
+    if (!memo) return;
+    const md = memoToMarkdown(memo);
+    try {
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = mdFilename(memo.title);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      setActionError('Markdownのダウンロードに失敗しました。');
     }
   }
 
@@ -603,13 +633,23 @@ export default function MemoDetailPage() {
                 className="resize-y rounded-2xl border px-4 py-3 text-[13px] leading-relaxed text-white outline-none"
                 style={{ background: 'rgba(8,10,24,0.78)', borderColor: 'rgba(120,160,255,0.4)', fontFamily: 'Consolas, Meiryo, monospace' }}
               />
-              <button
-                type="button"
-                onClick={copyMarkdown}
-                className="min-h-[48px] rounded-2xl text-[14px] font-bold text-white active:opacity-70"
-                style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 24px rgba(60,120,255,0.4)' }}>
-                {mdCopied ? '✓ コピーしました' : 'Markdownをコピー'}
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={copyMarkdown}
+                  className="min-h-[48px] rounded-2xl text-[14px] font-bold text-white active:opacity-70"
+                  style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 24px rgba(60,120,255,0.4)' }}>
+                  {mdCopied ? '✓ コピーしました' : 'Markdownをコピー'}
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadMarkdown}
+                  className="min-h-[48px] rounded-2xl border text-[14px] font-bold active:opacity-70"
+                  style={{ borderColor: 'rgba(120,160,255,0.5)', color: '#c7d2fe', background: 'rgba(0,0,0,0.3)' }}>
+                  Markdownをダウンロード
+                </button>
+              </div>
+              <p className="text-[11px]" style={{ color: '#8893c4' }}>.mdファイルとして保存します（端末のダウンロード）。</p>
             </>
           )}
         </section>
