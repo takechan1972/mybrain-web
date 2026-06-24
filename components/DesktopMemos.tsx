@@ -8,6 +8,7 @@ import VoiceInput from './VoiceInput';
 import { deriveTitleFromBody, parseMemoSpeechText } from '@/lib/parse/memo-speech';
 import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/memos';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
+import { memoToMarkdown } from '@/lib/markdown/memo-markdown';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
 import type { Memo } from '@/lib/types';
@@ -128,6 +129,9 @@ export default function DesktopMemos() {
 
   // 第3カラムの表示モード（list=一覧 / detail=詳細）。ダブルクリックで detail に切替。
   const [mode, setMode] = useState<'list' | 'detail'>('list');
+  // Obsidian形式（Markdown）プレビュー・コピー（表示のみ・保存しない）
+  const [mdOpen, setMdOpen] = useState(false);
+  const [mdCopied, setMdCopied] = useState(false);
   // AIアシスタント（右カラム）入力
   const [aiQuestion, setAiQuestion] = useState('');
   const aiBaseRef = useRef('');
@@ -405,6 +409,41 @@ export default function DesktopMemos() {
       await navigator.clipboard.writeText(text);
       showToast('クリップボードにコピーしました');
     } catch {
+      showToast('コピーできませんでした');
+    }
+  }
+
+  // このメモを Obsidian 互換 Markdown としてクリップボードへコピー（保存はしない）
+  async function copyMemoMarkdown() {
+    if (!selected) return;
+    const md = memoToMarkdown(selected);
+    let ok = false;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(md);
+        ok = true;
+      }
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = md;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch {
+        ok = false;
+      }
+    }
+    if (ok) {
+      setMdCopied(true);
+      window.setTimeout(() => setMdCopied(false), 2000);
+    } else {
       showToast('コピーできませんでした');
     }
   }
@@ -802,6 +841,42 @@ export default function DesktopMemos() {
                   {local && <ActionBtn label="整理する" onClick={() => runAi('organize')} />}
                   <ActionBtn label="共有" onClick={shareMemo} />
                   <ActionBtn label="削除" danger onClick={() => setConfirmDel(selected)} />
+                </div>
+
+                {/* ── Obsidian形式（Markdown）プレビュー・コピー（表示のみ・保存しない） ── */}
+                <div className="rounded-2xl border border-[#E8EAF3] p-4" style={{ backgroundColor: '#FBFBFE' }}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[13px] font-extrabold" style={{ color: NAVY }}>Obsidian形式（Markdown）</p>
+                    <button
+                      type="button"
+                      onClick={() => setMdOpen((v) => !v)}
+                      className="rounded-lg border border-[#E8EAF3] bg-white px-3 py-1.5 text-[12px] font-bold"
+                      style={{ color: '#54607A' }}>
+                      {mdOpen ? '閉じる' : 'Obsidian形式で表示'}
+                    </button>
+                  </div>
+                  {mdOpen && (
+                    <div className="mt-3 flex flex-col gap-3">
+                      <p className="text-[11px]" style={{ color: MUTED }}>
+                        このメモを Obsidian 互換の Markdown で表示します（プレビューのみ・保存はされません）。
+                      </p>
+                      <textarea
+                        readOnly
+                        value={memoToMarkdown(selected)}
+                        rows={12}
+                        onFocus={(e) => e.currentTarget.select()}
+                        className="resize-y rounded-xl border border-[#E8EAF3] bg-white px-3 py-2 text-[12px] leading-relaxed outline-none focus:border-[#7B61FF]"
+                        style={{ color: '#1F2937', fontFamily: 'Consolas, Meiryo, monospace' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={copyMemoMarkdown}
+                        className="self-start rounded-xl px-4 py-2 text-[13px] font-bold text-white"
+                        style={{ background: `linear-gradient(135deg, ${PURPLE}, #6D8BF5)` }}>
+                        {mdCopied ? '✓ コピーしました' : 'Markdownをコピー'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* ── AIアシスタント（メモ本文・操作の下に自然に続くセクション） ── */}

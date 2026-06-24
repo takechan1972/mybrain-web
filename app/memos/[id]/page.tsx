@@ -8,6 +8,7 @@ import { parseMemoSpeechText } from '@/lib/parse/memo-speech';
 import { createMemo, deleteMemo, getMemo, parseTags, updateMemo } from '@/lib/memos';
 import { loadOllamaSettings } from '@/lib/ai/ollama';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
+import { memoToMarkdown } from '@/lib/markdown/memo-markdown';
 import { isLocalHost } from '@/lib/env';
 import type { Memo } from '@/lib/types';
 
@@ -72,6 +73,10 @@ export default function MemoDetailPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSaving, setAiSaving] = useState(false);
+
+  // Obsidian形式（Markdown）プレビュー・コピー（表示のみ・保存しない）
+  const [showMd, setShowMd] = useState(false);
+  const [mdCopied, setMdCopied] = useState(false);
 
   useEffect(() => {
     setLocal(isLocalHost());
@@ -261,6 +266,42 @@ export default function MemoDetailPage() {
     setAiResult('');
     setAiKind(null);
     router.push(`/memos/${created.id}`);
+  }
+
+  // このメモを Obsidian 互換 Markdown としてクリップボードへコピー（保存はしない）
+  async function copyMarkdown() {
+    if (!memo) return;
+    const md = memoToMarkdown(memo);
+    let ok = false;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(md);
+        ok = true;
+      }
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      // フォールバック（clipboard API 不可の環境）
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = md;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch {
+        ok = false;
+      }
+    }
+    if (ok) {
+      setMdCopied(true);
+      window.setTimeout(() => setMdCopied(false), 2000);
+    } else {
+      setActionError('Markdownをコピーできませんでした。テキストを選択してコピーしてください。');
+    }
   }
 
   if (memo === undefined && !loadError) {
@@ -534,6 +575,44 @@ export default function MemoDetailPage() {
             AIの要約・整理は <strong>PCローカル版専用</strong>です。
           </p>
         )
+      )}
+
+      {/* Obsidian形式（Markdown）プレビュー・コピー（読み取り表示時・保存はしない） */}
+      {!editing && memo && (
+        <section className="mt-2 flex flex-col gap-3 rounded-2xl border p-4" style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(120,160,255,0.4)' }}>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[13px] font-bold" style={{ color: '#ffffff' }}>Obsidian形式（Markdown）</p>
+            <button
+              type="button"
+              onClick={() => setShowMd((v) => !v)}
+              className="min-h-[40px] rounded-full border px-4 text-[13px] font-bold active:opacity-70"
+              style={{ borderColor: 'rgba(120,160,255,0.5)', color: '#c7d2fe', background: 'rgba(0,0,0,0.3)' }}>
+              {showMd ? '閉じる' : 'Obsidian形式で表示'}
+            </button>
+          </div>
+          {showMd && (
+            <>
+              <p className="text-[12px]" style={{ color: '#a5b4fc' }}>
+                このメモを Obsidian 互換の Markdown で表示します（プレビューのみ・保存はされません）。
+              </p>
+              <textarea
+                readOnly
+                value={memoToMarkdown(memo)}
+                rows={12}
+                onFocus={(e) => e.currentTarget.select()}
+                className="resize-y rounded-2xl border px-4 py-3 text-[13px] leading-relaxed text-white outline-none"
+                style={{ background: 'rgba(8,10,24,0.78)', borderColor: 'rgba(120,160,255,0.4)', fontFamily: 'Consolas, Meiryo, monospace' }}
+              />
+              <button
+                type="button"
+                onClick={copyMarkdown}
+                className="min-h-[48px] rounded-2xl text-[14px] font-bold text-white active:opacity-70"
+                style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 24px rgba(60,120,255,0.4)' }}>
+                {mdCopied ? '✓ コピーしました' : 'Markdownをコピー'}
+              </button>
+            </>
+          )}
+        </section>
       )}
 
       {/* 削除確認モーダル（MyBrain スタイル） */}
