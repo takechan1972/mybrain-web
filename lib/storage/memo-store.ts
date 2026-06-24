@@ -8,7 +8,7 @@ import {
   type ListResult,
   type MemoResult,
   type DeleteResult,
-} from '@/lib/memos';
+} from './supabase-memo-store';
 
 /**
  * メモ保存アダプタ層（Phase 1：足場のみ）。
