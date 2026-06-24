@@ -869,6 +869,54 @@ export default function SettingsPage() {
           <SettingRow emoji="🧩" title="プラグイン" desc="準備中" onClick={() => setSheet('plugin')} />
         </section>
 
+        {/* メモの保存先（表示のみ・将来の保存先選択の予告。現在はMyBrainに保存） */}
+        <section className="rounded-3xl p-5" style={GLASS_CARD}>
+          <div className="flex items-center gap-2">
+            <span className="text-[18px]">🗒️</span>
+            <p className="text-[15px] font-bold" style={{ color: '#ffffff' }}>メモの保存先</p>
+          </div>
+          <p className="mt-1.5 text-[13px] font-semibold" style={{ color: '#a5b4fc' }}>現在：MyBrainに保存</p>
+          <p className="mt-0.5 text-[12px]" style={{ color: '#9fb0e0' }}>今後：Obsidian形式で保存先を選べるようにします。</p>
+
+          <div className="mt-3 flex flex-col gap-2">
+            {/* 現在の保存先（選択中・操作不可） */}
+            <div
+              className="flex items-center justify-between rounded-2xl border px-4 py-3"
+              style={{ borderColor: 'rgba(120,160,255,0.45)', background: 'rgba(46,126,255,0.10)' }}>
+              <span className="text-[13px] font-bold" style={{ color: '#ffffff' }}>MyBrain標準</span>
+              <span
+                className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                style={{ background: 'rgba(34,229,168,0.16)', color: '#86efac', border: '1px solid rgba(34,229,168,0.4)' }}>
+                現在
+              </span>
+            </div>
+            {/* 準備中の選択肢（操作不可） */}
+            <div
+              className="flex items-center justify-between rounded-2xl border px-4 py-3 opacity-60"
+              style={{ borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' }}>
+              <span className="text-[13px] font-semibold" style={{ color: '#c7d2fe' }}>Obsidian Vault（スマホ内）</span>
+              <span
+                className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                style={{ background: 'rgba(242,213,138,0.16)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.4)' }}>
+                準備中
+              </span>
+            </div>
+            <div
+              className="flex items-center justify-between rounded-2xl border px-4 py-3 opacity-60"
+              style={{ borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' }}>
+              <span className="text-[13px] font-semibold" style={{ color: '#c7d2fe' }}>Obsidian Vault（Google Drive）</span>
+              <span
+                className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                style={{ background: 'rgba(242,213,138,0.16)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.4)' }}>
+                準備中
+              </span>
+            </div>
+          </div>
+          <p className="mt-2.5 text-[11px]" style={{ color: '#8893c4' }}>
+            ※ いまはMyBrainに保存されます。保存先の切り替えは今後のアップデートで対応します。
+          </p>
+        </section>
+
         {/* グループ3：お問い合わせ／お問い合わせ履歴／利用規約／プライバシーポリシー／会社情報 */}
         <section className="overflow-hidden rounded-3xl" style={GLASS_CARD}>
           <SettingRow emoji="✉️" title="お問い合わせ" desc="ご質問・ご要望はこちら" onClick={() => setSheet('contact')} />
