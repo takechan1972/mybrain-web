@@ -22,6 +22,12 @@ import {
   type AccountSettings,
 } from '@/lib/account-store';
 import DesktopSettings from '@/components/DesktopSettings';
+import {
+  DEFAULT_MEMO_STORAGE_TARGET,
+  loadMemoStorageTarget,
+  saveMemoStorageTarget,
+} from '@/lib/storage/memo-storage-target';
+import type { MemoStorageTarget } from '@/lib/storage/memo-store';
 
 // サンプルログイン（デモ用アカウント）の判定。
 // 専用の課金/アカウント基盤が未実装のため、メールアドレスで暫定判定する。
@@ -290,6 +296,17 @@ export default function SettingsPage() {
 
   // アカウント情報（氏名・電話番号・利用プラン）の端末ローカル保存
   const [account, setAccount] = useState<AccountSettings>(DEFAULT_ACCOUNT_SETTINGS);
+
+  // メモの保存先（選択の保存・表示のみ。実際の保存先は変更しない＝常にMyBrain/Supabase）
+  const [memoStorageTarget, setMemoStorageTarget] = useState<MemoStorageTarget>(DEFAULT_MEMO_STORAGE_TARGET);
+  // localStorage はクライアントのみ。マウント後に読み込んでハイドレーション不一致を避ける。
+  useEffect(() => {
+    setMemoStorageTarget(loadMemoStorageTarget());
+  }, []);
+  function selectMemoStorageTarget(target: MemoStorageTarget) {
+    setMemoStorageTarget(target);
+    saveMemoStorageTarget(target);
+  }
 
   // お問い合わせフォーム（アプリ内・送信はモック。登録者情報は自動表示）
   const [contactCategory, setContactCategory] = useState('');
@@ -869,7 +886,7 @@ export default function SettingsPage() {
           <SettingRow emoji="🧩" title="プラグイン" desc="準備中" onClick={() => setSheet('plugin')} />
         </section>
 
-        {/* メモの保存先（表示のみ・将来の保存先選択の予告。現在はMyBrainに保存） */}
+        {/* メモの保存先（選択を保存・表示する。実際の保存先は変更しない＝常にMyBrain） */}
         <section className="rounded-3xl p-5" style={GLASS_CARD}>
           <div className="flex items-center gap-2">
             <span className="text-[18px]">🗒️</span>
@@ -879,41 +896,57 @@ export default function SettingsPage() {
           <p className="mt-0.5 text-[12px]" style={{ color: '#9fb0e0' }}>今後：Obsidian形式で保存先を選べるようにします。</p>
 
           <div className="mt-3 flex flex-col gap-2">
-            {/* 現在の保存先（選択中・操作不可） */}
-            <div
-              className="flex items-center justify-between rounded-2xl border px-4 py-3"
-              style={{ borderColor: 'rgba(120,160,255,0.45)', background: 'rgba(46,126,255,0.10)' }}>
-              <span className="text-[13px] font-bold" style={{ color: '#ffffff' }}>MyBrain標準</span>
-              <span
-                className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-                style={{ background: 'rgba(34,229,168,0.16)', color: '#86efac', border: '1px solid rgba(34,229,168,0.4)' }}>
-                現在
-              </span>
-            </div>
-            {/* 準備中の選択肢（操作不可） */}
-            <div
-              className="flex items-center justify-between rounded-2xl border px-4 py-3 opacity-60"
-              style={{ borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' }}>
-              <span className="text-[13px] font-semibold" style={{ color: '#c7d2fe' }}>Obsidian Vault（スマホ内）</span>
-              <span
-                className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-                style={{ background: 'rgba(242,213,138,0.16)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.4)' }}>
-                準備中
-              </span>
-            </div>
-            <div
-              className="flex items-center justify-between rounded-2xl border px-4 py-3 opacity-60"
-              style={{ borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' }}>
-              <span className="text-[13px] font-semibold" style={{ color: '#c7d2fe' }}>Obsidian Vault（Google Drive）</span>
-              <span
-                className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-                style={{ background: 'rgba(242,213,138,0.16)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.4)' }}>
-                準備中
-              </span>
-            </div>
+            {(
+              [
+                { value: 'mybrain', label: 'MyBrain標準' },
+                { value: 'obsidian-local', label: 'Obsidian Vault（スマホ内）' },
+                { value: 'obsidian-gdrive', label: 'Obsidian Vault（Google Drive）' },
+              ] as const
+            ).map((opt) => {
+              const selected = memoStorageTarget === opt.value;
+              const soon = opt.value !== 'mybrain';
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => selectMemoStorageTarget(opt.value)}
+                  aria-pressed={selected}
+                  className="flex items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-left transition active:opacity-80"
+                  style={
+                    selected
+                      ? { borderColor: 'rgba(120,160,255,0.7)', background: 'rgba(46,126,255,0.14)' }
+                      : { borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' }
+                  }>
+                  <span className="text-[13px] font-semibold" style={{ color: selected ? '#ffffff' : '#c7d2fe' }}>{opt.label}</span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {opt.value === 'mybrain' && selected && (
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                        style={{ background: 'rgba(34,229,168,0.16)', color: '#86efac', border: '1px solid rgba(34,229,168,0.4)' }}>
+                        現在
+                      </span>
+                    )}
+                    {soon && (
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                        style={{ background: 'rgba(242,213,138,0.16)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.4)' }}>
+                        準備中
+                      </span>
+                    )}
+                    {selected && (
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                        style={{ background: 'rgba(56,189,248,0.16)', color: '#7dd3fc', border: '1px solid rgba(56,189,248,0.4)' }}>
+                        選択中
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <p className="mt-2.5 text-[11px]" style={{ color: '#8893c4' }}>
-            ※ いまはMyBrainに保存されます。保存先の切り替えは今後のアップデートで対応します。
+            ※ 現在は選択にかかわらずMyBrainに保存されます。保存先の切り替えは今後対応します。
           </p>
         </section>
 
