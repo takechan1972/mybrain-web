@@ -8,7 +8,6 @@ import { parseMemoSpeechText } from '@/lib/parse/memo-speech';
 import { createMemo, deleteMemo, getMemo, parseTags, updateMemo } from '@/lib/memos';
 import { loadOllamaSettings } from '@/lib/ai/ollama';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
-import { memoToMarkdown } from '@/lib/markdown/memo-markdown';
 import { createMemoMarkdownFile } from '@/lib/markdown/memo-markdown-file';
 import { downloadMarkdownFile } from '@/lib/markdown/download-markdown-file';
 import { isLocalHost } from '@/lib/env';
@@ -611,7 +610,7 @@ export default function MemoDetailPage() {
               </p>
               <textarea
                 readOnly
-                value={memoToMarkdown(memo)}
+                value={createMemoMarkdownFile(memo).content}
                 rows={12}
                 onFocus={(e) => e.currentTarget.select()}
                 className="resize-y rounded-2xl border px-4 py-3 text-[13px] leading-relaxed text-white outline-none"

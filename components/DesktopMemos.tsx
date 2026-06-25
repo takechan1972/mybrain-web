@@ -8,7 +8,6 @@ import VoiceInput from './VoiceInput';
 import { deriveTitleFromBody, parseMemoSpeechText } from '@/lib/parse/memo-speech';
 import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/memos';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
-import { memoToMarkdown } from '@/lib/markdown/memo-markdown';
 import { createMemoMarkdownFile } from '@/lib/markdown/memo-markdown-file';
 import { downloadMarkdownFile } from '@/lib/markdown/download-markdown-file';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
@@ -876,7 +875,7 @@ export default function DesktopMemos() {
                       </p>
                       <textarea
                         readOnly
-                        value={memoToMarkdown(selected)}
+                        value={createMemoMarkdownFile(selected).content}
                         rows={12}
                         onFocus={(e) => e.currentTarget.select()}
                         className="resize-y rounded-xl border border-[#E8EAF3] bg-white px-3 py-2 text-[12px] leading-relaxed outline-none focus:border-[#7B61FF]"
