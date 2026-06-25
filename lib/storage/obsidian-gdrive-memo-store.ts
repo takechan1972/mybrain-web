@@ -6,6 +6,7 @@ import {
   deleteMemo as supabaseDeleteMemo,
 } from './supabase-memo-store';
 import type { MemoStore } from './memo-store';
+import { createMemoMarkdownFile } from '@/lib/markdown/memo-markdown-file';
 
 /**
  * Google Drive 同期の Obsidian Vault 用メモ保存アダプタ（プレースホルダ）。
@@ -21,11 +22,33 @@ import type { MemoStore } from './memo-store';
  *   循環 import を回避する（MemoStore は型のみ import＝コンパイル時に消える）。
  */
 export const obsidianGdriveMemoStore: MemoStore = {
-  // TODO(Obsidian on Google Drive): Drive 上の Vault フォルダに Markdown ファイルを書き出す。
-  //   当面は MyBrain/Supabase にフォールバック（保存挙動は不変）。
+  // list / get / delete は現状そのまま MyBrain/Supabase に委譲（挙動は不変）。
   listMemos: () => supabaseListMemos(),
   getMemo: (id) => supabaseGetMemo(id),
-  createMemo: (input) => supabaseCreateMemo(input),
-  updateMemo: (id, input) => supabaseUpdateMemo(id, input),
+
+  createMemo: async (input) => {
+    // まず従来どおり MyBrain/Supabase に作成（保存挙動は不変）。
+    const result = await supabaseCreateMemo(input);
+    if (result.memo) {
+      // 作成済みメモから Obsidian Markdown ファイル表現を生成（まだ書き出さない）。
+      const markdownFile = createMemoMarkdownFile(result.memo);
+      // TODO(Obsidian on Google Drive): この markdownFile を Drive 上の Vault フォルダへ書き出す。
+      void markdownFile;
+    }
+    return result;
+  },
+
+  updateMemo: async (id, input) => {
+    // まず従来どおり MyBrain/Supabase を更新（保存挙動は不変）。
+    const result = await supabaseUpdateMemo(id, input);
+    if (result.memo) {
+      // 更新済みメモから Obsidian Markdown ファイル表現を生成（まだ書き出さない）。
+      const markdownFile = createMemoMarkdownFile(result.memo);
+      // TODO(Obsidian on Google Drive): この markdownFile を Drive 上の Vault フォルダへ書き出す。
+      void markdownFile;
+    }
+    return result;
+  },
+
   deleteMemo: (id) => supabaseDeleteMemo(id),
 };
