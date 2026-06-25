@@ -949,8 +949,10 @@ export default function SettingsPage() {
             ※ 現在は選択にかかわらずMyBrainに保存されます。保存先の切り替えは今後対応します。
           </p>
           <p className="mt-1.5 text-[11px] leading-relaxed" style={{ color: '#8893c4' }}>
-            現在、Obsidian保存は準備中です。<br />
-            今はMyBrainに保存され、メモ詳細からMarkdownコピー・ダウンロードができます。
+            Obsidian保存は現在準備中です。<br />
+            今はMyBrainに保存されます。<br />
+            メモ詳細からMarkdownコピー・ダウンロードができます。<br />
+            ダウンロードした.mdファイルは、Obsidianに入れて使えます。
           </p>
         </section>
 
