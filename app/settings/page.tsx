@@ -28,6 +28,7 @@ import {
   saveMemoStorageTarget,
 } from '@/lib/storage/memo-storage-target';
 import type { MemoStorageTarget } from '@/lib/storage/memo-store';
+import { OBSIDIAN_MEMO_FOLDER } from '@/lib/markdown';
 
 // サンプルログイン（デモ用アカウント）の判定。
 // 専用の課金/アカウント基盤が未実装のため、メールアドレスで暫定判定する。
@@ -961,6 +962,10 @@ export default function SettingsPage() {
               <li>Markdownをダウンロード</li>
               <li>ダウンロードした.mdファイルをObsidianに入れる</li>
             </ol>
+          </div>
+          <div className="mt-2.5">
+            <p className="text-[11px] font-bold" style={{ color: '#a5b4fc' }}>Obsidian内の予定保存場所</p>
+            <p className="mt-0.5 text-[11px] break-all" style={{ color: '#9fb0e0', fontFamily: 'Consolas, Meiryo, monospace' }}>{OBSIDIAN_MEMO_FOLDER}</p>
           </div>
         </section>
 
