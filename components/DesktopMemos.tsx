@@ -9,6 +9,7 @@ import { deriveTitleFromBody, parseMemoSpeechText } from '@/lib/parse/memo-speec
 import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/memos';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile } from '@/lib/markdown';
+import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
 import type { Memo } from '@/lib/types';
@@ -882,13 +883,7 @@ export default function DesktopMemos() {
                       />
                       {(() => {
                         const f = createMemoMarkdownFile(selected);
-                        return (
-                          <div className="rounded-xl border border-[#E8EAF3] bg-white px-3 py-2.5">
-                            <p className="text-[11px] font-bold" style={{ color: NAVY }}>Obsidian用ファイル</p>
-                            <p className="mt-1 text-[11px] break-all" style={{ color: MUTED }}>ファイル名: {f.fileName}</p>
-                            <p className="mt-0.5 text-[11px] break-all" style={{ color: MUTED }}>保存場所: {f.path}</p>
-                          </div>
-                        );
+                        return <ObsidianMemoFileInfo fileName={f.fileName} path={f.path} variant="light" />;
                       })()}
                       <div className="flex flex-wrap items-center gap-2">
                         <button

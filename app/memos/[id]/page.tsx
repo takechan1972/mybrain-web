@@ -9,6 +9,7 @@ import { createMemo, deleteMemo, getMemo, parseTags, updateMemo } from '@/lib/me
 import { loadOllamaSettings } from '@/lib/ai/ollama';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile } from '@/lib/markdown';
+import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
 import { isLocalHost } from '@/lib/env';
 import type { Memo } from '@/lib/types';
 
@@ -617,13 +618,7 @@ export default function MemoDetailPage() {
               />
               {(() => {
                 const f = createMemoMarkdownFile(memo);
-                return (
-                  <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' }}>
-                    <p className="text-[11px] font-bold" style={{ color: '#a5b4fc' }}>Obsidian用ファイル</p>
-                    <p className="mt-1 text-[11px] break-all" style={{ color: '#9fb0e0' }}>ファイル名: {f.fileName}</p>
-                    <p className="mt-0.5 text-[11px] break-all" style={{ color: '#9fb0e0' }}>保存場所: {f.path}</p>
-                  </div>
-                );
+                return <ObsidianMemoFileInfo fileName={f.fileName} path={f.path} variant="dark" />;
               })()}
               <div className="grid grid-cols-2 gap-2">
                 <button
