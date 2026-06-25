@@ -9,6 +9,9 @@ import {
   type MemoResult,
   type DeleteResult,
 } from './supabase-memo-store';
+import { loadMemoStorageTarget } from './memo-storage-target';
+// 注意：memo-storage-target.ts は memo-store.ts から「型のみ」を import している
+// （コンパイル時に消える）ため、ここで loadMemoStorageTarget を import しても実行時の循環は発生しない。
 
 /**
  * メモ保存アダプタ層（Phase 1：足場のみ）。
@@ -49,9 +52,37 @@ export const supabaseMemoStore: MemoStore = {
 
 /**
  * 現在有効なメモ保存ストアを返す。
- * - Phase 1 では常に Supabase 実装を返す（保存先選択は読まない）。
- * - 将来、保存先設定に応じて別アダプタを返すための拡張点。
+ *
+ * Phase 1.3：選択中の保存先（localStorage: mybrain.memo.storageTarget）を読み、
+ * それに応じてアダプタを切り替えられる seam にした。
+ *
+ * ただし現時点では「どの保存先を選んでも」Supabase 実装にフォールバックする。
+ * → 保存挙動は従来どおり完全に不変（常に MyBrain/Supabase に保存）。
+ * → Obsidian ローカル / Google Drive アダプタは未実装。下記 TODO の箇所で接続する。
+ *
+ * SSR では loadMemoStorageTarget() が既定値 'mybrain' を返すため、サーバ側でも安全。
  */
 export function getMemoStore(): MemoStore {
-  return supabaseMemoStore;
+  const target = loadMemoStorageTarget();
+
+  switch (target) {
+    case 'obsidian-local':
+      // TODO(Obsidian local): File System Access API ベースの
+      //   obsidianLocalMemoStore を実装したらここで返す。
+      //   例: return obsidianLocalMemoStore;
+      //   実装までは MyBrain/Supabase にフォールバック（保存挙動は不変）。
+      return supabaseMemoStore;
+
+    case 'obsidian-gdrive':
+      // TODO(Obsidian on Google Drive): Google Drive API ベースの
+      //   obsidianGdriveMemoStore を実装したらここで返す。
+      //   例: return obsidianGdriveMemoStore;
+      //   実装までは MyBrain/Supabase にフォールバック（保存挙動は不変）。
+      return supabaseMemoStore;
+
+    case 'mybrain':
+    default:
+      // MyBrain 標準（現行の保存先）。
+      return supabaseMemoStore;
+  }
 }
