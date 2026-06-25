@@ -615,6 +615,16 @@ export default function MemoDetailPage() {
                 className="resize-y rounded-2xl border px-4 py-3 text-[13px] leading-relaxed text-white outline-none"
                 style={{ background: 'rgba(8,10,24,0.78)', borderColor: 'rgba(120,160,255,0.4)', fontFamily: 'Consolas, Meiryo, monospace' }}
               />
+              {(() => {
+                const f = createMemoMarkdownFile(memo);
+                return (
+                  <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' }}>
+                    <p className="text-[11px] font-bold" style={{ color: '#a5b4fc' }}>Obsidian用ファイル</p>
+                    <p className="mt-1 text-[11px] break-all" style={{ color: '#9fb0e0' }}>ファイル名: {f.fileName}</p>
+                    <p className="mt-0.5 text-[11px] break-all" style={{ color: '#9fb0e0' }}>保存場所: {f.path}</p>
+                  </div>
+                );
+              })()}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
