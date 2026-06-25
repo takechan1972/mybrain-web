@@ -10,6 +10,7 @@ import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { memoToMarkdown } from '@/lib/markdown/memo-markdown';
 import { createMemoMarkdownFile } from '@/lib/markdown/memo-markdown-file';
+import { downloadMarkdownFile } from '@/lib/markdown/download-markdown-file';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
 import type { Memo } from '@/lib/types';
@@ -455,15 +456,7 @@ export default function DesktopMemos() {
     if (!selected) return;
     const { fileName, content } = createMemoMarkdownFile(selected);
     try {
-      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadMarkdownFile(fileName, content);
     } catch {
       showToast('ダウンロードに失敗しました');
     }
