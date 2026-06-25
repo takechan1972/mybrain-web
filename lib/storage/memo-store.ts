@@ -12,6 +12,10 @@ import {
 import { loadMemoStorageTarget } from './memo-storage-target';
 // 注意：memo-storage-target.ts は memo-store.ts から「型のみ」を import している
 // （コンパイル時に消える）ため、ここで loadMemoStorageTarget を import しても実行時の循環は発生しない。
+import { obsidianLocalMemoStore } from './obsidian-local-memo-store';
+import { obsidianGdriveMemoStore } from './obsidian-gdrive-memo-store';
+// 注意：両プレースホルダは supabase-memo-store.ts へ直接委譲し、memo-store.ts は型のみ
+// 参照するため、実行時の循環 import は発生しない。
 
 /**
  * メモ保存アダプタ層（Phase 1：足場のみ）。
@@ -67,18 +71,16 @@ export function getMemoStore(): MemoStore {
 
   switch (target) {
     case 'obsidian-local':
-      // TODO(Obsidian local): File System Access API ベースの
-      //   obsidianLocalMemoStore を実装したらここで返す。
-      //   例: return obsidianLocalMemoStore;
-      //   実装までは MyBrain/Supabase にフォールバック（保存挙動は不変）。
-      return supabaseMemoStore;
+      // Obsidian ローカル Vault 用アダプタ（プレースホルダ）。
+      // 現状は内部で MyBrain/Supabase に委譲するため保存挙動は不変。
+      // 実ファイル保存は obsidian-local-memo-store.ts の TODO で実装予定。
+      return obsidianLocalMemoStore;
 
     case 'obsidian-gdrive':
-      // TODO(Obsidian on Google Drive): Google Drive API ベースの
-      //   obsidianGdriveMemoStore を実装したらここで返す。
-      //   例: return obsidianGdriveMemoStore;
-      //   実装までは MyBrain/Supabase にフォールバック（保存挙動は不変）。
-      return supabaseMemoStore;
+      // Google Drive 同期の Obsidian Vault 用アダプタ（プレースホルダ）。
+      // 現状は内部で MyBrain/Supabase に委譲するため保存挙動は不変。
+      // 実ファイル保存は obsidian-gdrive-memo-store.ts の TODO で実装予定。
+      return obsidianGdriveMemoStore;
 
     case 'mybrain':
     default:
