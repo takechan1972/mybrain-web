@@ -8,8 +8,7 @@ import { parseMemoSpeechText } from '@/lib/parse/memo-speech';
 import { createMemo, deleteMemo, getMemo, parseTags, updateMemo } from '@/lib/memos';
 import { loadOllamaSettings } from '@/lib/ai/ollama';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
-import { createMemoMarkdownFile } from '@/lib/markdown/memo-markdown-file';
-import { downloadMarkdownFile } from '@/lib/markdown/download-markdown-file';
+import { createMemoMarkdownFile, downloadMarkdownFile } from '@/lib/markdown';
 import { isLocalHost } from '@/lib/env';
 import type { Memo } from '@/lib/types';
 
