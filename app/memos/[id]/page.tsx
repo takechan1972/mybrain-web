@@ -637,6 +637,7 @@ export default function MemoDetailPage() {
                 </button>
               </div>
               <p className="text-[11px]" style={{ color: '#8893c4' }}>.mdファイルとして保存します（端末のダウンロード）。</p>
+              <p className="text-[11px]" style={{ color: '#8893c4' }}>ダウンロードした.mdファイルは、Obsidianに入れて使えます。</p>
             </>
           )}
         </section>
