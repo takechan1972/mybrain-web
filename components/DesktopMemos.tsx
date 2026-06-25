@@ -419,7 +419,7 @@ export default function DesktopMemos() {
   // このメモを Obsidian 互換 Markdown としてクリップボードへコピー（保存はしない）
   async function copyMemoMarkdown() {
     if (!selected) return;
-    const md = memoToMarkdown(selected);
+    const md = createMemoMarkdownFile(selected).content;
     let ok = false;
     try {
       if (navigator.clipboard?.writeText) {

@@ -274,7 +274,7 @@ export default function MemoDetailPage() {
   // このメモを Obsidian 互換 Markdown としてクリップボードへコピー（保存はしない）
   async function copyMarkdown() {
     if (!memo) return;
-    const md = memoToMarkdown(memo);
+    const md = createMemoMarkdownFile(memo).content;
     let ok = false;
     try {
       if (navigator.clipboard?.writeText) {
