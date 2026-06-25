@@ -9,6 +9,7 @@ import { deriveTitleFromBody, parseMemoSpeechText } from '@/lib/parse/memo-speec
 import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/memos';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { memoToMarkdown } from '@/lib/markdown/memo-markdown';
+import { createMemoMarkdownFile } from '@/lib/markdown/memo-markdown-file';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
 import type { Memo } from '@/lib/types';
@@ -74,16 +75,6 @@ function ymdHm(ms: number): string {
   return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/** メモタイトルから安全な .md ファイル名を作る（空なら mybrain-memo.md） */
-function mdFilename(title: string): string {
-  const base = (title || '')
-    .replace(/[\\/:*?"<>|]/g, '') // ファイル名に使えない文字を除去
-    .replace(/[\x00-\x1f]/g, '') // 制御文字を除去
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 80);
-  return base.length > 0 ? `${base}.md` : 'mybrain-memo.md';
-}
 
 function loadFavs(): string[] {
   if (typeof window === 'undefined') return [];
@@ -462,13 +453,13 @@ export default function DesktopMemos() {
   // このメモを .md ファイルとしてダウンロード（端末のダウンロードのみ・Vault保存はしない）
   function downloadMemoMarkdown() {
     if (!selected) return;
-    const md = memoToMarkdown(selected);
+    const { fileName, content } = createMemoMarkdownFile(selected);
     try {
-      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = mdFilename(selected.title);
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

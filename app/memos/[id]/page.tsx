@@ -9,6 +9,7 @@ import { createMemo, deleteMemo, getMemo, parseTags, updateMemo } from '@/lib/me
 import { loadOllamaSettings } from '@/lib/ai/ollama';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { memoToMarkdown } from '@/lib/markdown/memo-markdown';
+import { createMemoMarkdownFile } from '@/lib/markdown/memo-markdown-file';
 import { isLocalHost } from '@/lib/env';
 import type { Memo } from '@/lib/types';
 
@@ -46,16 +47,6 @@ function formatDate(ts: number): string {
   return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/** メモタイトルから安全な .md ファイル名を作る（空なら mybrain-memo.md） */
-function mdFilename(title: string): string {
-  const base = (title || '')
-    .replace(/[\\/:*?"<>|]/g, '') // ファイル名に使えない文字を除去
-    .replace(/[\x00-\x1f]/g, '') // 制御文字を除去
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 80);
-  return base.length > 0 ? `${base}.md` : 'mybrain-memo.md';
-}
 
 export default function MemoDetailPage() {
   const params = useParams<{ id: string }>();
@@ -318,13 +309,13 @@ export default function MemoDetailPage() {
   // このメモを .md ファイルとしてダウンロード（保存はローカルのダウンロードのみ）
   function downloadMarkdown() {
     if (!memo) return;
-    const md = memoToMarkdown(memo);
+    const { fileName, content } = createMemoMarkdownFile(memo);
     try {
-      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = mdFilename(memo.title);
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
