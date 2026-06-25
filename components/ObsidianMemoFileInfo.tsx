@@ -16,6 +16,7 @@ interface ThemeStyle {
   boxClass: string;
   heading: CSSProperties;
   text: CSSProperties;
+  note: CSSProperties;
 }
 
 const THEME: Record<Variant, ThemeStyle> = {
@@ -25,6 +26,7 @@ const THEME: Record<Variant, ThemeStyle> = {
     box: { borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' },
     heading: { color: '#a5b4fc' },
     text: { color: '#9fb0e0' },
+    note: { color: '#8893c4' },
   },
   // デスクトップ詳細（ライトテーマ）
   light: {
@@ -32,6 +34,7 @@ const THEME: Record<Variant, ThemeStyle> = {
     box: {},
     heading: { color: '#223A70' },
     text: { color: '#8A94A6' },
+    note: { color: '#9aa3b2' },
   },
 };
 
@@ -48,6 +51,9 @@ export default function ObsidianMemoFileInfo({ fileName, path, variant = 'dark' 
       <p className="text-[11px] font-bold" style={t.heading}>Obsidian用ファイル</p>
       <p className="mt-1 text-[11px] break-all" style={t.text}>ファイル名: {fileName}</p>
       <p className="mt-0.5 text-[11px] break-all" style={t.text}>保存場所: {path}</p>
+      <p className="mt-1.5 text-[11px] leading-relaxed" style={t.note}>
+        ※ 自動保存は準備中です。今はMarkdownをダウンロードしてObsidianに入れてください。
+      </p>
     </div>
   );
 }
