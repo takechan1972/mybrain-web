@@ -954,6 +954,14 @@ export default function SettingsPage() {
             メモ詳細からMarkdownコピー・ダウンロードができます。<br />
             ダウンロードした.mdファイルは、Obsidianに入れて使えます。
           </p>
+          <div className="mt-3 rounded-2xl border px-4 py-3" style={{ borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' }}>
+            <p className="text-[11px] font-bold" style={{ color: '#a5b4fc' }}>今の使い方</p>
+            <ol className="mt-1 list-decimal pl-4 text-[11px] leading-relaxed" style={{ color: '#9fb0e0' }}>
+              <li>メモ詳細を開く</li>
+              <li>Markdownをダウンロード</li>
+              <li>ダウンロードした.mdファイルをObsidianに入れる</li>
+            </ol>
+          </div>
         </section>
 
         {/* グループ3：お問い合わせ／お問い合わせ履歴／利用規約／プライバシーポリシー／会社情報 */}
