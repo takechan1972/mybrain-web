@@ -948,6 +948,10 @@ export default function SettingsPage() {
           <p className="mt-2.5 text-[11px]" style={{ color: '#8893c4' }}>
             ※ 現在は選択にかかわらずMyBrainに保存されます。保存先の切り替えは今後対応します。
           </p>
+          <p className="mt-1.5 text-[11px] leading-relaxed" style={{ color: '#8893c4' }}>
+            現在、Obsidian保存は準備中です。<br />
+            今はMyBrainに保存され、メモ詳細からMarkdownコピー・ダウンロードができます。
+          </p>
         </section>
 
         {/* グループ3：お問い合わせ／お問い合わせ履歴／利用規約／プライバシーポリシー／会社情報 */}
