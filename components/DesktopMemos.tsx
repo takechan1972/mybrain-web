@@ -131,8 +131,8 @@ export default function DesktopMemos() {
 
   // 第3カラムの表示モード（list=一覧 / detail=詳細）。ダブルクリックで detail に切替。
   const [mode, setMode] = useState<'list' | 'detail'>('list');
-  // 「選択してまとめる」準備中バーの開閉（UI表示のみ・保存しない）。
-  const [selectPrepOpen, setSelectPrepOpen] = useState(false);
+  // メモ選択モード（準備中の枠のみ。selectedIds やチェックボックスはまだ無い・保存しない）。
+  const [selectMode, setSelectMode] = useState(false);
   // Obsidian形式（Markdown）プレビュー・コピー（表示のみ・保存しない）
   const [mdOpen, setMdOpen] = useState(false);
   const [mdCopied, setMdCopied] = useState(false);
@@ -780,15 +780,15 @@ export default function DesktopMemos() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setSelectPrepOpen((o) => !o)}
-                  aria-expanded={selectPrepOpen}
+                  onClick={() => setSelectMode((o) => !o)}
+                  aria-pressed={selectMode}
                   className="mt-2.5 rounded-full border border-[#E8EAF3] bg-white px-3.5 py-1.5 text-[12px] font-semibold transition active:scale-95"
                   style={{ color: '#54607A' }}>
-                  選択してまとめる
+                  {selectMode ? '選択モードを終了' : '選択してまとめる'}
                 </button>
-                {selectPrepOpen && (
+                {selectMode && (
                   <p className="mt-2 text-[12px] leading-relaxed" style={{ color: MUTED }}>
-                    選択機能は準備中です。今はメモ詳細から1件ずつダウンロードできます。
+                    選択モードの準備中です。次の段階でチェックボックスを追加します。
                   </p>
                 )}
               </div>
