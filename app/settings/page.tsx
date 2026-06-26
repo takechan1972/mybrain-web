@@ -969,6 +969,22 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Google Drive 連携の案内（準備中・表示のみ。ボタンや接続処理はまだ無い） */}
+        <section className="rounded-3xl p-5" style={GLASS_CARD}>
+          <div className="flex items-center gap-2">
+            <span className="text-[18px]">☁️</span>
+            <p className="text-[15px] font-bold" style={{ color: '#ffffff' }}>Google Drive 連携</p>
+          </div>
+          <p className="mt-1.5 text-[13px] font-semibold" style={{ color: '#a5b4fc' }}>準備中</p>
+          <p className="mt-1.5 text-[13px] leading-relaxed" style={{ color: '#c7d2fe' }}>
+            Google Drive連携は準備中です。<br />
+            準備ができたら、メモをGoogle Driveの Obsidian フォルダに保存できるようになります。
+          </p>
+          <p className="mt-2 text-[11px]" style={{ color: '#8893c4' }}>
+            ※ 今はObsidian用Markdownをダウンロードして使えます。
+          </p>
+        </section>
+
         {/* グループ3：お問い合わせ／お問い合わせ履歴／利用規約／プライバシーポリシー／会社情報 */}
         <section className="overflow-hidden rounded-3xl" style={GLASS_CARD}>
           <SettingRow emoji="✉️" title="お問い合わせ" desc="ご質問・ご要望はこちら" onClick={() => setSheet('contact')} />
