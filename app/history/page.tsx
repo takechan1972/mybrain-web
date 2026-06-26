@@ -72,6 +72,8 @@ export default function HistoryPage() {
   const [view, setView] = useState<'memos' | 'reservations' | null>(null);
   // タグ選択ポップアップ（メモ専用ビューのタグ検索）。
   const [tagSheetOpen, setTagSheetOpen] = useState(false);
+  // 「選択してまとめる」準備中バーの開閉（UI表示のみ・保存しない）。
+  const [selectPrepOpen, setSelectPrepOpen] = useState(false);
   const [query, setQuery] = useState('');
   const voiceBaseRef = useRef('');
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -338,6 +340,19 @@ export default function HistoryPage() {
             <p className="mt-0.5 text-[11px]" style={{ color: '#818cf8' }}>
               ※ 今はメモ詳細から1件ずつダウンロードできます。
             </p>
+            <button
+              type="button"
+              onClick={() => setSelectPrepOpen((o) => !o)}
+              aria-expanded={selectPrepOpen}
+              className="mt-2.5 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold transition active:scale-95"
+              style={{ borderColor: 'rgba(120,160,255,0.40)', color: '#c7d2fe', background: 'rgba(10,14,32,0.6)' }}>
+              選択してまとめる
+            </button>
+            {selectPrepOpen && (
+              <p className="mt-2 text-[12px] leading-relaxed" style={{ color: '#9fb0e0' }}>
+                選択機能は準備中です。今はメモ詳細から1件ずつダウンロードできます。
+              </p>
+            )}
           </div>
         )}
 
