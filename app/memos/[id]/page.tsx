@@ -633,7 +633,7 @@ export default function MemoDetailPage() {
                   onClick={downloadMarkdown}
                   className="min-h-[48px] rounded-2xl border text-[14px] font-bold active:opacity-70"
                   style={{ borderColor: 'rgba(120,160,255,0.5)', color: '#c7d2fe', background: 'rgba(0,0,0,0.3)' }}>
-                  Markdownをダウンロード
+                  Obsidian用Markdownをダウンロード
                 </button>
               </div>
               <p className="text-[11px]" style={{ color: '#8893c4' }}>.mdファイルとして保存します（端末のダウンロード）。</p>

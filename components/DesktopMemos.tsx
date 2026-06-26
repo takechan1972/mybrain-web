@@ -898,7 +898,7 @@ export default function DesktopMemos() {
                           onClick={downloadMemoMarkdown}
                           className="rounded-xl border border-[#E8EAF3] bg-white px-4 py-2 text-[13px] font-bold"
                           style={{ color: '#54607A' }}>
-                          Markdownをダウンロード
+                          Obsidian用Markdownをダウンロード
                         </button>
                       </div>
                       <p className="text-[11px]" style={{ color: MUTED }}>.mdファイルとして保存します（端末のダウンロード）。</p>
