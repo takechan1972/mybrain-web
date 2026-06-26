@@ -626,7 +626,7 @@ export default function MemoDetailPage() {
                   onClick={copyMarkdown}
                   className="min-h-[48px] rounded-2xl text-[14px] font-bold text-white active:opacity-70"
                   style={{ background: 'linear-gradient(135deg, #2E7EFF, #7B5FFF)', boxShadow: '0 6px 24px rgba(60,120,255,0.4)' }}>
-                  {mdCopied ? '✓ コピーしました' : 'Markdownをコピー'}
+                  {mdCopied ? '✓ コピーしました' : 'Obsidian用Markdownをコピー'}
                 </button>
                 <button
                   type="button"

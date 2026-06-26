@@ -891,7 +891,7 @@ export default function DesktopMemos() {
                           onClick={copyMemoMarkdown}
                           className="rounded-xl px-4 py-2 text-[13px] font-bold text-white"
                           style={{ background: `linear-gradient(135deg, ${PURPLE}, #6D8BF5)` }}>
-                          {mdCopied ? '✓ コピーしました' : 'Markdownをコピー'}
+                          {mdCopied ? '✓ コピーしました' : 'Obsidian用Markdownをコピー'}
                         </button>
                         <button
                           type="button"
