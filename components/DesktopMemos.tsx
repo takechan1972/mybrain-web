@@ -901,8 +901,7 @@ export default function DesktopMemos() {
                           Obsidian用Markdownをダウンロード
                         </button>
                       </div>
-                      <p className="text-[11px]" style={{ color: MUTED }}>.mdファイルとして保存します（端末のダウンロード）。</p>
-                      <p className="text-[11px]" style={{ color: MUTED }}>ダウンロードした.mdファイルは、Obsidianに入れて使えます。</p>
+                      <p className="text-[11px] leading-relaxed" style={{ color: MUTED }}>今は自動保存ではありません。コピーまたはダウンロードしたMarkdownをObsidianに入れて使います。</p>
                     </div>
                   )}
                 </div>

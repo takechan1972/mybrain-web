@@ -636,8 +636,7 @@ export default function MemoDetailPage() {
                   Obsidian用Markdownをダウンロード
                 </button>
               </div>
-              <p className="text-[11px]" style={{ color: '#8893c4' }}>.mdファイルとして保存します（端末のダウンロード）。</p>
-              <p className="text-[11px]" style={{ color: '#8893c4' }}>ダウンロードした.mdファイルは、Obsidianに入れて使えます。</p>
+              <p className="text-[11px] leading-relaxed" style={{ color: '#8893c4' }}>今は自動保存ではありません。コピーまたはダウンロードしたMarkdownをObsidianに入れて使います。</p>
             </>
           )}
         </section>
