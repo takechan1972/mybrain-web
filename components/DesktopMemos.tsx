@@ -759,6 +759,25 @@ export default function DesktopMemos() {
         <div className="flex flex-1 gap-6 overflow-hidden px-8 py-5">
           {/* 第3カラム：list / detail 切替 */}
           <div className="flex-1 overflow-y-auto pr-1">
+            {/* 一括エクスポートの案内（一覧表示のみ・準備中・表示のみ。ボタンや操作は無い） */}
+            {mode === 'list' && (
+              <div className="mb-3 rounded-2xl border border-[#E8EAF3] bg-white px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-bold" style={{ color: NAVY }}>一括エクスポート</span>
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                    style={{ backgroundColor: 'rgba(242,213,138,0.18)', color: '#9a7b1f', border: '1px solid rgba(242,213,138,0.5)' }}>
+                    準備中
+                  </span>
+                </div>
+                <p className="mt-1 text-[12px] leading-relaxed" style={{ color: MUTED }}>
+                  複数のメモをまとめてObsidian用Markdownとして保存する機能を準備中です。
+                </p>
+                <p className="mt-0.5 text-[11px]" style={{ color: '#A6AEC0' }}>
+                  ※ 今はメモ詳細から1件ずつダウンロードできます。
+                </p>
+              </div>
+            )}
             {mode === 'list' ? (
               visible.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
