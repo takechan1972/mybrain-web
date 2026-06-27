@@ -8,6 +8,7 @@ import {
   createReservation,
   deleteReservation,
   formatSchedule,
+  formatReservationWhen,
   listReservations,
   localInputToMs,
   msToLocalInput,
@@ -416,7 +417,7 @@ export default function DesktopSchedules() {
                           <span className="h-8 w-1 rounded-full" style={{ backgroundColor: c.color }} />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[13px] font-bold" style={{ color: NAVY }}>{r.title}</p>
-                            <p className="text-[11px]" style={{ color: MUTED }}>{formatSchedule(r.scheduleAt)}</p>
+                            <p className="text-[11px]" style={{ color: MUTED }}>{formatReservationWhen(r)}</p>
                           </div>
                           <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: c.bg, color: c.color }}>{c.label}</span>
                         </button>
@@ -465,7 +466,7 @@ export default function DesktopSchedules() {
                     <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: CATEGORIES[categoryOf(selected)].bg, color: CATEGORIES[categoryOf(selected)].color }}>{CATEGORIES[categoryOf(selected)].label}</span>
                   </div>
                   <div className="mt-3 flex flex-col gap-1.5 text-[12px]" style={{ color: '#54607A' }}>
-                    <DetailRow icon="🕐" value={formatSchedule(selected.scheduleAt)} />
+                    <DetailRow icon="🕐" value={formatReservationWhen(selected)} />
                     <DetailRow icon="🔁" value="繰り返しなし" />
                     <DetailRow icon="🔔" value={selected.notificationEnabled ? '通知ON' : '通知OFF'} />
                     {selected.content.trim().length > 0 && <DetailRow icon="📝" value={selected.content} />}
@@ -648,7 +649,7 @@ function ListView({ events, onSelect, selectedId }: { events: Reservation[]; onS
             <span className="h-9 w-1 rounded-full" style={{ backgroundColor: c.color }} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-[14px] font-bold" style={{ color: NAVY }}>{r.title || '無題の予定'}</p>
-              <p className="text-[11px]" style={{ color: MUTED }}>{formatSchedule(r.scheduleAt)}</p>
+              <p className="text-[11px]" style={{ color: MUTED }}>{formatReservationWhen(r)}</p>
             </div>
             <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: c.bg, color: c.color }}>{c.label}</span>
           </button>
