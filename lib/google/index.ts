@@ -16,3 +16,4 @@ export * from './google-calendar-config';
 export * from './google-calendar-connection-state';
 export * from './google-calendar-oauth';
 export * from './google-calendar-events';
+export * from './google-calendar-export';
