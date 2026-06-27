@@ -131,8 +131,10 @@ export default function DesktopMemos() {
 
   // 第3カラムの表示モード（list=一覧 / detail=詳細）。ダブルクリックで detail に切替。
   const [mode, setMode] = useState<'list' | 'detail'>('list');
-  // メモ選択モード（準備中の枠のみ。selectedIds やチェックボックスはまだ無い・保存しない）。
+  // メモ選択モード（一括操作用）。selectMode ON時のみチェックを表示・操作する。
   const [selectMode, setSelectMode] = useState(false);
+  // 選択中のメモID（画面内ローカルのみ。Supabase/localStorageには保存しない。selectedId とは別物）。
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Obsidian形式（Markdown）プレビュー・コピー（表示のみ・保存しない）
   const [mdOpen, setMdOpen] = useState(false);
   const [mdCopied, setMdCopied] = useState(false);
@@ -330,6 +332,16 @@ export default function DesktopMemos() {
     setFavs((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       saveFavs(next);
+      return next;
+    });
+  }
+
+  // メモ選択のトグル（画面内ローカルのみ・保存しない）。新しい Set を作って再描画させる。
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
@@ -808,6 +820,7 @@ export default function DesktopMemos() {
                     {visible.map((m) => {
                       const sel = m.id === selectedId;
                       const isFav = favs.includes(m.id);
+                      const isSelected = selectedIds.has(m.id);
                       return (
                         <button
                           key={m.id}
@@ -818,9 +831,26 @@ export default function DesktopMemos() {
                           style={{ borderColor: sel ? PURPLE : '#E8EAF3', backgroundColor: sel ? '#F6F4FF' : '#fff', boxShadow: sel ? '0 6px 18px rgba(123,97,255,0.12)' : '0 4px 14px rgba(31,53,104,0.04)' }}>
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-2">
-                              {/* 選択モードの見た目だけのチェック表示（準備中・非操作。onClick/inputなし） */}
+                              {/* 選択モードのチェック（クリック可能・span。親クリック/詳細遷移は stopPropagation で抑止） */}
                               {selectMode && (
-                                <span aria-hidden="true" className="shrink-0 text-[14px] leading-none" style={{ color: '#C7CCDA' }}>☐</span>
+                                <span
+                                  role="checkbox"
+                                  aria-checked={isSelected}
+                                  tabIndex={0}
+                                  aria-label="このメモを選択"
+                                  onClick={(e) => { e.stopPropagation(); toggleSelected(m.id); }}
+                                  onDoubleClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      toggleSelected(m.id);
+                                    }
+                                  }}
+                                  className="shrink-0 cursor-pointer text-[14px] leading-none"
+                                  style={{ color: isSelected ? PURPLE : '#C7CCDA' }}>
+                                  {isSelected ? '☑' : '☐'}
+                                </span>
                               )}
                               <p className="truncate text-[15px] font-bold" style={{ color: NAVY }}>{m.title || '無題のメモ'}</p>
                             </div>
