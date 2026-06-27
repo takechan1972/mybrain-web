@@ -89,6 +89,7 @@ export default function DesktopSchedules() {
   const [nTitle, setNTitle] = useState('');
   const [nContent, setNContent] = useState('');
   const [nWhen, setNWhen] = useState('');
+  const [nAllDay, setNAllDay] = useState(false); // 終日（日付のみ入力にする）
   const [nNotify, setNNotify] = useState(false);
   const [nSaving, setNSaving] = useState(false);
 
@@ -188,6 +189,7 @@ export default function DesktopSchedules() {
     setNTitle(prefillTitle ?? '');
     setNContent('');
     setNWhen(prefillWhen ?? '');
+    setNAllDay(false);
     setNNotify(false);
     setCreating(true);
   }
@@ -198,13 +200,22 @@ export default function DesktopSchedules() {
       showToast('予定のタイトルを入力してください。');
       return;
     }
+    // 終日は日付のみ必須。通常は従来どおり（scheduleAt 互換・日時は任意）。
+    let allDayStartAt: number | null = null;
+    if (nAllDay) {
+      const [y, m, d] = nWhen.trim().slice(0, 10).split('-').map(Number);
+      if (!y || !m || !d) {
+        showToast('終日の予定は日付を選んでください');
+        return;
+      }
+      allDayStartAt = new Date(y, m - 1, d).getTime();
+    }
     setNSaving(true);
-    const { reservation, error } = await createReservation({
-      title,
-      content: nContent.trim(),
-      scheduleAt: localInputToMs(nWhen),
-      notificationEnabled: nNotify,
-    });
+    const { reservation, error } = await createReservation(
+      nAllDay
+        ? { title, content: nContent.trim(), startAt: allDayStartAt, endAt: null, allDay: true, notificationEnabled: nNotify }
+        : { title, content: nContent.trim(), scheduleAt: localInputToMs(nWhen), allDay: false, notificationEnabled: nNotify },
+    );
     setNSaving(false);
     if (error || !reservation) {
       showToast(error ?? '予定の保存に失敗しました。');
@@ -495,8 +506,21 @@ export default function DesktopSchedules() {
         <Modal onClose={() => !nSaving && setCreating(false)}>
           <p className="text-[16px] font-bold" style={{ color: NAVY }}>新しい予定</p>
           <input value={nTitle} onChange={(e) => setNTitle(e.target.value)} placeholder="予定タイトル（例: 歯医者）" className="rounded-2xl border border-[#E8EAF3] px-4 py-3 text-[14px] outline-none focus:border-[#7B61FF]" style={{ color: '#1F2937' }} />
-          <label className="text-[11px] font-semibold" style={{ color: MUTED }}>予定日時</label>
-          <input type="datetime-local" value={nWhen} onChange={(e) => setNWhen(e.target.value)} className="rounded-2xl border border-[#E8EAF3] px-4 py-3 text-[14px] outline-none focus:border-[#7B61FF]" style={{ color: '#1F2937' }} />
+          <label className="text-[11px] font-semibold" style={{ color: MUTED }}>{nAllDay ? '予定日' : '予定日時'}</label>
+          <input type={nAllDay ? 'date' : 'datetime-local'} value={nWhen} onChange={(e) => setNWhen(e.target.value)} className="rounded-2xl border border-[#E8EAF3] px-4 py-3 text-[14px] outline-none focus:border-[#7B61FF]" style={{ color: '#1F2937' }} />
+          <label className="flex items-center gap-2 text-[13px]" style={{ color: NAVY }}>
+            <input
+              type="checkbox"
+              checked={nAllDay}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setNAllDay(next);
+                // 終日へ：日付部分だけ残す。通常へ：時刻が無ければ 00:00 を補う。
+                setNWhen((cur) => (cur ? (next ? cur.slice(0, 10) : cur.length === 10 ? `${cur}T00:00` : cur) : cur));
+              }}
+            />
+            {nAllDay ? '📅 終日 ON' : '📅 終日 OFF'}
+          </label>
           <textarea value={nContent} onChange={(e) => setNContent(e.target.value)} rows={4} placeholder="内容メモ" className="resize-y rounded-2xl border border-[#E8EAF3] px-4 py-3 text-[14px] outline-none focus:border-[#7B61FF]" style={{ color: '#1F2937' }} />
           <label className="flex items-center gap-2 text-[13px]" style={{ color: NAVY }}>
             <input type="checkbox" checked={nNotify} onChange={(e) => setNNotify(e.target.checked)} />
