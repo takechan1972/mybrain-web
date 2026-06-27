@@ -8,8 +8,7 @@ import VoiceInput from './VoiceInput';
 import { deriveTitleFromBody, parseMemoSpeechText } from '@/lib/parse/memo-speech';
 import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/memos';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
-import { createMemoMarkdownFile, downloadMarkdownFile } from '@/lib/markdown';
-import JSZip from 'jszip';
+import { createMemoMarkdownFile, downloadMarkdownFile, exportMemosAsZip } from '@/lib/markdown';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
@@ -359,32 +358,16 @@ export default function DesktopMemos() {
     const ok = window.confirm(`選択した ${targets.length} 件のメモを1つのZIPファイルとしてまとめてダウンロードします。よろしいですか？`);
     if (!ok) return;
     try {
-      const zip = new JSZip();
-      const usedNames = new Set<string>();
-      targets.forEach((m) => {
-        const { fileName, content } = createMemoMarkdownFile(m);
-        // ファイル名の重複を避ける（同名タイトルでも上書きしない）
-        let name = fileName;
-        let n = 2;
-        while (usedNames.has(name)) {
-          name = fileName.replace(/(\.md)?$/i, `-${n}$1`);
-          n += 1;
-        }
-        usedNames.add(name);
-        zip.file(name, content);
-      });
-      const blob = await zip.generateAsync({ type: 'blob' });
-      const today = new Date();
-      const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const { fileName, blob, count } = await exportMemosAsZip(targets);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `mybrain-memos-${ymd}.zip`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast(`${targets.length}件をZIPで書き出しました`);
+      showToast(`${count}件をZIPで書き出しました`);
     } catch {
       showToast('ZIPの書き出しに失敗しました');
     }

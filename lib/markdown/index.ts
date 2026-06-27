@@ -11,3 +11,4 @@ export * from './memo-file-name';
 export * from './memo-folder';
 export * from './memo-markdown-file';
 export * from './download-markdown-file';
+export * from './export-memos-zip';
