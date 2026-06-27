@@ -127,3 +127,55 @@ export async function writeMemoToDirectory(
   await writable.close();
   return { fileName: finalName, path: `${OBSIDIAN_MEMO_FOLDER}/${finalName}` };
 }
+
+/** 複数メモを Vault に書き出した結果のサマリ。 */
+export interface MemoBatchWriteResult {
+  /** 書き込みに成功したメモのファイル情報。 */
+  written: MemoWriteResult[];
+  /** 書き込みに失敗したメモ（理由つき）。 */
+  failed: { memoId: string; title: string; error: string }[];
+  /** 対象メモの総数。 */
+  total: number;
+  /** 成功件数。 */
+  successCount: number;
+  /** 失敗件数。 */
+  failureCount: number;
+}
+
+/**
+ * 複数のメモを、選択フォルダの "MyBrain/Memos/" 配下に Markdown として順次書き出す。
+ *
+ * - 各メモは writeMemoToDirectory で1件ずつ書き込む（重複名回避・上書きしないは内部で担保）。
+ * - 1件が失敗しても処理は止めず、最後まで続行して件数を集計する。
+ * - UI 非依存：alert / toast / pickDirectory の呼び出しは行わない（呼び出し側の責務）。
+ *
+ * @param dirHandle ユーザーが選んだ Vault ルートのディレクトリハンドル
+ * @param memos     書き出すメモの配列（呼び出し側で選択済みのものを渡す）
+ * @returns 成功・失敗の集計（MemoBatchWriteResult）
+ */
+export async function writeMemosToDirectory(
+  dirHandle: FileSystemDirectoryHandle,
+  memos: Memo[],
+): Promise<MemoBatchWriteResult> {
+  const written: MemoWriteResult[] = [];
+  const failed: { memoId: string; title: string; error: string }[] = [];
+  for (const memo of memos) {
+    try {
+      written.push(await writeMemoToDirectory(dirHandle, memo));
+    } catch (e) {
+      // 1件の失敗で全体を止めない。理由を集めて続行する。
+      failed.push({
+        memoId: memo.id,
+        title: memo.title,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+  return {
+    written,
+    failed,
+    total: memos.length,
+    successCount: written.length,
+    failureCount: failed.length,
+  };
+}
