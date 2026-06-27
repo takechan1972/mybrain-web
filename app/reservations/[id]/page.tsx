@@ -70,8 +70,10 @@ export default function ReservationDetailPage() {
   // 確認後：この予定をGoogleカレンダーへ1件書き出す（トークン取得→イベント作成）。
   async function performCalendarExport() {
     if (!item) return;
-    setCalMessage(null);
+    // 確認モーダルを閉じ、進行メッセージを画面に出す（ポップアップが閉じても見え続ける）。
+    setConfirmingCalendar(false);
     setCalLink(null);
+    setCalMessage('Googleカレンダーへ書き出し中です...');
     setCalExporting(true);
     try {
       const result = await exportReservationToGoogleCalendar(item);
@@ -289,9 +291,10 @@ export default function ReservationDetailPage() {
               <button
                 type="button"
                 onClick={() => { setCalMessage(null); setCalLink(null); setConfirmingCalendar(true); }}
-                className="min-h-[44px] rounded-full border px-5 py-2.5 font-bold active:scale-95"
+                disabled={calExporting}
+                className="min-h-[44px] rounded-full border px-5 py-2.5 font-bold active:scale-95 disabled:opacity-50"
                 style={{ borderColor: 'rgba(56,189,248,0.5)', background: 'rgba(56,189,248,0.12)', color: '#7dd3fc' }}>
-                Googleカレンダーへ書き出し
+                {calExporting ? '書き出し中...' : 'Googleカレンダーへ書き出し'}
               </button>
             </div>
           )}

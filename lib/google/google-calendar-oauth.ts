@@ -67,10 +67,10 @@ export async function requestGoogleCalendarAccessToken(): Promise<GoogleCalendar
       }
     };
     // 安全弁：GIS が callback / error_callback を呼ばずにポップアップが閉じる事例があるため、
-    // 一定時間で必ず結果を返し、UI が無限待ちにならないようにする。
+    // 一定時間で必ず結果を返し、UI が無限待ちにならないようにする（検証しやすい短めの値）。
     timer = setTimeout(() => {
-      done({ state: 'error', error: 'Google Calendar の認証がタイムアウトしました。もう一度お試しください。' });
-    }, 120000);
+      done({ state: 'error', error: 'Google認証が完了しませんでした。もう一度お試しください。' });
+    }, 20000);
     try {
       const client = oauth2.initTokenClient({
         client_id: clientId,
