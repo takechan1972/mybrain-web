@@ -10,7 +10,7 @@ import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile, exportMemosAsZip } from '@/lib/markdown';
 import { downloadBlobFile } from '@/lib/download';
-import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory, resolveSavedVaultDirectory, saveVaultHandle } from '@/lib/fs';
+import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory, resolveSavedVaultDirectory, saveVaultHandle, loadVaultHandle, clearVaultHandle } from '@/lib/fs';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
@@ -140,6 +140,8 @@ export default function DesktopMemos() {
   // File System Access API（フォルダへ直接書き出し）の対応可否。
   // SSR では false、マウント後に判定して反映する（ハイドレーション不一致を避ける）。
   const [dirPickerSupported, setDirPickerSupported] = useState(false);
+  // 接続中のローカルVaultフォルダ名（保存ハンドルがあれば表示用。null=未接続）。
+  const [vaultHandleName, setVaultHandleName] = useState<string | null>(null);
   // Obsidian形式（Markdown）プレビュー・コピー（表示のみ・保存しない）
   const [mdOpen, setMdOpen] = useState(false);
   const [mdCopied, setMdCopied] = useState(false);
@@ -352,8 +354,12 @@ export default function DesktopMemos() {
   }
 
   // フォルダ直接書き出しの対応可否をマウント後に判定（SSR では false のまま）。
+  // 保存済みVaultハンドルがあれば、接続中フォルダ名も読み込んで表示する。
   useEffect(() => {
     setDirPickerSupported(isDirectoryPickerSupported());
+    void loadVaultHandle().then((handle) => {
+      if (handle) setVaultHandleName(handle.name || 'ローカルVault');
+    });
   }, []);
 
   // 一括書き出しで「多い」とみなすしきい値（ZIP / フォルダ書き出しで共有）。
@@ -398,6 +404,7 @@ export default function DesktopMemos() {
         if (!dirHandle) return; // 非対応 or フォルダ選択キャンセル
         // 手動で選んだフォルダは次回用に保存する（保存失敗しても書き出しは止めない）。
         await saveVaultHandle(dirHandle);
+        setVaultHandleName(dirHandle.name || 'ローカルVault');
       }
       const result = await writeMemosToDirectory(dirHandle, targets);
       if (result.failureCount === 0) {
@@ -413,6 +420,15 @@ export default function DesktopMemos() {
     } catch {
       showToast('フォルダへの書き出しに失敗しました');
     }
+  }
+
+  // 接続中のローカルVaultフォルダを解除する（保存ハンドルを削除するだけ・Vault内のファイルには触れない）。
+  async function disconnectVault() {
+    const ok = window.confirm('ローカルVault接続を解除しますか？');
+    if (!ok) return;
+    await clearVaultHandle();
+    setVaultHandleName(null);
+    showToast('ローカルVault接続を解除しました');
   }
 
   async function handleCreate() {
@@ -898,6 +914,20 @@ export default function DesktopMemos() {
                         フォルダへ書き出し
                       </button>
                     )}
+                  </div>
+                )}
+                {selectMode && vaultHandleName && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <p className="text-[11px] leading-relaxed" style={{ color: MUTED }}>
+                      接続中：{vaultHandleName}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={disconnectVault}
+                      className="rounded-full border border-[#E8EAF3] bg-white px-3 py-1 text-[11px] font-semibold transition active:scale-95"
+                      style={{ color: '#54607A' }}>
+                      接続解除
+                    </button>
                   </div>
                 )}
               </div>
