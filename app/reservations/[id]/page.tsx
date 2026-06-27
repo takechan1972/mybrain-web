@@ -73,18 +73,28 @@ export default function ReservationDetailPage() {
     setCalMessage(null);
     setCalLink(null);
     setCalExporting(true);
-    const result = await exportReservationToGoogleCalendar(item);
-    setCalExporting(false);
-    setConfirmingCalendar(false);
-    if (result.state === 'success') {
-      setCalMessage('Googleカレンダーへ書き出しました');
-      setCalLink(result.htmlLink ?? null);
-    } else if (result.state === 'cancelled') {
-      setCalMessage('Googleカレンダー連携をキャンセルしました');
-    } else if (result.state === 'unconfigured') {
-      setCalMessage('Googleカレンダー連携が設定されていません');
-    } else {
-      setCalMessage(`Googleカレンダーへの書き出しに失敗しました：${result.error ?? '不明なエラー'}`);
+    try {
+      const result = await exportReservationToGoogleCalendar(item);
+      if (result.state === 'success') {
+        setCalMessage('Googleカレンダーへ書き出しました');
+        setCalLink(result.htmlLink ?? null);
+      } else if (result.state === 'cancelled') {
+        setCalMessage('Googleカレンダー連携をキャンセルしました');
+      } else if (result.state === 'unconfigured') {
+        setCalMessage('Googleカレンダー連携が設定されていません');
+      } else if (result.state === 'error') {
+        setCalMessage(`Googleカレンダーへの書き出しに失敗しました：${result.error ?? '不明なエラー'}`);
+      } else {
+        // 想定外の結果でも必ずフィードバックを出す（無反応を防ぐ）。
+        setCalMessage('Googleカレンダーへの書き出し結果を確認できませんでした。もう一度お試しください。');
+      }
+    } catch {
+      // 例外時もメッセージを必ず出す。
+      setCalMessage('Googleカレンダーへの書き出し結果を確認できませんでした。もう一度お試しください。');
+    } finally {
+      // 成功・失敗・例外いずれでもローディング解除とモーダルを閉じる。
+      setCalExporting(false);
+      setConfirmingCalendar(false);
     }
   }
 
