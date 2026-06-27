@@ -347,9 +347,14 @@ export default function DesktopMemos() {
   }
 
   // 選択したメモをまとめて .md ファイルとして書き出す（端末のダウンロードのみ・Vault保存/アップロードはしない）
+  const LARGE_EXPORT_WARNING_COUNT = 10;
   function exportSelectedMemos() {
     const targets = memos.filter((m) => selectedIds.has(m.id));
     if (targets.length === 0) return;
+    if (targets.length >= LARGE_EXPORT_WARNING_COUNT) {
+      const proceed = window.confirm('選択数が多いため、ブラウザが連続ダウンロードを警告またはブロックする場合があります。続けますか？');
+      if (!proceed) return;
+    }
     const ok = window.confirm(`選択した ${targets.length} 件のメモをMarkdownファイルとして書き出します。よろしいですか？`);
     if (!ok) return;
     let failed = 0;
