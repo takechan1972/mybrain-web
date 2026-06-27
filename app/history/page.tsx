@@ -23,6 +23,7 @@ import { listMemos } from '@/lib/memos';
 import { listReservations, formatSchedule } from '@/lib/reservations';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { exportMemosAsZip } from '@/lib/markdown';
+import { downloadBlobFile } from '@/lib/download';
 import type { Memo, Reservation } from '@/lib/types';
 
 const NAVY = '#223A70';
@@ -151,14 +152,7 @@ export default function HistoryPage() {
     if (!ok) return;
     try {
       const { fileName, blob, count } = await exportMemosAsZip(targets);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadBlobFile(fileName, blob);
       showToast(`${count}件をZIPで書き出しました`);
     } catch {
       showToast('ZIPの書き出しに失敗しました');

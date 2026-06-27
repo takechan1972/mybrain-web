@@ -9,6 +9,7 @@ import { deriveTitleFromBody, parseMemoSpeechText } from '@/lib/parse/memo-speec
 import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/memos';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile, exportMemosAsZip } from '@/lib/markdown';
+import { downloadBlobFile } from '@/lib/download';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
@@ -359,14 +360,7 @@ export default function DesktopMemos() {
     if (!ok) return;
     try {
       const { fileName, blob, count } = await exportMemosAsZip(targets);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadBlobFile(fileName, blob);
       showToast(`${count}件をZIPで書き出しました`);
     } catch {
       showToast('ZIPの書き出しに失敗しました');
