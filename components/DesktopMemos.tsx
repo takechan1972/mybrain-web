@@ -346,6 +346,24 @@ export default function DesktopMemos() {
     });
   }
 
+  // 選択したメモをまとめて .md ファイルとして書き出す（端末のダウンロードのみ・Vault保存/アップロードはしない）
+  function exportSelectedMemos() {
+    const targets = memos.filter((m) => selectedIds.has(m.id));
+    if (targets.length === 0) return;
+    const ok = window.confirm(`選択した ${targets.length} 件のメモをMarkdownファイルとして書き出します。よろしいですか？`);
+    if (!ok) return;
+    let failed = 0;
+    targets.forEach((m) => {
+      const { fileName, content } = createMemoMarkdownFile(m);
+      try {
+        downloadMarkdownFile(fileName, content);
+      } catch {
+        failed += 1;
+      }
+    });
+    showToast(failed === 0 ? `${targets.length}件を書き出しました` : `${failed}件の書き出しに失敗しました`);
+  }
+
   async function handleCreate() {
     if (nTitle.trim().length === 0 && nBody.trim().length === 0) {
       showToast('タイトルか本文を入力してください。');
@@ -810,6 +828,14 @@ export default function DesktopMemos() {
                       className="rounded-full border border-[#E8EAF3] bg-white px-3 py-1 text-[11px] font-semibold transition active:scale-95 disabled:opacity-40"
                       style={{ color: '#54607A' }}>
                       選択解除
+                    </button>
+                    <button
+                      type="button"
+                      onClick={exportSelectedMemos}
+                      disabled={selectedIds.size === 0}
+                      className="rounded-full px-3 py-1 text-[11px] font-semibold text-white transition active:scale-95 disabled:opacity-40"
+                      style={{ backgroundColor: PURPLE }}>
+                      選択メモを書き出し
                     </button>
                   </div>
                 )}
