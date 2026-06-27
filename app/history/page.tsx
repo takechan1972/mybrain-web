@@ -72,8 +72,9 @@ export default function HistoryPage() {
   const [view, setView] = useState<'memos' | 'reservations' | null>(null);
   // タグ選択ポップアップ（メモ専用ビューのタグ検索）。
   const [tagSheetOpen, setTagSheetOpen] = useState(false);
-  // 「選択してまとめる」準備中バーの開閉（UI表示のみ・保存しない）。
-  const [selectPrepOpen, setSelectPrepOpen] = useState(false);
+  // メモの選択モード（モバイルのメモ一覧のみ・画面内ローカル・保存しない）。
+  const [memoSelectMode, setMemoSelectMode] = useState(false);
+  const [memoSelectedIds, setMemoSelectedIds] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const voiceBaseRef = useRef('');
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -124,6 +125,16 @@ export default function HistoryPage() {
   function showToast(msg: string) {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2400);
+  }
+
+  // メモの選択トグル（選択モード時のみ使用・画面内ローカルのみ）。
+  function toggleMemoSelected(id: string) {
+    setMemoSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   function confirmDelete() {
@@ -342,16 +353,26 @@ export default function HistoryPage() {
             </p>
             <button
               type="button"
-              onClick={() => setSelectPrepOpen((o) => !o)}
-              aria-expanded={selectPrepOpen}
+              onClick={() => setMemoSelectMode((o) => !o)}
+              aria-pressed={memoSelectMode}
               className="mt-2.5 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold transition active:scale-95"
               style={{ borderColor: 'rgba(120,160,255,0.40)', color: '#c7d2fe', background: 'rgba(10,14,32,0.6)' }}>
-              選択してまとめる
+              {memoSelectMode ? '選択終了' : '選択'}
             </button>
-            {selectPrepOpen && (
-              <p className="mt-2 text-[12px] leading-relaxed" style={{ color: '#9fb0e0' }}>
-                選択機能は準備中です。今はメモ詳細から1件ずつダウンロードできます。
-              </p>
+            {memoSelectMode && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[12px] font-semibold" style={{ color: '#c7d2fe' }}>
+                  {memoSelectedIds.size}件 選択中
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMemoSelectedIds(new Set())}
+                  disabled={memoSelectedIds.size === 0}
+                  className="rounded-full border px-3 py-1 text-[11px] font-semibold transition active:scale-95 disabled:opacity-40"
+                  style={{ borderColor: 'rgba(120,160,255,0.40)', color: '#c7d2fe', background: 'rgba(10,14,32,0.6)' }}>
+                  選択解除
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -455,7 +476,16 @@ export default function HistoryPage() {
               ) : filteredMemos.length === 0 ? (
                 <NoSearchResult />
               ) : (
-                filteredMemos.map((m) => <MemoCard key={m.id} m={m} onTagClick={(tag) => setQuery(`#${tag}`)} />)
+                filteredMemos.map((m) => (
+                  <MemoCard
+                    key={m.id}
+                    m={m}
+                    onTagClick={(tag) => setQuery(`#${tag}`)}
+                    selectMode={memoSelectMode}
+                    selected={memoSelectedIds.has(m.id)}
+                    onToggleSelect={toggleMemoSelected}
+                  />
+                ))
               )}
             </section>
           )}
@@ -880,12 +910,38 @@ const CONSULT_CHIP_BG = 'rgba(192, 132, 252, 0.18)';
 const CONSULT_CHIP_COLOR = '#d8b4fe';
 const CONSULT_DIVIDER = 'rgba(192, 132, 252, 0.20)';
 
-function MemoCard({ m, showType, onTagClick }: { m: Memo; showType?: boolean; onTagClick?: (tag: string) => void }) {
+function MemoCard({
+  m,
+  showType,
+  onTagClick,
+  selectMode,
+  selected,
+  onToggleSelect,
+}: {
+  m: Memo;
+  showType?: boolean;
+  onTagClick?: (tag: string) => void;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
+}) {
   const hasImages = Array.isArray(m.images) && m.images.length > 0;
   const preview = (m.body ?? '').trim();
+  // 選択モード中はタップで選択をトグル。通常時はこれまで通りメモ詳細を開く。
+  const shellProps = selectMode
+    ? { onClick: () => onToggleSelect?.(m.id), ariaLabel: 'このメモを選択' }
+    : { href: `/memos/${m.id}`, ariaLabel: 'メモの詳細を見る' };
   return (
-    <CardShell href={`/memos/${m.id}`} ariaLabel="メモの詳細を見る" variant="memo">
+    <CardShell {...shellProps} variant="memo">
       <div className="flex items-center gap-2">
+        {selectMode && (
+          <span
+            aria-hidden
+            className="text-[16px] leading-none"
+            style={{ color: selected ? '#c7d2fe' : 'rgba(159,176,224,0.6)' }}>
+            {selected ? '☑' : '☐'}
+          </span>
+        )}
         {showType && <TypeBadge label="メモ" color={PURPLE} />}
         {m.createdAt > 0 && (
           <span className="text-[11px] font-medium" style={{ color: '#A8B5FF' }}>
