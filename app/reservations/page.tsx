@@ -62,6 +62,17 @@ export default function ReservationsPage() {
     }
   }, [configured]);
 
+  // 終日トグル。開始入力は終日=日付のみ / 通常=日時 と型が変わるため、値の形式も合わせて変換する。
+  function toggleAllDay() {
+    const next = !allDay;
+    setAllDay(next);
+    setStartLocal((cur) => {
+      if (!cur) return cur;
+      // 終日へ：日付部分だけ残す（YYYY-MM-DD）。通常へ：時刻が無ければ 00:00 を補う。
+      return next ? cur.slice(0, 10) : cur.length === 10 ? `${cur}T00:00` : cur;
+    });
+  }
+
   async function handleCreate() {
     setSaveError(null);
     setSaveOk(null);
@@ -72,16 +83,24 @@ export default function ReservationsPage() {
       return;
     }
 
-    // 開始日時は必須
-    let startAt = localInputToMs(startLocal);
-    if (startAt === null) {
-      setSaveError('予定開始日時を入力してください。');
-      return;
-    }
-    // 終日なら開始を当日 00:00 に丸める
+    // 開始日時：終日は「日付のみ」必須、通常は「日時」必須。
+    let startAt: number;
     if (allDay) {
-      const d = new Date(startAt);
-      startAt = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      // 終日：日付（YYYY-MM-DD）をローカル 0:00 に変換。時刻は不要。
+      const dateStr = startLocal.trim().slice(0, 10);
+      const [y, m, d] = dateStr.split('-').map(Number);
+      if (!y || !m || !d) {
+        setSaveError('終日の予定は日付を選んでください');
+        return;
+      }
+      startAt = new Date(y, m - 1, d).getTime();
+    } else {
+      const ms = localInputToMs(startLocal);
+      if (ms === null) {
+        setSaveError('予定開始日時を入力してください。');
+        return;
+      }
+      startAt = ms;
     }
 
     // 終了日時（終日のときは未使用）。開始より前は不可。
@@ -205,10 +224,10 @@ export default function ReservationsPage() {
         {/* ── 予定開始日時 ── */}
         <div className="flex flex-col gap-1.5 rounded-2xl border px-4 py-3.5"
           style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(120,160,255,0.4)' }}>
-          <label className="text-[11px] font-semibold" style={{ color: '#9CC4FF' }}>予定開始日時</label>
+          <label className="text-[11px] font-semibold" style={{ color: '#9CC4FF' }}>{allDay ? '予定日' : '予定開始日時'}</label>
           <input
             className="w-full bg-transparent text-[15px] text-white outline-none [color-scheme:dark]"
-            type="datetime-local"
+            type={allDay ? 'date' : 'datetime-local'}
             value={startLocal}
             onChange={(e) => setStartLocal(e.target.value)}
           />
@@ -234,7 +253,7 @@ export default function ReservationsPage() {
         {/* ── 終日トグル ── */}
         <button
           type="button"
-          onClick={() => setAllDay((v) => !v)}
+          onClick={toggleAllDay}
           className="flex min-h-[48px] items-center justify-between rounded-2xl border px-4 text-[14px] font-bold transition active:scale-95"
           style={
             allDay
