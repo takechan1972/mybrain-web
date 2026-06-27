@@ -10,6 +10,7 @@ import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile, exportMemosAsZip } from '@/lib/markdown';
 import { downloadBlobFile } from '@/lib/download';
+import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory } from '@/lib/fs';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
@@ -136,6 +137,9 @@ export default function DesktopMemos() {
   const [selectMode, setSelectMode] = useState(false);
   // 選択中のメモID（画面内ローカルのみ。Supabase/localStorageには保存しない。selectedId とは別物）。
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // File System Access API（フォルダへ直接書き出し）の対応可否。
+  // SSR では false、マウント後に判定して反映する（ハイドレーション不一致を避ける）。
+  const [dirPickerSupported, setDirPickerSupported] = useState(false);
   // Obsidian形式（Markdown）プレビュー・コピー（表示のみ・保存しない）
   const [mdOpen, setMdOpen] = useState(false);
   const [mdCopied, setMdCopied] = useState(false);
@@ -347,6 +351,11 @@ export default function DesktopMemos() {
     });
   }
 
+  // フォルダ直接書き出しの対応可否をマウント後に判定（SSR では false のまま）。
+  useEffect(() => {
+    setDirPickerSupported(isDirectoryPickerSupported());
+  }, []);
+
   // 選択したメモをまとめて1つのZIPファイルとして書き出す（端末のダウンロードのみ・Vault保存/アップロードはしない）
   const LARGE_EXPORT_WARNING_COUNT = 10;
   async function exportSelectedMemos() {
@@ -364,6 +373,26 @@ export default function DesktopMemos() {
       showToast(`${count}件をZIPで書き出しました`);
     } catch {
       showToast('ZIPの書き出しに失敗しました');
+    }
+  }
+
+  // 選択したメモを、ユーザーが選んだフォルダの MyBrain/Memos/ へ直接書き出す（一方向・上書きしない）。
+  async function exportSelectedMemosToFolder() {
+    const targets = memos.filter((m) => selectedIds.has(m.id));
+    if (targets.length === 0) return;
+    const ok = window.confirm(`選択した ${targets.length} 件のメモを、選んだフォルダの MyBrain/Memos/ に書き出します。よろしいですか？`);
+    if (!ok) return;
+    try {
+      const dirHandle = await pickDirectory();
+      if (!dirHandle) return; // 非対応 or フォルダ選択キャンセル
+      const result = await writeMemosToDirectory(dirHandle, targets);
+      showToast(
+        result.failureCount === 0
+          ? `${result.successCount}件をフォルダへ書き出しました`
+          : `${result.successCount}件成功・${result.failureCount}件失敗しました`,
+      );
+    } catch {
+      showToast('フォルダへの書き出しに失敗しました');
     }
   }
 
@@ -840,6 +869,16 @@ export default function DesktopMemos() {
                       style={{ backgroundColor: PURPLE }}>
                       選択メモを書き出し
                     </button>
+                    {dirPickerSupported && (
+                      <button
+                        type="button"
+                        onClick={exportSelectedMemosToFolder}
+                        disabled={selectedIds.size === 0}
+                        className="rounded-full border border-[#E8EAF3] bg-white px-3 py-1 text-[11px] font-semibold transition active:scale-95 disabled:opacity-40"
+                        style={{ color: '#54607A' }}>
+                        フォルダへ書き出し
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
