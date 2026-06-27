@@ -10,7 +10,7 @@ import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile, exportMemosAsZip } from '@/lib/markdown';
 import { downloadBlobFile } from '@/lib/download';
-import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory } from '@/lib/fs';
+import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory, resolveSavedVaultDirectory, saveVaultHandle } from '@/lib/fs';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
@@ -389,8 +389,16 @@ export default function DesktopMemos() {
     const ok = window.confirm(`選択した ${targets.length} 件のメモを、選んだフォルダの MyBrain/Memos/ に書き出します。よろしいですか？`);
     if (!ok) return;
     try {
-      const dirHandle = await pickDirectory();
-      if (!dirHandle) return; // 非対応 or フォルダ選択キャンセル
+      // 保存済みVaultフォルダが使えるなら、フォルダ選択を省略して再利用する。
+      const resolved = await resolveSavedVaultDirectory();
+      let dirHandle = resolved.state === 'ready' ? resolved.handle : null;
+      if (!dirHandle) {
+        // 使えない場合のみ、従来どおりフォルダ選択にフォールバック。
+        dirHandle = await pickDirectory();
+        if (!dirHandle) return; // 非対応 or フォルダ選択キャンセル
+        // 手動で選んだフォルダは次回用に保存する（保存失敗しても書き出しは止めない）。
+        await saveVaultHandle(dirHandle);
+      }
       const result = await writeMemosToDirectory(dirHandle, targets);
       if (result.failureCount === 0) {
         showToast(`${result.successCount}件をフォルダへ書き出しました`);
