@@ -6,3 +6,4 @@
  */
 
 export * from './google-drive-config';
+export * from './google-drive-connection-state';
