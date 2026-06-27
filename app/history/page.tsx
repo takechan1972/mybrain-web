@@ -22,6 +22,8 @@ import {
 import { listMemos } from '@/lib/memos';
 import { listReservations, formatSchedule } from '@/lib/reservations';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
+import { createMemoMarkdownFile } from '@/lib/markdown';
+import JSZip from 'jszip';
 import type { Memo, Reservation } from '@/lib/types';
 
 const NAVY = '#223A70';
@@ -135,6 +137,49 @@ export default function HistoryPage() {
       else next.add(id);
       return next;
     });
+  }
+
+  // 選択したメモをまとめて1つのZIPファイルとして書き出す（端末のダウンロードのみ・Vault保存/アップロードはしない）。
+  const MEMO_LARGE_EXPORT_WARNING_COUNT = 10;
+  async function exportSelectedMemos() {
+    const targets = memos.filter((m) => memoSelectedIds.has(m.id));
+    if (targets.length === 0) return;
+    if (targets.length >= MEMO_LARGE_EXPORT_WARNING_COUNT) {
+      const proceed = window.confirm('選択数が多いため、ZIPファイルの作成に少し時間がかかる場合があります。続けますか？');
+      if (!proceed) return;
+    }
+    const ok = window.confirm(`選択した ${targets.length} 件のメモを1つのZIPファイルとしてまとめてダウンロードします。よろしいですか？`);
+    if (!ok) return;
+    try {
+      const zip = new JSZip();
+      const usedNames = new Set<string>();
+      targets.forEach((m) => {
+        const { fileName, content } = createMemoMarkdownFile(m);
+        // ファイル名の重複を避ける（同名タイトルでも上書きしない）
+        let name = fileName;
+        let n = 2;
+        while (usedNames.has(name)) {
+          name = fileName.replace(/(\.md)?$/i, `-${n}$1`);
+          n += 1;
+        }
+        usedNames.add(name);
+        zip.file(name, content);
+      });
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const today = new Date();
+      const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mybrain-memos-${ymd}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`${targets.length}件をZIPで書き出しました`);
+    } catch {
+      showToast('ZIPの書き出しに失敗しました');
+    }
   }
 
   function confirmDelete() {
@@ -371,6 +416,14 @@ export default function HistoryPage() {
                   className="rounded-full border px-3 py-1 text-[11px] font-semibold transition active:scale-95 disabled:opacity-40"
                   style={{ borderColor: 'rgba(120,160,255,0.40)', color: '#c7d2fe', background: 'rgba(10,14,32,0.6)' }}>
                   選択解除
+                </button>
+                <button
+                  type="button"
+                  onClick={exportSelectedMemos}
+                  disabled={memoSelectedIds.size === 0}
+                  className="rounded-full px-3 py-1 text-[11px] font-semibold text-white transition active:scale-95 disabled:opacity-40"
+                  style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' }}>
+                  選択メモを書き出し
                 </button>
               </div>
             )}
