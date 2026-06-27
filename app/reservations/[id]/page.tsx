@@ -42,6 +42,7 @@ export default function ReservationDetailPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [scheduleLocal, setScheduleLocal] = useState('');
+  const [editAllDay, setEditAllDay] = useState(false); // 編集時の終日（日付のみ入力にする）
   const [notify, setNotify] = useState(false);
 
   useEffect(() => {
@@ -53,7 +54,14 @@ export default function ReservationDetailPage() {
       if (reservation) {
         setTitle(reservation.title);
         setContent(reservation.content);
-        setScheduleLocal(msToLocalInput(reservation.scheduleAt));
+        setEditAllDay(reservation.allDay);
+        // 終日は日付のみ（YYYY-MM-DD）、通常は日時。開始は startAt 優先、無ければ scheduleAt。
+        const startMs = reservation.startAt ?? reservation.scheduleAt;
+        setScheduleLocal(
+          reservation.allDay
+            ? (startMs != null ? msToLocalInput(startMs).slice(0, 10) : '')
+            : msToLocalInput(reservation.scheduleAt),
+        );
         setNotify(reservation.notificationEnabled);
       }
     });
@@ -102,13 +110,23 @@ export default function ReservationDetailPage() {
 
   async function handleSave() {
     setActionError(null);
+    // 終日は日付のみ必須。通常は従来どおり（日時は任意）。
+    let allDayStartAt: number | null = null;
+    if (editAllDay) {
+      const [y, m, d] = scheduleLocal.trim().slice(0, 10).split('-').map(Number);
+      if (!y || !m || !d) {
+        setActionError('終日の予定は日付を選んでください');
+        return;
+      }
+      allDayStartAt = new Date(y, m - 1, d).getTime();
+    }
     setSaving(true);
-    const { reservation, error } = await updateReservation(id, {
-      title,
-      content,
-      scheduleAt: localInputToMs(scheduleLocal),
-      notificationEnabled: notify,
-    });
+    const { reservation, error } = await updateReservation(
+      id,
+      editAllDay
+        ? { title, content, startAt: allDayStartAt, endAt: null, allDay: true, notificationEnabled: notify }
+        : { title, content, scheduleAt: localInputToMs(scheduleLocal), allDay: false, notificationEnabled: notify },
+    );
     setSaving(false);
     if (error) {
       setActionError(`更新できませんでした：${error}`);
@@ -226,14 +244,27 @@ export default function ReservationDetailPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
-          <label className="text-xs" style={{ color: '#7dd3fc' }}>予定日時</label>
+          <label className="text-xs" style={{ color: '#7dd3fc' }}>{editAllDay ? '予定日' : '予定日時'}</label>
           <input
             className="rounded-2xl border px-4 py-3 text-base text-white outline-none [color-scheme:dark]"
             style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(56,189,248,0.4)' }}
-            type="datetime-local"
+            type={editAllDay ? 'date' : 'datetime-local'}
             value={scheduleLocal}
             onChange={(e) => setScheduleLocal(e.target.value)}
           />
+          <label className="flex items-center gap-2 text-sm" style={{ color: '#bae6fd' }}>
+            <input
+              type="checkbox"
+              checked={editAllDay}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setEditAllDay(next);
+                // 終日へ：日付部分だけ残す。通常へ：時刻が無ければ 00:00 を補う。
+                setScheduleLocal((cur) => (cur ? (next ? cur.slice(0, 10) : cur.length === 10 ? `${cur}T00:00` : cur) : cur));
+              }}
+            />
+            {editAllDay ? '📅 終日 ON' : '📅 終日 OFF'}
+          </label>
           <textarea
             className="min-h-24 rounded-2xl border px-4 py-3 text-base text-white outline-none placeholder:text-[#7A86A8]"
             style={{ background: 'rgba(8,10,24,0.78)', borderColor: 'rgba(56,189,248,0.4)' }}
