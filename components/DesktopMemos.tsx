@@ -392,11 +392,16 @@ export default function DesktopMemos() {
       const dirHandle = await pickDirectory();
       if (!dirHandle) return; // 非対応 or フォルダ選択キャンセル
       const result = await writeMemosToDirectory(dirHandle, targets);
-      showToast(
-        result.failureCount === 0
-          ? `${result.successCount}件をフォルダへ書き出しました`
-          : `${result.successCount}件成功・${result.failureCount}件失敗しました`,
-      );
+      if (result.failureCount === 0) {
+        showToast(`${result.successCount}件をフォルダへ書き出しました`);
+      } else {
+        // 失敗したメモは先頭2件のタイトルだけ出し、残りは「ほかN件」とまとめる。
+        const SHOWN = 2;
+        const titles = result.failed.slice(0, SHOWN).map((f) => f.title || '無題のメモ');
+        const rest = result.failureCount - titles.length;
+        const names = rest > 0 ? `${titles.join('、')}、ほか${rest}件` : titles.join('、');
+        showToast(`${result.successCount}件成功・${result.failureCount}件失敗しました：${names}`);
+      }
     } catch {
       showToast('フォルダへの書き出しに失敗しました');
     }
