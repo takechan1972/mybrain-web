@@ -799,9 +799,19 @@ export default function DesktopMemos() {
                   {selectMode ? '選択モードを終了' : '選択してまとめる'}
                 </button>
                 {selectMode && (
-                  <p className="mt-2 text-[12px] font-semibold leading-relaxed" style={{ color: MUTED }}>
-                    {selectedIds.size}件 選択中
-                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <p className="text-[12px] font-semibold leading-relaxed" style={{ color: MUTED }}>
+                      {selectedIds.size}件 選択中
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIds(new Set())}
+                      disabled={selectedIds.size === 0}
+                      className="rounded-full border border-[#E8EAF3] bg-white px-3 py-1 text-[11px] font-semibold transition active:scale-95 disabled:opacity-40"
+                      style={{ color: '#54607A' }}>
+                      選択解除
+                    </button>
+                  </div>
                 )}
               </div>
             )}
