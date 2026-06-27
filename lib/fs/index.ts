@@ -7,3 +7,4 @@
 
 export * from './file-system-access';
 export * from './vault-handle-store';
+export * from './vault-permission';
