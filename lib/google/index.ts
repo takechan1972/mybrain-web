@@ -11,3 +11,4 @@ export * from './google-drive-oauth';
 export * from './google-drive-export';
 export * from './google-drive-folders';
 export * from './google-drive-files';
+export * from './google-drive-upload';
