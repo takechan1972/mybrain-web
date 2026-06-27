@@ -11,6 +11,7 @@ import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile, exportMemosAsZip } from '@/lib/markdown';
 import { downloadBlobFile } from '@/lib/download';
 import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory, resolveSavedVaultDirectory, saveVaultHandle, loadVaultHandle, clearVaultHandle } from '@/lib/fs';
+import { isGoogleDriveConfigured, exportMemosToGoogleDrive } from '@/lib/google';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
@@ -142,6 +143,8 @@ export default function DesktopMemos() {
   const [dirPickerSupported, setDirPickerSupported] = useState(false);
   // 接続中のローカルVaultフォルダ名（保存ハンドルがあれば表示用。null=未接続）。
   const [vaultHandleName, setVaultHandleName] = useState<string | null>(null);
+  // Google Drive 連携の公開設定が揃っているか（マウント後に判定）。
+  const [googleDriveConfigured, setGoogleDriveConfigured] = useState(false);
   // Obsidian形式（Markdown）プレビュー・コピー（表示のみ・保存しない）
   const [mdOpen, setMdOpen] = useState(false);
   const [mdCopied, setMdCopied] = useState(false);
@@ -357,6 +360,7 @@ export default function DesktopMemos() {
   // 保存済みVaultハンドルがあれば、接続中フォルダ名も読み込んで表示する。
   useEffect(() => {
     setDirPickerSupported(isDirectoryPickerSupported());
+    setGoogleDriveConfigured(isGoogleDriveConfigured());
     void loadVaultHandle().then((handle) => {
       if (handle) setVaultHandleName(handle.name || 'ローカルVault');
     });
@@ -419,6 +423,32 @@ export default function DesktopMemos() {
       }
     } catch {
       showToast('フォルダへの書き出しに失敗しました');
+    }
+  }
+
+  // 選択したメモを Google Drive の MyBrain/Memos/ に書き出す（一方向・上書きしない・トークンは保存しない）。
+  async function exportSelectedMemosToGoogleDrive() {
+    const targets = memos.filter((m) => selectedIds.has(m.id));
+    if (targets.length === 0) return;
+    if (targets.length >= LARGE_EXPORT_WARNING_COUNT) {
+      const proceed = window.confirm('選択数が多いため、Google Driveへのアップロードに時間がかかる場合があります。続けますか？');
+      if (!proceed) return;
+    }
+    const ok = window.confirm(`選択した ${targets.length} 件のメモをGoogle Driveの MyBrain/Memos/ に書き出します。よろしいですか？`);
+    if (!ok) return;
+    const result = await exportMemosToGoogleDrive(targets);
+    const SHOWN = 2;
+    if (result.failureCount === 0) {
+      showToast(`${result.successCount}件をGoogle Driveへ書き出しました`);
+    } else if (result.successCount === 0) {
+      // 全件失敗：先頭の失敗理由を出す。
+      showToast(`Google Driveへの書き出しに失敗しました：${result.failed[0]?.error ?? '不明なエラー'}`);
+    } else {
+      // 一部失敗：失敗メモのタイトルを先頭2件まで出し、残りは「ほかN件」とまとめる。
+      const titles = result.failed.slice(0, SHOWN).map((f) => f.title || '無題のメモ');
+      const rest = result.failureCount - titles.length;
+      const names = rest > 0 ? `${titles.join('、')}、ほか${rest}件` : titles.join('、');
+      showToast(`${result.successCount}件成功・${result.failureCount}件失敗しました：${names}`);
     }
   }
 
@@ -912,6 +942,16 @@ export default function DesktopMemos() {
                         className="rounded-full border border-[#E8EAF3] bg-white px-3 py-1 text-[11px] font-semibold transition active:scale-95 disabled:opacity-40"
                         style={{ color: '#54607A' }}>
                         フォルダへ書き出し
+                      </button>
+                    )}
+                    {googleDriveConfigured && (
+                      <button
+                        type="button"
+                        onClick={exportSelectedMemosToGoogleDrive}
+                        disabled={selectedIds.size === 0}
+                        className="rounded-full border border-[#E8EAF3] bg-white px-3 py-1 text-[11px] font-semibold transition active:scale-95 disabled:opacity-40"
+                        style={{ color: '#54607A' }}>
+                        Google Driveへ書き出し
                       </button>
                     )}
                   </div>
