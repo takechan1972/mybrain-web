@@ -263,6 +263,81 @@
 
 ---
 
+## IndexedDB ハンドル保存ヘルパーの API 設計
+
+> **ステータス：設計のみ（未実装）。** ここではヘルパーの形（入出力・名前・エラー方針）だけを決める。実装・UI 接続はしない。
+
+### IndexedDB を使う理由
+
+- `FileSystemDirectoryHandle` は**構造化クローン可能なオブジェクト**で、IndexedDB なら**オブジェクトのまま保存・取得**できる。
+- 再訪時に取り出して、権限を再確認してから再利用できる。
+- 仕様・主要実装（Chromium）でハンドルの IndexedDB 保存が想定されている。
+
+### localStorage を使わない理由
+
+- localStorage は**文字列しか保存できない**ため、ハンドルをそのまま保存できない。
+- パスを文字列で保存しても、File System Access API は**パス文字列から再アクセスできない**（ハンドル経由のみ）。
+
+### 保存するもの
+
+- `FileSystemDirectoryHandle`（Vault ルートのハンドル1件）。
+- 保存日時（最終保存／利用時刻。表示や整理に使う）。
+- 表示用の名前（`handle.name` が取得できる場合のみ。ユーザーに「接続中のフォルダ名」を見せる用途）。
+
+### 保存しないもの
+
+- メモ本文・Markdown の中身。
+- Supabase のデータ（Supabase が source of truth）。
+- Google Drive のトークン・認証情報。
+- 個人情報（絶対パス・ユーザーのファイル構成などの位置情報も持たない）。
+
+### 想定するヘルパー関数
+
+UI 非接続の薄い IndexedDB ラッパとして、最小3関数を想定する（依存追加なし・標準 IndexedDB のみ）。
+
+| 関数 | 役割 | 想定シグネチャ（案） |
+|---|---|---|
+| `saveVaultHandle(handle)` | ハンドル＋保存日時（＋名前）を保存（既存は上書き） | `(handle: FileSystemDirectoryHandle) => Promise<void>` |
+| `loadVaultHandle()` | 保存済みハンドルを取得（無ければ null） | `() => Promise<FileSystemDirectoryHandle | null>` |
+| `clearVaultHandle()` | 保存済みハンドルを削除（接続解除） | `() => Promise<void>` |
+
+- `saveVaultHandle` は1件のみ保持（同じ key を上書き）。複数 Vault は MVP スコープ外。
+- `loadVaultHandle` は**権限の確認はしない**（取得のみ）。権限確認は別ヘルパーの責務（後述）。
+- 保存形は `{ handle, savedAt, name? }` のレコードを1件、固定 key で出し入れする想定。
+
+### IndexedDB の想定名・store名・key名
+
+- **DB 名**：`mybrain-local-vault`
+- **object store 名**：`handles`
+- **key**：`obsidian-vault-directory`（固定キー。1件のみ保持）
+
+### エラー方針
+
+UI 非接続のヘルパーは**例外で画面を止めない**。失敗は安全側（未接続相当）に倒し、呼び出し側が再選択を促せるようにする。
+
+| ケース | 方針 |
+|---|---|
+| IndexedDB 非対応（SSR・古い環境） | `loadVaultHandle` は null、`save`/`clear` は no-op で解決（拒否しない）。事前に対応判定できる形にする |
+| 保存失敗（容量・権限・トランザクション失敗等） | reject せず失敗を飲み込み未保存扱い、または安全に解決。書き出し自体は毎回選択にフォールバック可能にする |
+| 読み込み失敗（store 不在・型不一致等） | null を返す（未接続扱い） |
+| データ破損（期待した形でない／ハンドルが取り出せない） | null を返し、必要なら該当レコードを破棄（次回の保存で健全化） |
+
+- いずれの異常時も**メモ本文や Supabase データには一切影響しない**（ローカルの参照管理のみ）。
+
+### MVP の前提（必ず守る）
+
+- **MVP ではまだ自動書き込みしない。** 保存済みハンドルがあっても、勝手に Vault へ書き込まない。
+- **書き込み前には必ずユーザー操作（クリック）と確認ダイアログを挟む**（件数つき・`MyBrain/Memos/` 明記。既存フローと同一）。
+- **権限の確認（`queryPermission`/`requestPermission`）は別ヘルパーで扱う。** この保存ヘルパーは保存・取得・削除だけを担い、権限判定は持たない（責務分離）。
+
+### スコープ外
+
+- Google Drive 連携（トークン保存含む）。
+- 双方向同期（Vault → MyBrain）。
+- 複数 Vault の保存・切替、自動・定期書き出し。
+
+---
+
 ## 将来の Google Drive との関係
 
 - Vault 書き出しのコア（Markdown 化・重複名回避・件数確認・安全ルール）は **書き出し先に依存しない共通部分**として再利用する。
