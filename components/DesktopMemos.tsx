@@ -817,7 +817,13 @@ export default function DesktopMemos() {
                           className="rounded-2xl border bg-white p-4 text-left transition"
                           style={{ borderColor: sel ? PURPLE : '#E8EAF3', backgroundColor: sel ? '#F6F4FF' : '#fff', boxShadow: sel ? '0 6px 18px rgba(123,97,255,0.12)' : '0 4px 14px rgba(31,53,104,0.04)' }}>
                           <div className="flex items-start justify-between gap-2">
-                            <p className="truncate text-[15px] font-bold" style={{ color: NAVY }}>{m.title || '無題のメモ'}</p>
+                            <div className="flex min-w-0 items-center gap-2">
+                              {/* 選択モードの見た目だけのチェック表示（準備中・非操作。onClick/inputなし） */}
+                              {selectMode && (
+                                <span aria-hidden="true" className="shrink-0 text-[14px] leading-none" style={{ color: '#C7CCDA' }}>☐</span>
+                              )}
+                              <p className="truncate text-[15px] font-bold" style={{ color: NAVY }}>{m.title || '無題のメモ'}</p>
+                            </div>
                             <span
                               role="button"
                               tabIndex={0}
