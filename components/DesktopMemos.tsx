@@ -9,6 +9,7 @@ import { deriveTitleFromBody, parseMemoSpeechText } from '@/lib/parse/memo-speec
 import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/memos';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile } from '@/lib/markdown';
+import JSZip from 'jszip';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
@@ -346,27 +347,47 @@ export default function DesktopMemos() {
     });
   }
 
-  // 選択したメモをまとめて .md ファイルとして書き出す（端末のダウンロードのみ・Vault保存/アップロードはしない）
+  // 選択したメモをまとめて1つのZIPファイルとして書き出す（端末のダウンロードのみ・Vault保存/アップロードはしない）
   const LARGE_EXPORT_WARNING_COUNT = 10;
-  function exportSelectedMemos() {
+  async function exportSelectedMemos() {
     const targets = memos.filter((m) => selectedIds.has(m.id));
     if (targets.length === 0) return;
     if (targets.length >= LARGE_EXPORT_WARNING_COUNT) {
-      const proceed = window.confirm('選択数が多いため、ブラウザが連続ダウンロードを警告またはブロックする場合があります。続けますか？');
+      const proceed = window.confirm('選択数が多いため、ZIPファイルの作成に少し時間がかかる場合があります。続けますか？');
       if (!proceed) return;
     }
-    const ok = window.confirm(`選択した ${targets.length} 件のメモをMarkdownファイルとして書き出します。よろしいですか？`);
+    const ok = window.confirm(`選択した ${targets.length} 件のメモを1つのZIPファイルとしてまとめてダウンロードします。よろしいですか？`);
     if (!ok) return;
-    let failed = 0;
-    targets.forEach((m) => {
-      const { fileName, content } = createMemoMarkdownFile(m);
-      try {
-        downloadMarkdownFile(fileName, content);
-      } catch {
-        failed += 1;
-      }
-    });
-    showToast(failed === 0 ? `${targets.length}件を書き出しました` : `${failed}件の書き出しに失敗しました`);
+    try {
+      const zip = new JSZip();
+      const usedNames = new Set<string>();
+      targets.forEach((m) => {
+        const { fileName, content } = createMemoMarkdownFile(m);
+        // ファイル名の重複を避ける（同名タイトルでも上書きしない）
+        let name = fileName;
+        let n = 2;
+        while (usedNames.has(name)) {
+          name = fileName.replace(/(\.md)?$/i, `-${n}$1`);
+          n += 1;
+        }
+        usedNames.add(name);
+        zip.file(name, content);
+      });
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const today = new Date();
+      const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mybrain-memos-${ymd}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`${targets.length}件をZIPで書き出しました`);
+    } catch {
+      showToast('ZIPの書き出しに失敗しました');
+    }
   }
 
   async function handleCreate() {
