@@ -6,3 +6,4 @@
  */
 
 export * from './file-system-access';
+export * from './vault-handle-store';
