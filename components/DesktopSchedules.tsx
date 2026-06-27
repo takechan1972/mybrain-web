@@ -475,7 +475,8 @@ export default function DesktopSchedules() {
                     <SmallBtn label="複製" onClick={() => openCreate(msToLocalInput(selected.scheduleAt), `${selected.title}（コピー）`)} />
                     <SmallBtn label="削除" danger onClick={() => setConfirmDel(selected)} />
                   </div>
-                  <button type="button" onClick={() => showToast('Googleカレンダー連携は準備中です')} className="mt-2 w-full rounded-xl border border-[#E8EAF3] py-2 text-[12px] font-bold" style={{ color: '#54607A' }}>📅 Googleカレンダーに連携</button>
+                  {/* 実際の書き出しは予定詳細画面の「Googleカレンダーへ書き出し」へ集約（導線を1本化） */}
+                  <button type="button" onClick={() => router.push(`/reservations/${selected.id}`)} className="mt-2 w-full rounded-xl border border-[#E8EAF3] py-2 text-[12px] font-bold" style={{ color: '#54607A' }}>📅 Googleカレンダーへ書き出し</button>
                   <button type="button" onClick={shareLink} className="mt-2 w-full rounded-xl border border-[#E8EAF3] py-2 text-[12px] font-bold" style={{ color: '#54607A' }}>🔗 共有リンクをコピー</button>
                 </>
               )}
