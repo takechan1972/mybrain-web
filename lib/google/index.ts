@@ -12,3 +12,5 @@ export * from './google-drive-export';
 export * from './google-drive-folders';
 export * from './google-drive-files';
 export * from './google-drive-upload';
+export * from './google-calendar-config';
+export * from './google-calendar-connection-state';
