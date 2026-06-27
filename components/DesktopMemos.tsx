@@ -356,8 +356,10 @@ export default function DesktopMemos() {
     setDirPickerSupported(isDirectoryPickerSupported());
   }, []);
 
-  // 選択したメモをまとめて1つのZIPファイルとして書き出す（端末のダウンロードのみ・Vault保存/アップロードはしない）
+  // 一括書き出しで「多い」とみなすしきい値（ZIP / フォルダ書き出しで共有）。
   const LARGE_EXPORT_WARNING_COUNT = 10;
+
+  // 選択したメモをまとめて1つのZIPファイルとして書き出す（端末のダウンロードのみ・Vault保存/アップロードはしない）
   async function exportSelectedMemos() {
     const targets = memos.filter((m) => selectedIds.has(m.id));
     if (targets.length === 0) return;
@@ -380,6 +382,10 @@ export default function DesktopMemos() {
   async function exportSelectedMemosToFolder() {
     const targets = memos.filter((m) => selectedIds.has(m.id));
     if (targets.length === 0) return;
+    if (targets.length >= LARGE_EXPORT_WARNING_COUNT) {
+      const proceed = window.confirm('選択数が多いため、多数のMarkdownファイルを作成します。続けますか？');
+      if (!proceed) return;
+    }
     const ok = window.confirm(`選択した ${targets.length} 件のメモを、選んだフォルダの MyBrain/Memos/ に書き出します。よろしいですか？`);
     if (!ok) return;
     try {
