@@ -799,8 +799,8 @@ export default function DesktopMemos() {
                   {selectMode ? '選択モードを終了' : '選択してまとめる'}
                 </button>
                 {selectMode && (
-                  <p className="mt-2 text-[12px] leading-relaxed" style={{ color: MUTED }}>
-                    選択モードの準備中です。次の段階でチェックボックスを追加します。
+                  <p className="mt-2 text-[12px] font-semibold leading-relaxed" style={{ color: MUTED }}>
+                    {selectedIds.size}件 選択中
                   </p>
                 )}
               </div>
