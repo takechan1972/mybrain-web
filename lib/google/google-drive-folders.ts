@@ -14,7 +14,7 @@ const DRIVE_FILES_ENDPOINT = 'https://www.googleapis.com/drive/v3/files';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 /** Drive のクエリ文字列内で使うため、シングルクォートをエスケープする。 */
-function escapeDriveQueryValue(value: string): string {
+export function escapeDriveQueryValue(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 

@@ -10,3 +10,4 @@ export * from './google-drive-connection-state';
 export * from './google-drive-oauth';
 export * from './google-drive-export';
 export * from './google-drive-folders';
+export * from './google-drive-files';
