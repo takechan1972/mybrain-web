@@ -11,9 +11,15 @@
 import type { Reservation } from '@/lib/types';
 import { requestGoogleCalendarAccessToken } from './google-calendar-oauth';
 import { createCalendarEvent } from './google-calendar-events';
+import { findCalendarEventByReservation } from './google-calendar-lookup';
 
 /** 予定のカレンダー書き出し結果状態。 */
-export type GoogleCalendarReservationExportState = 'success' | 'unconfigured' | 'cancelled' | 'error';
+export type GoogleCalendarReservationExportState =
+  | 'success'
+  | 'already-exists' // 既に同じ予定がカレンダーに登録済み（重複作成しない）
+  | 'unconfigured'
+  | 'cancelled'
+  | 'error';
 
 /** 予定のカレンダー書き出し結果。state==='success' のときだけイベント情報を持つ。 */
 export interface GoogleCalendarReservationExportResult {
@@ -56,9 +62,26 @@ export async function exportReservationToGoogleCalendar(
   if (token.state !== 'granted' || !token.accessToken) {
     return { state: 'error', error: token.error || 'Failed to get Google Calendar access token' };
   }
+  const accessToken = token.accessToken;
+
+  // 重複防止（Option C）：作成前に、この予定IDのイベントが既に存在しないか確認する。
+  let existingEventId: string | null;
+  try {
+    existingEventId = await findCalendarEventByReservation(accessToken, reservation.id);
+  } catch {
+    return { state: 'error', error: 'Googleカレンダーの登録済み確認に失敗しました' };
+  }
+  if (existingEventId) {
+    // 既に登録済み。重複作成はしない。
+    return {
+      state: 'already-exists',
+      eventId: existingEventId,
+      error: 'This reservation is already exported to Google Calendar',
+    };
+  }
 
   try {
-    const event = await createCalendarEvent(token.accessToken, reservation);
+    const event = await createCalendarEvent(accessToken, reservation);
     return {
       state: 'success',
       eventId: event.id,

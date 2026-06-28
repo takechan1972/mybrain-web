@@ -88,6 +88,10 @@ export default function ReservationDetailPage() {
       if (result.state === 'success') {
         setCalMessage('Googleカレンダーへ書き出しました');
         setCalLink(result.htmlLink ?? null);
+      } else if (result.state === 'already-exists') {
+        // 既に登録済み。重複作成はしない（リンクが無ければ作らない）。
+        setCalMessage('この予定はすでにGoogleカレンダーに登録されています');
+        setCalLink(result.htmlLink ?? null);
       } else if (result.state === 'cancelled') {
         setCalMessage('Googleカレンダー連携をキャンセルしました');
       } else if (result.state === 'unconfigured') {
