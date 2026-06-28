@@ -19,9 +19,9 @@ import {
   type QaRecord,
 } from '@/lib/knowledge';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { isAdminEmail } from '@/lib/auth/allowed-users';
 
-// アクセスを許可する管理者メールアドレス（当面は許可リスト方式）。
-const ADMIN_EMAILS = ['designat5take@gmail.com'];
+// 管理画面は運営（管理者）のみアクセス可。許可リストは lib/auth/allowed-users に集約。
 
 // 左メニュー。今回は inquiries のみ実装済み、他は「準備中」。
 type MenuKey = 'home' | 'inquiries' | 'users' | 'plans' | 'plugins' | 'faq' | 'usage';
@@ -115,7 +115,7 @@ export default function AdminInquiriesPage() {
       if (settled) return;
       settled = true;
       setAdminEmail(email);
-      if (email && ADMIN_EMAILS.includes(email.toLowerCase().trim())) {
+      if (isAdminEmail(email)) {
         setAccess('granted');
         void load();
       } else {

@@ -9,6 +9,7 @@ import VoiceInput from '@/components/VoiceInput';
 import { SendIcon } from '@/components/icons';
 import { createReservation, localInputToMs } from '@/lib/reservations';
 import { isPaidPlan } from '@/lib/plan';
+import { useFullAccess } from '@/lib/auth/use-full-access';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 const NAVY = '#223A70';
@@ -26,8 +27,9 @@ function PencilIcon({ size = 18 }: { size?: number }) {
 export default function ReservationsPage() {
   const router = useRouter();
   const configured = isSupabaseConfigured();
-  // 無料プランは AI相談バーをロック（有料プランで利用可）。実プラン接続時は lib/plan.ts を差し替える。
-  const isPaid = isPaidPlan();
+  // 無料プランは AI相談バーをロック（有料プランで利用可）。運営/家族はフルアクセスで利用可。
+  const fullAccess = useFullAccess();
+  const isPaid = isPaidPlan() || fullAccess;
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState<string | null>(null);

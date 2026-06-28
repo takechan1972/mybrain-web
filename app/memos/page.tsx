@@ -8,6 +8,7 @@ import { ImageIcon, SendIcon } from '@/components/icons';
 import VoiceInput from '@/components/VoiceInput';
 import { createMemo, parseTags } from '@/lib/memos';
 import { isPaidPlan } from '@/lib/plan';
+import { useFullAccess } from '@/lib/auth/use-full-access';
 import DesktopMemos from '@/components/DesktopMemos';
 
 const TITLE_MAX = 100;
@@ -42,8 +43,9 @@ function compressDataUri(dataUri: string, maxSize = 1280, quality = 0.8): Promis
 
 export default function MemosPage() {
   const router = useRouter();
-  // 無料プランは AI相談バーをロック（有料プランで利用可）。実プラン接続時は lib/plan.ts を差し替える。
-  const isPaid = isPaidPlan();
+  // 無料プランは AI相談バーをロック（有料プランで利用可）。運営/家族はフルアクセスで利用可。
+  const fullAccess = useFullAccess();
+  const isPaid = isPaidPlan() || fullAccess;
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState<string | null>(null);
