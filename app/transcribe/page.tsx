@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ChevronLeftIcon, MicIcon } from '@/components/icons';
-import { updateMemo } from '@/lib/memos';
 import { getMemoStore } from '@/lib/storage/memo-store';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { isLocalHost } from '@/lib/env';
@@ -131,7 +130,8 @@ export default function TranscribePage() {
     if (!savedId || aiResult.trim().length === 0) return;
     setAiSaving(true);
     const newBody = `${savedBody}\n\n--- ${aiLabel} ---\n${aiResult.trim()}`;
-    const { memo, error: err } = await updateMemo(savedId, {
+    // seam 経由で更新（現状は全 target が Supabase に解決＝挙動は不変）。
+    const { memo, error: err } = await getMemoStore().updateMemo(savedId, {
       title: savedTitle,
       body: newBody,
       tags: ['文字起こし', aiKind === 'summary' ? 'AI要約' : 'AI整理'],
