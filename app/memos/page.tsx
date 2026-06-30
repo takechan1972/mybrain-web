@@ -7,12 +7,28 @@ import { useEffect, useRef, useState } from 'react';
 import { ImageIcon, SendIcon } from '@/components/icons';
 import VoiceInput from '@/components/VoiceInput';
 import { createMemo, parseTags } from '@/lib/memos';
+import { loadMemoStorageTarget } from '@/lib/storage/memo-storage-target';
 import { isPaidPlan } from '@/lib/plan';
 import { useFullAccess } from '@/lib/auth/use-full-access';
 import DesktopMemos from '@/components/DesktopMemos';
 
 const TITLE_MAX = 100;
 const BODY_MAX = 10000;
+
+/**
+ * 保存後に表示するメッセージ。保存先（storage target）で出し分ける。
+ * Phase 1.3：保存自体は常に MyBrain（Supabase）のまま。メッセージだけ切り替える。
+ */
+function savedMessageForTarget(): string {
+  switch (loadMemoStorageTarget()) {
+    case 'obsidian-local':
+      return 'MyBrainに保存しました。Obsidian用Markdownはメモ詳細画面からコピーまたはダウンロードできます。';
+    case 'obsidian-gdrive':
+      return 'MyBrainに保存しました。Google Drive連携は今後対応予定です。';
+    default:
+      return '保存しました';
+  }
+}
 
 /** data URI 画像を最大1280pxに縮小し JPEG(0.8) で再エンコード（巨大写真の保存失敗対策） */
 function compressDataUri(dataUri: string, maxSize = 1280, quality = 0.8): Promise<string> {
@@ -115,7 +131,7 @@ export default function MemosPage() {
       setSaveError(`保存できませんでした：${error}`);
       return;
     }
-    setSaveOk('保存しました');
+    setSaveOk(savedMessageForTarget());
     setTitle('');
     setBody('');
     setTags('');
