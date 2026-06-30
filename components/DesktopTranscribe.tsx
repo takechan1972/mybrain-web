@@ -7,6 +7,8 @@ import { SearchIcon } from './icons';
 import DesktopSidebar from './DesktopSidebar';
 import { updateMemo } from '@/lib/memos';
 import { getMemoStore } from '@/lib/storage/memo-store';
+import { writeSavedMemoToVaultIfEnabled } from '@/lib/fs';
+import type { Memo } from '@/lib/types';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { loadOllamaSettings, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
@@ -218,6 +220,35 @@ export default function DesktopTranscribe() {
   }
 
   /* ── 保存 / AI ── */
+  // 保存先が obsidian-local のとき、MyBrain 保存後に「付加的に」ローカル Vault へ1件書き出す。
+  // - 判定・解決・書き込みは共有ヘルパー writeSavedMemoToVaultIfEnabled に委譲（UI非接続）。
+  // - ここでは返ってきた status を DesktopMemos / DesktopConsult と同じトースト文言にマッピングするだけ。
+  // - 失敗は致命的ではない（メモは MyBrain に保存済みのまま）。権限の自動要求もしない。
+  async function maybeWriteSavedMemoToVault(saved: Memo) {
+    const outcome = await writeSavedMemoToVaultIfEnabled(saved);
+    switch (outcome.status) {
+      case 'written':
+        showToast('Obsidianにも保存しました');
+        break;
+      case 'missing':
+        showToast('Obsidianフォルダ未設定です。設定からVaultフォルダを選んでください。');
+        break;
+      case 'unsupported':
+        showToast('このブラウザではObsidianフォルダ保存に対応していません。');
+        break;
+      case 'permission-denied':
+        showToast('Obsidianフォルダの許可が必要です。設定から再接続してください。');
+        break;
+      case 'error':
+        showToast('MyBrainには保存済みです。Obsidian保存のみ失敗しました。');
+        break;
+      case 'skipped':
+      default:
+        // 保存先が obsidian-local ではない等：トーストなし（従来挙動）。
+        break;
+    }
+  }
+
   async function handleSave() {
     if (text.trim().length === 0) { showToast('文字起こし結果がありません。'); return; }
     setSaving(true);
@@ -229,6 +260,8 @@ export default function DesktopTranscribe() {
     setSavedId(memo.id); setSavedTitle(t); setSavedBody(b);
     setAiKind(null); setAiResult(''); setAiError(null);
     showToast('メモとして保存しました');
+    // 付加的：obsidian-local 選択かつ Vault 接続済みのときだけ、保存済みメモを Vault にも書き出す（非致命）。
+    await maybeWriteSavedMemoToVault(memo);
   }
 
   const aiLabel = aiKind === 'summary' ? 'AI要約' : aiKind === 'organize' ? 'AI整理' : '';
@@ -243,6 +276,8 @@ export default function DesktopTranscribe() {
       if (err || !memo) { showToast(err || '保存に失敗しました。'); return; }
       setSavedId(memo.id); setSavedTitle(t); setSavedBody(text.trim());
       body = text.trim();
+      // 付加的：obsidian-local 選択かつ Vault 接続済みのときだけ、保存済みメモを Vault にも書き出す（非致命）。
+      await maybeWriteSavedMemoToVault(memo);
     }
     if (!local) { setAiError('AI要約・整理は PCローカル版専用です。'); setTab(kind === 'summary' ? 'summary' : 'organize'); setAiKind(kind); return; }
     if (!loadOllamaSettings().enabled) { setAiError('Ollamaを有効にしてください（設定 → AI設定）。'); setTab(kind === 'summary' ? 'summary' : 'organize'); setAiKind(kind); return; }
@@ -280,6 +315,8 @@ export default function DesktopTranscribe() {
     setAiSaving(false);
     if (err || !memo) { showToast(err || '保存に失敗しました。'); return; }
     showToast('別メモとして保存しました');
+    // 付加的：obsidian-local 選択かつ Vault 接続済みのときだけ、保存済みメモを Vault にも書き出す（非致命）。
+    await maybeWriteSavedMemoToVault(memo);
   }
 
   function shareLink() {
