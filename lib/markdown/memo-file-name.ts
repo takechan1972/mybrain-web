@@ -11,6 +11,13 @@
 export const DEFAULT_MEMO_FILE_BASE = 'untitled-memo';
 
 /**
+ * Windows の予約デバイス名（拡張子を付けてもファイル名として使えない）。
+ * 例: "CON" → "CON.md" も不可。該当時は先頭に "_" を付けて回避する。
+ */
+const WINDOWS_RESERVED_NAMES =
+  /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+
+/**
  * 文字列をファイル名の一部として安全化する（拡張子は付けない）。
  *
  * - Windows 禁止文字 < > : " / \ | ? * を除去。
@@ -36,6 +43,9 @@ export function sanitizeFileNamePart(input: string, maxLength = 80): string {
  * @returns 例: "買い物メモ.md" / タイトルが空や無効なら "untitled-memo.md"
  */
 export function createMemoMarkdownFileName(title?: string | null): string {
-  const base = sanitizeFileNamePart(title ?? '');
-  return `${base.length > 0 ? base : DEFAULT_MEMO_FILE_BASE}.md`;
+  const sanitized = sanitizeFileNamePart(title ?? '');
+  let base = sanitized.length > 0 ? sanitized : DEFAULT_MEMO_FILE_BASE;
+  // Windows 予約名（CON / NUL / COM1 等）は拡張子付きでも不可なので "_" を前置して回避。
+  if (WINDOWS_RESERVED_NAMES.test(base)) base = `_${base}`;
+  return `${base}.md`;
 }

@@ -15,6 +15,7 @@ import type { Memo, MemoInput } from '../types';
  *   created … 作成日時（ISO 8601）
  *   updated … 更新日時（ISO 8601）
  *   source  … 由来。常に "mybrain"
+ *   images  … 添付画像の件数（画像がある時のみ出力。data URI 本体は含めない）
  *
  * 本文はフロントマターの下に、そのまま Markdown 本文として置く。
  */
@@ -66,7 +67,10 @@ function tagsToYamlFlow(tags: string[]): string {
  * - 既存の保存処理には影響しない純関数。
  */
 export function memoToMarkdown(memo: Memo): string {
-  const frontmatter = [
+  // 添付画像の件数（data URI 本体は Markdown に含めない＝巨大化・実体は MyBrain に保存）。
+  // 画像がある時だけ frontmatter に件数を出し、Obsidian 側でも「添付あり」が分かるようにする。
+  const imageCount = Array.isArray(memo.images) ? memo.images.length : 0;
+  const lines = [
     '---',
     `id: ${yamlQuote(memo.id ?? '')}`,
     `title: ${yamlQuote(memo.title ?? '')}`,
@@ -74,8 +78,10 @@ export function memoToMarkdown(memo: Memo): string {
     `created: ${yamlQuote(msToIso(memo.createdAt))}`,
     `updated: ${yamlQuote(msToIso(memo.updatedAt))}`,
     `source: ${yamlQuote(MEMO_MARKDOWN_SOURCE)}`,
-    '---',
-  ].join('\n');
+  ];
+  if (imageCount > 0) lines.push(`images: ${imageCount}`);
+  lines.push('---');
+  const frontmatter = lines.join('\n');
 
   const body = memo.body ?? '';
   // フロントマターの後に空行を1つ入れて本文を続ける（Obsidian の慣習）。
