@@ -594,7 +594,7 @@ export default function MemoDetailPage() {
       {!editing && memo && (
         <section className="mt-2 flex flex-col gap-3 rounded-2xl border p-4" style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(120,160,255,0.4)' }}>
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[13px] font-bold" style={{ color: '#ffffff' }}>Obsidian形式（Markdown）</p>
+            <p className="text-[13px] font-bold" style={{ color: '#ffffff' }}>Obsidian用Markdown</p>
             <button
               type="button"
               onClick={() => setShowMd((v) => !v)}
@@ -603,6 +603,10 @@ export default function MemoDetailPage() {
               {showMd ? '閉じる' : 'Obsidian形式で表示'}
             </button>
           </div>
+          {/* 常時表示の案内：MyBrainに保存済み／Obsidianに入れたい時はコピー・ダウンロード */}
+          <p className="text-[12px] leading-relaxed" style={{ color: '#a5b4fc' }}>
+            このメモはMyBrainに保存されています。Obsidianに入れたい場合は、下のMarkdownをコピーまたはダウンロードしてください。
+          </p>
           {showMd && (
             <>
               <p className="text-[12px]" style={{ color: '#a5b4fc' }}>

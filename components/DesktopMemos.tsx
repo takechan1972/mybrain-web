@@ -1097,7 +1097,7 @@ export default function DesktopMemos() {
                 {/* ── Obsidian形式（Markdown）プレビュー・コピー（表示のみ・保存しない） ── */}
                 <div className="rounded-2xl border border-[#E8EAF3] p-4" style={{ backgroundColor: '#FBFBFE' }}>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[13px] font-extrabold" style={{ color: NAVY }}>Obsidian形式（Markdown）</p>
+                    <p className="text-[13px] font-extrabold" style={{ color: NAVY }}>Obsidian用Markdown</p>
                     <button
                       type="button"
                       onClick={() => setMdOpen((v) => !v)}
@@ -1106,6 +1106,10 @@ export default function DesktopMemos() {
                       {mdOpen ? '閉じる' : 'Obsidian形式で表示'}
                     </button>
                   </div>
+                  {/* 常時表示の案内：MyBrainに保存済み／Obsidianに入れたい時はコピー・ダウンロード */}
+                  <p className="mt-1.5 text-[12px] leading-relaxed" style={{ color: '#54607A' }}>
+                    このメモはMyBrainに保存されています。Obsidianに入れたい場合は、下のMarkdownをコピーまたはダウンロードしてください。
+                  </p>
                   {mdOpen && (
                     <div className="mt-3 flex flex-col gap-3">
                       <p className="text-[11px]" style={{ color: MUTED }}>
