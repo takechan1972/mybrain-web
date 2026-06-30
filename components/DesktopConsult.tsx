@@ -24,7 +24,7 @@ import { loadOllamaSettings, testOllama } from '@/lib/ai/ollama';
 import { askOllamaConsult } from '@/lib/ai/consult-ollama';
 import { isLocalHost } from '@/lib/env';
 import { safeUUID } from '@/lib/uuid';
-import { createMemo } from '@/lib/memos';
+import { getMemoStore } from '@/lib/storage/memo-store';
 import { listMemos } from '@/lib/memos';
 import { listReservations } from '@/lib/reservations';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
@@ -218,7 +218,8 @@ export default function DesktopConsult() {
 
   async function saveAsMemo() {
     if (!selected) return;
-    const { memo, error } = await createMemo({
+    // seam 経由で作成（現状は全 target が Supabase に解決＝挙動は不変）。
+    const { memo, error } = await getMemoStore().createMemo({
       title: `AI相談：${selected.question.slice(0, 24)}`,
       body: `Q. ${selected.question}\n\nA. ${selected.answer}`,
       tags: ['AI相談'],
