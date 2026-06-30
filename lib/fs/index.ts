@@ -9,3 +9,4 @@ export * from './file-system-access';
 export * from './vault-handle-store';
 export * from './vault-permission';
 export * from './vault-directory-resolver';
+export * from './write-saved-memo-to-vault';
