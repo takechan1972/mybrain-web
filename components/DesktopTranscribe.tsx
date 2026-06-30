@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { SearchIcon } from './icons';
 import DesktopSidebar from './DesktopSidebar';
-import { createMemo, updateMemo } from '@/lib/memos';
+import { updateMemo } from '@/lib/memos';
+import { getMemoStore } from '@/lib/storage/memo-store';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { loadOllamaSettings, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
@@ -222,7 +223,7 @@ export default function DesktopTranscribe() {
     setSaving(true);
     const t = title.trim() || '文字起こしメモ';
     const b = text.trim();
-    const { memo, error: err } = await createMemo({ title: t, body: b, tags: ['文字起こし'], images: [] });
+    const { memo, error: err } = await getMemoStore().createMemo({ title: t, body: b, tags: ['文字起こし'], images: [] });
     setSaving(false);
     if (err || !memo) { showToast(err || '保存に失敗しました。'); return; }
     setSavedId(memo.id); setSavedTitle(t); setSavedBody(b);
@@ -238,7 +239,7 @@ export default function DesktopTranscribe() {
     if (!savedId) {
       if (text.trim().length === 0) { showToast('文字起こし結果がありません。'); return; }
       const t = title.trim() || '文字起こしメモ';
-      const { memo, error: err } = await createMemo({ title: t, body: text.trim(), tags: ['文字起こし'], images: [] });
+      const { memo, error: err } = await getMemoStore().createMemo({ title: t, body: text.trim(), tags: ['文字起こし'], images: [] });
       if (err || !memo) { showToast(err || '保存に失敗しました。'); return; }
       setSavedId(memo.id); setSavedTitle(t); setSavedBody(text.trim());
       body = text.trim();
@@ -272,7 +273,7 @@ export default function DesktopTranscribe() {
     if (aiResult.trim().length === 0) return;
     setAiSaving(true);
     const prefix = aiKind === 'summary' ? '文字起こし要約' : '文字起こし整理';
-    const { memo, error: err } = await createMemo({
+    const { memo, error: err } = await getMemoStore().createMemo({
       title: `${prefix}：${savedTitle || title || '無題'}`, body: aiResult.trim(),
       tags: ['文字起こし', aiKind === 'summary' ? 'AI要約' : 'AI整理'], images: [],
     });
