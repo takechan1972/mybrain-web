@@ -26,6 +26,7 @@ import { isLocalHost } from '@/lib/env';
 import { safeUUID } from '@/lib/uuid';
 import { getMemoStore } from '@/lib/storage/memo-store';
 import { listMemos } from '@/lib/memos';
+import { writeSavedMemoToVaultIfEnabled } from '@/lib/fs';
 import { listReservations } from '@/lib/reservations';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import type { Memo, Reservation } from '@/lib/types';
@@ -216,6 +217,35 @@ export default function DesktopConsult() {
     catch { showToast('コピーできませんでした'); }
   }
 
+  // 保存先が obsidian-local のとき、MyBrain 保存後に「付加的に」ローカル Vault へ1件書き出す。
+  // - 判定・解決・書き込みは共有ヘルパー writeSavedMemoToVaultIfEnabled に委譲（UI非接続）。
+  // - ここでは返ってきた status を DesktopMemos と同じトースト文言にマッピングするだけ。
+  // - 失敗は致命的ではない（メモは MyBrain に保存済みのまま）。権限の自動要求もしない。
+  async function maybeWriteSavedMemoToVault(saved: Memo) {
+    const outcome = await writeSavedMemoToVaultIfEnabled(saved);
+    switch (outcome.status) {
+      case 'written':
+        showToast('Obsidianにも保存しました');
+        break;
+      case 'missing':
+        showToast('Obsidianフォルダ未設定です。設定からVaultフォルダを選んでください。');
+        break;
+      case 'unsupported':
+        showToast('このブラウザではObsidianフォルダ保存に対応していません。');
+        break;
+      case 'permission-denied':
+        showToast('Obsidianフォルダの許可が必要です。設定から再接続してください。');
+        break;
+      case 'error':
+        showToast('MyBrainには保存済みです。Obsidian保存のみ失敗しました。');
+        break;
+      case 'skipped':
+      default:
+        // 保存先が obsidian-local ではない等：トーストなし（従来挙動）。
+        break;
+    }
+  }
+
   async function saveAsMemo() {
     if (!selected) return;
     // seam 経由で作成（現状は全 target が Supabase に解決＝挙動は不変）。
@@ -227,6 +257,8 @@ export default function DesktopConsult() {
     });
     if (error || !memo) { showToast(error || '保存に失敗しました。'); return; }
     showToast('メモに保存しました');
+    // 付加的：obsidian-local 選択かつ Vault 接続済みのときだけ、保存済みメモを Vault にも書き出す（非致命）。
+    await maybeWriteSavedMemoToVault(memo);
   }
 
   function regenerate() {
