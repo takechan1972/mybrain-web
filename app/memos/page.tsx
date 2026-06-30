@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ImageIcon, SendIcon } from '@/components/icons';
 import VoiceInput from '@/components/VoiceInput';
 import { createMemo, parseTags } from '@/lib/memos';
-import { savedMessageForTarget } from '@/lib/storage/memo-storage-target';
+import { loadMemoStorageTarget, savedMessageForTarget } from '@/lib/storage/memo-storage-target';
 import { isPaidPlan } from '@/lib/plan';
 import { useFullAccess } from '@/lib/auth/use-full-access';
 import DesktopMemos from '@/components/DesktopMemos';
@@ -50,6 +50,8 @@ export default function MemosPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState<string | null>(null);
+  // 保存先が obsidian-local のときだけ、保存直後に「保存したメモを開く」導線を出すための保存済みメモID
+  const [savedMemoLinkId, setSavedMemoLinkId] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -105,18 +107,23 @@ export default function MemosPage() {
   async function handleSave() {
     setSaveError(null);
     setSaveOk(null);
+    setSavedMemoLinkId(null);
     if (title.trim().length === 0 && body.trim().length === 0) {
       setSaveError('タイトルか本文を入力してください。');
       return;
     }
     setSaving(true);
-    const { error } = await createMemo({ title, body, tags: parseTags(tags), images });
+    const { memo, error } = await createMemo({ title, body, tags: parseTags(tags), images });
     setSaving(false);
     if (error) {
       setSaveError(`保存できませんでした：${error}`);
       return;
     }
     setSaveOk(savedMessageForTarget());
+    // obsidian-local のときだけ、保存したメモの詳細（Markdownコピー/ダウンロード）への導線を出す
+    if (memo && loadMemoStorageTarget() === 'obsidian-local') {
+      setSavedMemoLinkId(memo.id);
+    }
     setTitle('');
     setBody('');
     setTags('');
@@ -266,6 +273,15 @@ export default function MemosPage() {
 
         {saveError && <p className="text-center text-sm text-red-400">{saveError}</p>}
         {saveOk && <p className="text-center text-sm text-emerald-300">{saveOk}</p>}
+        {/* obsidian-local 保存時：詳細画面（Markdownコピー/ダウンロード）への導線 */}
+        {savedMemoLinkId && (
+          <Link
+            href={`/memos/${savedMemoLinkId}`}
+            className="mx-auto flex h-11 w-full max-w-[280px] items-center justify-center rounded-full border text-[14px] font-bold text-white active:scale-95"
+            style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(120,160,255,0.5)', boxShadow: '0 0 14px rgba(80,160,255,0.18)' }}>
+            📄 保存したメモを開く
+          </Link>
+        )}
 
         {/* ── 保存（ネオン）＋メモ一覧＋ホーム（コンパクト） ── */}
         <div className="mt-1 flex gap-2">
