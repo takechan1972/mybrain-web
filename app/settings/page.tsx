@@ -899,9 +899,9 @@ export default function SettingsPage() {
           <div className="mt-3 flex flex-col gap-2">
             {(
               [
-                { value: 'mybrain', label: 'MyBrain標準' },
-                { value: 'obsidian-local', label: 'Obsidian Vault（スマホ内）' },
-                { value: 'obsidian-gdrive', label: 'Obsidian Vault（Google Drive）' },
+                { value: 'mybrain', label: 'MyBrain保存', desc: '通常はこちら。MyBrain内にメモを保存します。' },
+                { value: 'obsidian-local', label: 'Obsidian用Markdown', desc: 'MyBrainに保存しながら、メモ詳細画面でObsidian用Markdownをコピー・ダウンロードできます。' },
+                { value: 'obsidian-gdrive', label: 'Google Drive連携', desc: '今後対応予定です。現在はMyBrainに保存されます。' },
               ] as const
             ).map((opt) => {
               const selected = memoStorageTarget === opt.value;
@@ -912,14 +912,17 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => selectMemoStorageTarget(opt.value)}
                   aria-pressed={selected}
-                  className="flex items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-left transition active:opacity-80"
+                  className="flex items-start justify-between gap-2 rounded-2xl border px-4 py-3 text-left transition active:opacity-80"
                   style={
                     selected
                       ? { borderColor: 'rgba(120,160,255,0.7)', background: 'rgba(46,126,255,0.14)' }
                       : { borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' }
                   }>
-                  <span className="text-[13px] font-semibold" style={{ color: selected ? '#ffffff' : '#c7d2fe' }}>{opt.label}</span>
-                  <span className="flex shrink-0 items-center gap-1.5">
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-[13px] font-semibold" style={{ color: selected ? '#ffffff' : '#c7d2fe' }}>{opt.label}</span>
+                    <span className="text-[11px] leading-snug" style={{ color: selected ? '#c7d2fe' : '#8893c4' }}>{opt.desc}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
                     {opt.value === 'mybrain' && selected && (
                       <span
                         className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
@@ -946,7 +949,10 @@ export default function SettingsPage() {
               );
             })}
           </div>
-          <p className="mt-2.5 text-[11px]" style={{ color: '#8893c4' }}>
+          <p className="mt-2.5 text-[11px] font-semibold" style={{ color: '#a5b4fc' }}>
+            現在は安全のため、すべてMyBrainにも保存されます。
+          </p>
+          <p className="mt-1.5 text-[11px]" style={{ color: '#8893c4' }}>
             ※ 現在は選択にかかわらずMyBrainに保存されます。保存先の切り替えは今後対応します。
           </p>
           <p className="mt-1.5 text-[11px] leading-relaxed" style={{ color: '#8893c4' }}>
