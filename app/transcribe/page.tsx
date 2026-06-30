@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ChevronLeftIcon, MicIcon } from '@/components/icons';
-import { createMemo, updateMemo } from '@/lib/memos';
+import { updateMemo } from '@/lib/memos';
+import { getMemoStore } from '@/lib/storage/memo-store';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { isLocalHost } from '@/lib/env';
 import DesktopTranscribe from '@/components/DesktopTranscribe';
@@ -83,7 +84,8 @@ export default function TranscribePage() {
     setSaving(true);
     const t = title.trim() || '文字起こしメモ';
     const b = text.trim();
-    const { memo, error: err } = await createMemo({
+    // seam 経由で作成（現状は全 target が Supabase に解決＝挙動は不変）。
+    const { memo, error: err } = await getMemoStore().createMemo({
       title: t,
       body: b,
       tags: ['文字起こし'],
@@ -149,7 +151,8 @@ export default function TranscribePage() {
     if (aiResult.trim().length === 0) return;
     setAiSaving(true);
     const prefix = aiKind === 'summary' ? '文字起こし要約' : '文字起こし整理';
-    const { memo, error: err } = await createMemo({
+    // seam 経由で作成（現状は全 target が Supabase に解決＝挙動は不変）。
+    const { memo, error: err } = await getMemoStore().createMemo({
       title: `${prefix}：${savedTitle}`,
       body: aiResult.trim(),
       tags: ['文字起こし', aiKind === 'summary' ? 'AI要約' : 'AI整理'],
