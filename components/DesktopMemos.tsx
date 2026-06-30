@@ -11,9 +11,9 @@ import { getMemoStore } from '@/lib/storage/memo-store';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile, exportMemosAsZip } from '@/lib/markdown';
 import { downloadBlobFile } from '@/lib/download';
-import { isDirectoryPickerSupported, pickDirectory, writeMemoToDirectory, writeMemosToDirectory, resolveSavedVaultDirectory, saveVaultHandle, loadVaultHandle, clearVaultHandle } from '@/lib/fs';
+import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory, resolveSavedVaultDirectory, saveVaultHandle, loadVaultHandle, clearVaultHandle, writeSavedMemoToVaultIfEnabled } from '@/lib/fs';
 import { isGoogleDriveConfigured, exportMemosToGoogleDrive } from '@/lib/google';
-import { loadMemoStorageTarget, savedMessageForTarget } from '@/lib/storage/memo-storage-target';
+import { savedMessageForTarget } from '@/lib/storage/memo-storage-target';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
@@ -464,28 +464,15 @@ export default function DesktopMemos() {
   }
 
   // 保存先が obsidian-local のとき、MyBrain 保存後に「付加的に」ローカル Vault へ1件書き出す。
-  // - MyBrain/Supabase 保存はすでに成功している前提（呼び出し側で確認済み）。
-  // - ここでの失敗は致命的ではない（メモは MyBrain に保存済みのまま）。
-  // - この保存フローからフォルダ権限の自動要求はしない（ready のときだけ書き込む）。
+  // - 判定・解決・書き込みは共有ヘルパー writeSavedMemoToVaultIfEnabled に委譲（UI非接続）。
+  // - ここでは返ってきた status を Phase 4.1 と同じトースト文言にマッピングするだけ。
+  // - 失敗は致命的ではない（メモは MyBrain に保存済みのまま）。権限の自動要求もしない。
   async function maybeWriteSavedMemoToVault(saved: Memo) {
-    if (loadMemoStorageTarget() !== 'obsidian-local') return;
-    let resolved;
-    try {
-      resolved = await resolveSavedVaultDirectory();
-    } catch {
-      showToast('MyBrainには保存済みです。Obsidian保存のみ失敗しました。');
-      return;
-    }
-    if (resolved.state === 'ready' && resolved.handle) {
-      try {
-        await writeMemoToDirectory(resolved.handle, saved);
+    const outcome = await writeSavedMemoToVaultIfEnabled(saved);
+    switch (outcome.status) {
+      case 'written':
         showToast('Obsidianにも保存しました');
-      } catch {
-        showToast('MyBrainには保存済みです。Obsidian保存のみ失敗しました。');
-      }
-      return;
-    }
-    switch (resolved.state) {
+        break;
       case 'missing':
         showToast('Obsidianフォルダ未設定です。設定からVaultフォルダを選んでください。');
         break;
@@ -495,9 +482,12 @@ export default function DesktopMemos() {
       case 'permission-denied':
         showToast('Obsidianフォルダの許可が必要です。設定から再接続してください。');
         break;
-      default:
-        // 'error' など想定外：致命的にせず、保存済みである旨だけ伝える。
+      case 'error':
         showToast('MyBrainには保存済みです。Obsidian保存のみ失敗しました。');
+        break;
+      case 'skipped':
+      default:
+        // 保存先が obsidian-local ではない等：トーストなし（従来挙動）。
         break;
     }
   }
