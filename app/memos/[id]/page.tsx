@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import VoiceInput from '@/components/VoiceInput';
 import NeonQuickNav from '@/components/NeonQuickNav';
 import { parseMemoSpeechText } from '@/lib/parse/memo-speech';
-import { createMemo, deleteMemo, getMemo, parseTags, updateMemo } from '@/lib/memos';
+import { deleteMemo, getMemo, parseTags, updateMemo } from '@/lib/memos';
+import { getMemoStore } from '@/lib/storage/memo-store';
 import { loadOllamaSettings } from '@/lib/ai/ollama';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile } from '@/lib/markdown';
@@ -254,7 +255,8 @@ export default function MemoDetailPage() {
     // 元メモが「文字起こし」系タグを持つ場合は引き継ぐ
     const keepTranscription = memo.tags.filter((t) => TRANSCRIPTION_TAGS.includes(t));
     const newTags = Array.from(new Set([aiTag, ...keepTranscription]));
-    const { memo: created, error } = await createMemo({
+    // 保存アダプタ seam 経由で作成（現状は全 target が Supabase に解決＝挙動は不変）。
+    const { memo: created, error } = await getMemoStore().createMemo({
       title: `${prefix}：${memo.title || '無題のメモ'}`,
       body: aiResult.trim(),
       tags: newTags,
