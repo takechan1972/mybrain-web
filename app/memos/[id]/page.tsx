@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import VoiceInput from '@/components/VoiceInput';
 import NeonQuickNav from '@/components/NeonQuickNav';
 import { parseMemoSpeechText } from '@/lib/parse/memo-speech';
-import { deleteMemo, getMemo, parseTags, updateMemo } from '@/lib/memos';
+import { deleteMemo, getMemo, parseTags } from '@/lib/memos';
 import { getMemoStore } from '@/lib/storage/memo-store';
 import { loadOllamaSettings } from '@/lib/ai/ollama';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
@@ -143,7 +143,8 @@ export default function MemoDetailPage() {
     setActionError(null);
     setSaving(true);
     // 画像は編集状態の images を保存（編集で触らなければ既存画像がそのまま保持される）
-    const { memo: updated, error } = await updateMemo(id, {
+    // seam 経由で更新（現状は全 target が Supabase に解決＝挙動は不変）。
+    const { memo: updated, error } = await getMemoStore().updateMemo(id, {
       title,
       body,
       tags: parseTags(tags),
@@ -228,7 +229,8 @@ export default function MemoDetailPage() {
     const aiTag = aiKind === 'summary' ? 'AI要約' : 'AI整理';
     const newBody = `${memo.body}\n\n--- ${aiLabel} ---\n${aiResult.trim()}`;
     const nextTags = Array.from(new Set([...memo.tags, aiTag]));
-    const { memo: updated, error } = await updateMemo(memo.id, {
+    // seam 経由で更新（現状は全 target が Supabase に解決＝挙動は不変）。
+    const { memo: updated, error } = await getMemoStore().updateMemo(memo.id, {
       title: memo.title,
       body: newBody,
       tags: nextTags,
