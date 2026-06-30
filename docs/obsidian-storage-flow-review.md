@@ -22,7 +22,10 @@
 - `lib/storage/memo-store.ts` — `MemoStore` インターフェース、`getMemoStore()`（target で分岐するが**全 target が Supabase 実装にフォールバック**）、`supabaseMemoStore`。
 - `lib/storage/obsidian-local-memo-store.ts` / `obsidian-gdrive-memo-store.ts` — プレースホルダ。`createMemo`/`updateMemo` で Supabase 保存後に `createMemoMarkdownFile` を生成するが**書き出しは TODO**（`void markdownFile`）。
 - `lib/storage/memo-storage-target.ts` — localStorage 永続化（`loadMemoStorageTarget`/`saveMemoStorageTarget`）＋ `savedMessageForTarget()`（保存後メッセージ）。
-- ⚠️ 注意：**現在の実保存は `lib/memos.ts` の `createMemo` を直接呼んでおり、`getMemoStore()` 経由ではない**。seam はまだ UI から使われていない。
+- ✅ 補正（Phase 2.1）：UI は `getMemoStore()` を**直接 import していない**が、`lib/memos.ts` が**薄い facade として全 CRUD を `getMemoStore()` に委譲**している（[lib/memos.ts](../lib/memos.ts) の `listMemos`/`getMemo`/`createMemo`/`updateMemo`/`deleteMemo` はすべて `getMemoStore().*` を呼ぶ）。つまり CRUD は **facade 経由で機能的には既に seam を通っている**。
+  - Phase 2.1 では、**モバイルの作成パス1箇所だけ** facade を介さず `getMemoStore().createMemo` を直接呼ぶよう変更した（seam の直接利用テスト）。
+  - `getMemoStore()` は現状すべての target で Supabase 実装に解決するため、**実保存挙動は同一**（MyBrain/Supabase）。
+  - （旧記述「seam はまだ UI から使われていない／`getMemoStore()` 経由ではない」は、import レベルでは正しいが機能面では誤解を招くため上記に補正。）
 
 ### Markdown 変換（純関数・共通）
 - `lib/markdown/memo-markdown.ts` — `memoToMarkdown`（frontmatter＋本文、画像ありの時のみ `images:N`）／`markdownToMemo`（取り込み用パーサ）／`markdownToMemoInput`。
@@ -44,7 +47,7 @@
 ## 3. 未実装（今後の対象）
 
 1. **保存と同時の自動 Obsidian 書き込み**（保存→即 Vault/Drive へ .md 出力）。プレースホルダ adapter の TODO 部分。
-2. **実保存経路の seam 化**：UI を `lib/memos.ts` 直呼びから `getMemoStore()` 経由へ寄せる（まだ未接続）。
+2. **seam の直接利用への寄せ（任意・整理目的）**：CRUD は facade（`lib/memos.ts`）経由で既に `getMemoStore()` を通っている。必要なら UI から `getMemoStore()` を直接呼ぶ形へ段階的に寄せる（Phase 2.1 でモバイル作成1箇所のみ実施済み。挙動は不変）。
 3. **Obsidian → MyBrain の取り込み**（`markdownToMemo` は用意済みだが取り込み UI/フローは無し）。
 4. **双方向同期・競合解決**（更新/削除の反映、ID 突合、削除伝播）。
 5. **画像の実体エクスポート**（現在は件数メモのみ。data URI 本体は未出力）。
