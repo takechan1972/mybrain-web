@@ -6,7 +6,7 @@ import { SearchIcon } from './icons';
 import DesktopSidebar from './DesktopSidebar';
 import VoiceInput from './VoiceInput';
 import { deriveTitleFromBody, parseMemoSpeechText } from '@/lib/parse/memo-speech';
-import { deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/memos';
+import { deleteMemo, listMemos, parseTags } from '@/lib/memos';
 import { getMemoStore } from '@/lib/storage/memo-store';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile, exportMemosAsZip } from '@/lib/markdown';
@@ -655,7 +655,8 @@ export default function DesktopMemos() {
     if (!selected || aiResult.trim().length === 0) return;
     setAiSaving(true);
     const newBody = `${selected.body}\n\n--- ${aiLabel} ---\n${aiResult.trim()}`;
-    const { error } = await updateMemo(selected.id, {
+    // seam 経由で更新（現状は全 target が Supabase に解決＝挙動は不変）。
+    const { error } = await getMemoStore().updateMemo(selected.id, {
       title: selected.title,
       body: newBody,
       tags: Array.from(new Set([...selected.tags, aiTag])),
