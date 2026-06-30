@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { ImageIcon, SendIcon } from '@/components/icons';
 import VoiceInput from '@/components/VoiceInput';
-import { createMemo, parseTags } from '@/lib/memos';
+import { parseTags } from '@/lib/memos';
+import { getMemoStore } from '@/lib/storage/memo-store';
 import { loadMemoStorageTarget, savedMessageForTarget } from '@/lib/storage/memo-storage-target';
 import { isPaidPlan } from '@/lib/plan';
 import { useFullAccess } from '@/lib/auth/use-full-access';
@@ -113,7 +114,8 @@ export default function MemosPage() {
       return;
     }
     setSaving(true);
-    const { memo, error } = await createMemo({ title, body, tags: parseTags(tags), images });
+    // 保存アダプタ seam 経由で作成（現状は全 target が Supabase に解決＝挙動は不変）。
+    const { memo, error } = await getMemoStore().createMemo({ title, body, tags: parseTags(tags), images });
     setSaving(false);
     if (error) {
       setSaveError(`保存できませんでした：${error}`);
