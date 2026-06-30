@@ -11,3 +11,4 @@ export * from './vault-permission';
 export * from './vault-directory-resolver';
 export * from './write-saved-memo-to-vault';
 export * from './find-vault-memo-file-by-id';
+export * from './overwrite-vault-memo-file-if-found';
