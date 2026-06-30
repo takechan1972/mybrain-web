@@ -717,6 +717,8 @@ export default function DesktopMemos() {
     await refresh();
     setSelectedId(memo.id);
     showToast('別メモとして保存しました');
+    // 付加的：obsidian-local 選択かつ Vault 接続済みのときだけ、保存済みメモを Vault にも書き出す（非致命）。
+    await maybeWriteSavedMemoToVault(memo);
   }
 
   // AI回答のコピー（既存のクリップボードロジックを共有）
