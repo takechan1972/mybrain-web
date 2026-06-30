@@ -12,6 +12,7 @@ import { createMemoMarkdownFile, downloadMarkdownFile, exportMemosAsZip } from '
 import { downloadBlobFile } from '@/lib/download';
 import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory, resolveSavedVaultDirectory, saveVaultHandle, loadVaultHandle, clearVaultHandle } from '@/lib/fs';
 import { isGoogleDriveConfigured, exportMemosToGoogleDrive } from '@/lib/google';
+import { savedMessageForTarget } from '@/lib/storage/memo-storage-target';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
@@ -479,7 +480,7 @@ export default function DesktopMemos() {
     setNTitle(''); setNBody(''); setNTags('');
     await refresh();
     setSelectedId(memo.id);
-    showToast('メモを作成しました');
+    showToast(savedMessageForTarget());
   }
 
   // 音声ライブ反映：録音開始時の本文(base)末尾に追記（既存本文を上書きしない）

@@ -29,6 +29,22 @@ export function loadMemoStorageTarget(): MemoStorageTarget {
   }
 }
 
+/**
+ * 保存後に表示するメッセージ。現在選択中の保存先（storage target）で出し分ける。
+ * - 保存自体は常に MyBrain（Supabase）。メッセージだけ切り替える（Phase 1.3/1.4）。
+ * - モバイル（app/memos）／デスクトップ（DesktopMemos）の両方で同一文言を使うため集約。
+ */
+export function savedMessageForTarget(): string {
+  switch (loadMemoStorageTarget()) {
+    case 'obsidian-local':
+      return 'MyBrainに保存しました。Obsidian用Markdownはメモ詳細画面からコピーまたはダウンロードできます。';
+    case 'obsidian-gdrive':
+      return 'MyBrainに保存しました。Google Drive連携は今後対応予定です。';
+    default:
+      return '保存しました';
+  }
+}
+
 /** 保存先を保存する（不正値は 'mybrain' に正規化）。 */
 export function saveMemoStorageTarget(target: MemoStorageTarget): void {
   if (typeof window === 'undefined') return;
