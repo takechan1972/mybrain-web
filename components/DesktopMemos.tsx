@@ -6,7 +6,8 @@ import { SearchIcon } from './icons';
 import DesktopSidebar from './DesktopSidebar';
 import VoiceInput from './VoiceInput';
 import { deriveTitleFromBody, parseMemoSpeechText } from '@/lib/parse/memo-speech';
-import { createMemo, deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/memos';
+import { deleteMemo, listMemos, parseTags, updateMemo } from '@/lib/memos';
+import { getMemoStore } from '@/lib/storage/memo-store';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile, exportMemosAsZip } from '@/lib/markdown';
 import { downloadBlobFile } from '@/lib/download';
@@ -468,7 +469,8 @@ export default function DesktopMemos() {
       return;
     }
     setNSaving(true);
-    const { memo, error } = await createMemo({ title: nTitle, body: nBody, tags: parseTags(nTags), images: [] });
+    // 保存アダプタ seam 経由で作成（現状は全 target が Supabase に解決＝挙動は不変）。
+    const { memo, error } = await getMemoStore().createMemo({ title: nTitle, body: nBody, tags: parseTags(nTags), images: [] });
     setNSaving(false);
     if (error || !memo) {
       showToast(error || '保存に失敗しました。');
@@ -670,7 +672,8 @@ export default function DesktopMemos() {
     if (!selected || aiResult.trim().length === 0) return;
     setAiSaving(true);
     const keep = selected.tags.filter((t) => TRANSCRIPTION_TAGS.includes(t));
-    const { memo, error } = await createMemo({
+    // 保存アダプタ seam 経由で作成（現状は全 target が Supabase に解決＝挙動は不変）。
+    const { memo, error } = await getMemoStore().createMemo({
       title: `${aiTag}：${selected.title || '無題のメモ'}`,
       body: aiResult.trim(),
       tags: Array.from(new Set([aiTag, ...keep])),
