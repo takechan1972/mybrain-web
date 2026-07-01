@@ -7,7 +7,7 @@ import NeonQuickNav from '@/components/NeonQuickNav';
 import { parseMemoSpeechText } from '@/lib/parse/memo-speech';
 import { deleteMemo, getMemo, parseTags } from '@/lib/memos';
 import { getMemoStore } from '@/lib/storage/memo-store';
-import { overwriteVaultMemoFileIfFound } from '@/lib/fs';
+import { overwriteVaultMemoFileIfFound, writeSavedMemoToVaultIfEnabled } from '@/lib/fs';
 import { loadOllamaSettings } from '@/lib/ai/ollama';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile } from '@/lib/markdown';
@@ -163,6 +163,16 @@ export default function MemoDetailPage() {
     }
   }
 
+  // 保存先が obsidian-local のとき、MyBrain 作成後に「付加的に」ローカル Vault へ1件書き出す。
+  // - 判定・解決・書き込みは共有ヘルパー writeSavedMemoToVaultIfEnabled に委譲。
+  // - このページはトースト非搭載のため、初回実装では全 status を無表示にする（Phase 4.21 方針）。
+  //   モバイルで常に unsupported になる等のノイズを避け、MyBrain 保存を主役に保つ。
+  // - 失敗は非致命（メモは MyBrain に保存済み）。権限の自動要求もしない。
+  async function maybeWriteSavedMemoToVault(savedMemo: Memo) {
+    // status は全て無表示（このページの方針）。呼び出し自体が非致命・best-effort。
+    await writeSavedMemoToVaultIfEnabled(savedMemo);
+  }
+
   async function handleSave() {
     setActionError(null);
     setSaving(true);
@@ -299,6 +309,9 @@ export default function MemoDetailPage() {
     }
     setAiResult('');
     setAiKind(null);
+    // 付加的：obsidian-local 選択かつ Vault 接続済みのときだけ、保存済みメモを Vault にも書き出す（非致命・無表示）。
+    // 遷移前に await して、書き出し試行を完了させてから新メモページへ移動する。
+    await maybeWriteSavedMemoToVault(created);
     router.push(`/memos/${created.id}`);
   }
 
