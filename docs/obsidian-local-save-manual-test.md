@@ -181,3 +181,41 @@ DesktopMemos / DesktopConsult / DesktopTranscribe で使用する文言：
 
 > 既知のトレードオフ：update-overwrite は MyBrain を source of truth として既存ファイルを上書きするため、
 > Obsidian 側でユーザーが直接編集した内容は、次回の MyBrain 更新で上書きされうる。検出・マージは現スコープ外。
+
+---
+
+## 実機テスト結果
+
+- **テスト日**：2026-07-01
+- **環境**：
+  - デスクトップブラウザ
+  - 保存先 = Obsidian local
+  - Vault フォルダ接続済み
+
+### 実施フロー（確認済み）
+
+- 設定 > データ管理で **Obsidian local を選択できた**。
+- **Obsidian Vault フォルダ選択 UI が表示された**。
+- **Vault フォルダの接続に成功した**。
+- 新規メモ作成で `MyBrain/Memos/` 配下に **Markdown ファイルが1件生成された**。
+- メモ更新で**同じ Markdown ファイルが更新された**（新規ファイルは増えなかった）。
+- 更新時に **`-2.md` などの重複ファイルは作られなかった**。
+- メモの**タイトル変更で追加の Markdown ファイルは作られず**、既存のファイル名が維持された。
+- **AI 追記で同じ Markdown ファイルが更新された**（`-2.md` の重複は作られなかった）。
+
+### 結果サマリ
+
+| テスト | 結果 |
+|---|---|
+| 新規作成 | ✅ Pass |
+| 本文更新 | ✅ Pass |
+| タイトル変更 | ✅ Pass |
+| AI 追記 | ✅ Pass |
+
+### 備考
+
+- MyBrain/Supabase が引き続き source of truth。
+- Obsidian ローカル保存は付加的（best-effort・非致命）。
+- 更新は frontmatter の `id` / `source` で一致した既存 Markdown ファイルを上書きする。
+- タイトル変更では Obsidian のファイル名をリネームしない。
+- 更新テストで重複ファイル（`-2.md`）は生成されなかった。
