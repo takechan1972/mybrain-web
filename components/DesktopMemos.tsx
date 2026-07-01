@@ -11,7 +11,7 @@ import { getMemoStore } from '@/lib/storage/memo-store';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile, exportMemosAsZip } from '@/lib/markdown';
 import { downloadBlobFile } from '@/lib/download';
-import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory, resolveSavedVaultDirectory, saveVaultHandle, loadVaultHandle, clearVaultHandle, writeSavedMemoToVaultIfEnabled } from '@/lib/fs';
+import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory, resolveSavedVaultDirectory, saveVaultHandle, loadVaultHandle, clearVaultHandle, writeSavedMemoToVaultIfEnabled, overwriteVaultMemoFileIfFound } from '@/lib/fs';
 import { isGoogleDriveConfigured, exportMemosToGoogleDrive } from '@/lib/google';
 import { savedMessageForTarget } from '@/lib/storage/memo-storage-target';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
@@ -492,6 +492,35 @@ export default function DesktopMemos() {
     }
   }
 
+  // 保存先が obsidian-local のとき、MyBrain 更新後に「付加的に」Vault 内の既存メモも上書きする。
+  // - 照合・上書きは共有ヘルパー overwriteVaultMemoFileIfFound に委譲（id/source 一致の1件だけ更新）。
+  // - 一致が無ければ何もしない（新規作成・リネームはしない）。
+  // - 失敗は致命的ではない（メモは MyBrain に更新済みのまま）。権限の自動要求もしない。
+  async function maybeOverwriteSavedMemoInVault(updatedMemo: Memo) {
+    const outcome = await overwriteVaultMemoFileIfFound(updatedMemo);
+    switch (outcome.status) {
+      case 'updated':
+        showToast('Obsidian側のメモも更新しました');
+        break;
+      case 'not-found':
+        showToast('MyBrainは更新しました。Obsidian側の既存メモは見つからなかったため、追加作成はしていません。');
+        break;
+      case 'unsupported':
+        showToast('このブラウザではObsidianフォルダ保存に対応していません。');
+        break;
+      case 'permission-denied':
+        showToast('Obsidianフォルダの許可が必要です。設定から再接続してください。');
+        break;
+      case 'error':
+        showToast('MyBrainは更新済みです。Obsidian側の更新のみ失敗しました。');
+        break;
+      case 'skipped':
+      default:
+        // 保存先が obsidian-local ではない等：トーストなし（従来挙動）。
+        break;
+    }
+  }
+
   async function handleCreate() {
     if (nTitle.trim().length === 0 && nBody.trim().length === 0) {
       showToast('タイトルか本文を入力してください。');
@@ -687,7 +716,7 @@ export default function DesktopMemos() {
     setAiSaving(true);
     const newBody = `${selected.body}\n\n--- ${aiLabel} ---\n${aiResult.trim()}`;
     // seam 経由で更新（現状は全 target が Supabase に解決＝挙動は不変）。
-    const { error } = await getMemoStore().updateMemo(selected.id, {
+    const { memo, error } = await getMemoStore().updateMemo(selected.id, {
       title: selected.title,
       body: newBody,
       tags: Array.from(new Set([...selected.tags, aiTag])),
@@ -698,6 +727,9 @@ export default function DesktopMemos() {
     setAiResult(''); setAiKind(null);
     await refresh();
     showToast('元メモに追記しました');
+    // 付加的：obsidian-local 選択かつ Vault 接続済みのときだけ、更新後メモで既存ファイルを上書き（非致命）。
+    // 更新が memo を返さなかった場合は Obsidian 上書きを試みない。
+    if (memo) await maybeOverwriteSavedMemoInVault(memo);
   }
 
   async function saveAiSeparate() {
