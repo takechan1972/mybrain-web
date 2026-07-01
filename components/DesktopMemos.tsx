@@ -1291,7 +1291,7 @@ export default function DesktopMemos() {
                 <p className="text-[14px] font-extrabold" style={{ color: NAVY }}>参照情報</p>
 
                 <div>
-                  <p className="mb-1 text-[11px] font-semibold" style={{ color: MUTED }}>選択中のメモ</p>
+                  <p className="mb-1 text-[11px] font-semibold" style={{ color: MUTED }}>表示中のメモ</p>
                   <p className="truncate text-[12px]" style={{ color: '#54607A' }}>📝 {selected.title || '無題のメモ'}</p>
                 </div>
 
