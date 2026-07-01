@@ -21,6 +21,14 @@ import {
 } from '@/lib/storage/memo-storage-target';
 import type { MemoStorageTarget } from '@/lib/storage/memo-store';
 import { OBSIDIAN_MEMO_FOLDER } from '@/lib/markdown';
+import {
+  isDirectoryPickerSupported,
+  pickDirectory,
+  saveVaultHandle,
+  loadVaultHandle,
+  clearVaultHandle,
+  resolveSavedVaultDirectory,
+} from '@/lib/fs';
 
 const NAVY = '#223A70';
 const MUTED = '#8A94A6';
@@ -119,6 +127,54 @@ export default function DesktopSettings() {
     saveMemoStorageTarget(target);
   }
 
+  // ローカル Obsidian Vault フォルダの接続（表示・選択・解除のみ。ここではメモを書き込まない）。
+  const [vaultDirSupported, setVaultDirSupported] = useState(true);
+  const [vaultHandleName, setVaultHandleName] = useState<string | null>(null);
+  const [vaultStatus, setVaultStatus] = useState<string | null>(null);
+
+  // Vaultフォルダを選択（ユーザークリック時のみ。ページ読み込み時に自動で権限要求はしない）。
+  async function connectVaultFolder() {
+    if (!isDirectoryPickerSupported()) {
+      setVaultStatus('このブラウザではVaultフォルダ保存に対応していません');
+      return;
+    }
+    const handle = await pickDirectory();
+    if (!handle) return; // 非対応 or フォルダ選択キャンセル
+    await saveVaultHandle(handle);
+    setVaultHandleName(handle.name || 'ローカルVault');
+    setVaultStatus('Vaultフォルダが接続されています');
+  }
+
+  // 保存済みVaultフォルダの状態を確認して再接続（ユーザークリック時のみ）。
+  async function reconnectVaultFolder() {
+    const resolved = await resolveSavedVaultDirectory();
+    switch (resolved.state) {
+      case 'ready':
+        if (resolved.handle) setVaultHandleName(resolved.handle.name || 'ローカルVault');
+        setVaultStatus('Vaultフォルダが接続されています');
+        break;
+      case 'missing':
+        setVaultStatus('Vaultフォルダが未設定です');
+        break;
+      case 'permission-denied':
+        setVaultStatus('Vaultフォルダの許可が必要です。再接続してください');
+        break;
+      case 'unsupported':
+        setVaultStatus('このブラウザではVaultフォルダ保存に対応していません');
+        break;
+      default:
+        setVaultStatus('Vaultフォルダの確認に失敗しました');
+        break;
+    }
+  }
+
+  // 接続を解除（保存ハンドルを削除するだけ・Vault内のファイルには触れない）。
+  async function disconnectVaultFolder() {
+    await clearVaultHandle();
+    setVaultHandleName(null);
+    setVaultStatus('Vaultフォルダが未設定です');
+  }
+
   const [toast, setToast] = useState<string | null>(null);
 
   function showToast(msg: string) {
@@ -131,6 +187,11 @@ export default function DesktopSettings() {
     setOllama(loadOllamaSettings());
     setApp(loadAppSettings());
     setMemoStorageTarget(loadMemoStorageTarget());
+    // Vaultフォルダは対応可否と保存済みフォルダ名の表示のみ（権限の自動要求はしない）。
+    setVaultDirSupported(isDirectoryPickerSupported());
+    void loadVaultHandle().then((handle) => {
+      if (handle) setVaultHandleName(handle.name || 'ローカルVault');
+    });
     const sb = getSupabaseBrowserClient();
     sb?.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
     listMemos().then(({ memos }) => setMemoCount(memos.length)).catch(() => setMemoCount(null));
@@ -471,6 +532,54 @@ export default function DesktopSettings() {
                   <p className="text-[11px] font-bold" style={{ color: NAVY }}>Obsidian内の保存場所</p>
                   <p className="mt-0.5 text-[11px] break-all" style={{ color: MUTED, fontFamily: 'Consolas, Meiryo, monospace' }}>{OBSIDIAN_MEMO_FOLDER}</p>
                 </div>
+
+                {/* Obsidian Vaultフォルダの接続（obsidian-local 選択時のみ表示。選択・再接続・解除だけを行う） */}
+                {memoStorageTarget === 'obsidian-local' && (
+                  <div className="mt-4 rounded-2xl border px-4 py-3" style={{ borderColor: '#E8EAF3', background: '#FBFBFE' }}>
+                    <p className="text-[12px] font-bold" style={{ color: NAVY }}>Obsidian Vaultフォルダ</p>
+                    <p className="mt-0.5 text-[11px]" style={{ color: MUTED }}>
+                      {vaultHandleName ? `接続中：${vaultHandleName}` : 'Vaultフォルダが未設定です'}
+                    </p>
+                    {!vaultDirSupported && (
+                      <p className="mt-1 text-[11px]" style={{ color: '#9A7B27' }}>
+                        このブラウザではVaultフォルダ保存に対応していません
+                      </p>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={connectVaultFolder}
+                        disabled={!vaultDirSupported}
+                        className="rounded-xl px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50"
+                        style={{ background: PURPLE }}>
+                        Vaultフォルダを選択
+                      </button>
+                      <button
+                        type="button"
+                        onClick={reconnectVaultFolder}
+                        disabled={!vaultDirSupported}
+                        className="rounded-xl border px-3 py-2 text-[12px] font-bold disabled:opacity-50"
+                        style={{ borderColor: '#E8EAF3', color: NAVY }}>
+                        再接続
+                      </button>
+                      {vaultHandleName && (
+                        <button
+                          type="button"
+                          onClick={disconnectVaultFolder}
+                          className="rounded-xl border px-3 py-2 text-[12px] font-bold"
+                          style={{ borderColor: '#F3D2D2', color: '#C0392B' }}>
+                          接続を解除
+                        </button>
+                      )}
+                    </div>
+                    {vaultStatus && (
+                      <p className="mt-2 text-[11px] font-semibold" style={{ color: NAVY }}>{vaultStatus}</p>
+                    )}
+                    <p className="mt-2 text-[11px]" style={{ color: MUTED }}>
+                      「Vaultフォルダを選択」を押したときだけフォルダにアクセスします。
+                    </p>
+                  </div>
+                )}
               </div>
             </Card>
           )}
