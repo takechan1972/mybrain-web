@@ -7,7 +7,7 @@ import { SearchIcon } from './icons';
 import DesktopSidebar from './DesktopSidebar';
 import { updateMemo } from '@/lib/memos';
 import { getMemoStore } from '@/lib/storage/memo-store';
-import { writeSavedMemoToVaultIfEnabled } from '@/lib/fs';
+import { writeSavedMemoToVaultIfEnabled, overwriteVaultMemoFileIfFound } from '@/lib/fs';
 import type { Memo } from '@/lib/types';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { loadOllamaSettings, testOllama } from '@/lib/ai/ollama';
@@ -249,6 +249,35 @@ export default function DesktopTranscribe() {
     }
   }
 
+  // 保存先が obsidian-local のとき、MyBrain 更新後に「付加的に」Vault 内の既存メモも上書きする。
+  // - 照合・上書きは共有ヘルパー overwriteVaultMemoFileIfFound に委譲（id/source 一致の1件だけ更新）。
+  // - 一致が無ければ何もしない（新規作成・リネームはしない）。
+  // - 失敗は致命的ではない（メモは MyBrain に更新済みのまま）。権限の自動要求もしない。
+  async function maybeOverwriteSavedMemoInVault(updatedMemo: Memo) {
+    const outcome = await overwriteVaultMemoFileIfFound(updatedMemo);
+    switch (outcome.status) {
+      case 'updated':
+        showToast('Obsidian側のメモも更新しました');
+        break;
+      case 'not-found':
+        showToast('MyBrainは更新しました。Obsidian側の既存メモは見つからなかったため、追加作成はしていません。');
+        break;
+      case 'unsupported':
+        showToast('このブラウザではObsidianフォルダ保存に対応していません。');
+        break;
+      case 'permission-denied':
+        showToast('Obsidianフォルダの許可が必要です。設定から再接続してください。');
+        break;
+      case 'error':
+        showToast('MyBrainは更新済みです。Obsidian側の更新のみ失敗しました。');
+        break;
+      case 'skipped':
+      default:
+        // 保存先が obsidian-local ではない等：トーストなし（従来挙動）。
+        break;
+    }
+  }
+
   async function handleSave() {
     if (text.trim().length === 0) { showToast('文字起こし結果がありません。'); return; }
     setSaving(true);
@@ -296,13 +325,16 @@ export default function DesktopTranscribe() {
     if (!savedId || aiResult.trim().length === 0) return;
     setAiSaving(true);
     const newBody = `${savedBody}\n\n--- ${aiLabel} ---\n${aiResult.trim()}`;
-    const { error: err } = await updateMemo(savedId, {
+    const { memo, error: err } = await updateMemo(savedId, {
       title: savedTitle, body: newBody, tags: ['文字起こし', aiKind === 'summary' ? 'AI要約' : 'AI整理'], images: [],
     });
     setAiSaving(false);
     if (err) { showToast(err); return; }
     setSavedBody(newBody);
     showToast('元メモに追記しました');
+    // 付加的：obsidian-local 選択かつ Vault 接続済みのときだけ、更新後メモで既存ファイルを上書き（非致命）。
+    // 更新が memo を返さなかった場合は Obsidian 上書きを試みない。
+    if (memo) await maybeOverwriteSavedMemoInVault(memo);
   }
   async function saveAsSeparate() {
     if (aiResult.trim().length === 0) return;
