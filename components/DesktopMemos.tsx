@@ -454,6 +454,19 @@ export default function DesktopMemos() {
     }
   }
 
+  // 表示中の1件のメモを Google Drive の MyBrain/Memos/ に書き出す（一方向・上書きしない・トークンは保存しない）。
+  async function exportSingleMemoToGoogleDrive(memo: Memo) {
+    const ok = window.confirm('このメモをGoogle Driveの MyBrain/Memos/ に書き出します。よろしいですか？');
+    if (!ok) return;
+    const result = await exportMemosToGoogleDrive([memo]);
+    // 1件のみだが、部分失敗も安全に扱う（failureCount が 0 なら成功、そうでなければ先頭の理由を出す）。
+    if (result.failureCount === 0) {
+      showToast('Google Driveへ書き出しました');
+    } else {
+      showToast(`Google Driveへの書き出しに失敗しました：${result.failed[0]?.error ?? '不明なエラー'}`);
+    }
+  }
+
   // 接続中のローカルVaultフォルダを解除する（保存ハンドルを削除するだけ・Vault内のファイルには触れない）。
   async function disconnectVault() {
     const ok = window.confirm('ローカルVault接続を解除しますか？');
@@ -1160,6 +1173,7 @@ export default function DesktopMemos() {
                   {local && <ActionBtn label="要約する" onClick={() => runAi('summary')} />}
                   {local && <ActionBtn label="整理する" onClick={() => runAi('organize')} />}
                   <ActionBtn label="共有" onClick={shareMemo} />
+                  {googleDriveConfigured && <ActionBtn label="Google Driveへ書き出し" onClick={() => exportSingleMemoToGoogleDrive(selected)} />}
                   <ActionBtn label="削除" danger onClick={() => setConfirmDel(selected)} />
                 </div>
 
