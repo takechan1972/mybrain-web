@@ -7,6 +7,7 @@ import NeonQuickNav from '@/components/NeonQuickNav';
 import { parseMemoSpeechText } from '@/lib/parse/memo-speech';
 import { deleteMemo, getMemo, parseTags } from '@/lib/memos';
 import { getMemoStore } from '@/lib/storage/memo-store';
+import { overwriteVaultMemoFileIfFound } from '@/lib/fs';
 import { loadOllamaSettings } from '@/lib/ai/ollama';
 import { runMemoAi, type MemoAiKind } from '@/lib/ai/memo-ai';
 import { createMemoMarkdownFile, downloadMarkdownFile } from '@/lib/markdown';
@@ -139,6 +140,29 @@ export default function MemoDetailPage() {
     };
   }, [id]);
 
+  // 保存先が obsidian-local のとき、MyBrain 更新後に「付加的に」Vault 内の既存メモも上書きする。
+  // - 照合・上書きは共有ヘルパー overwriteVaultMemoFileIfFound に委譲（id/source 一致の1件だけ更新）。
+  // - このページはトースト非搭載のため、表示するのは対処可能な permission-denied と error のみ（Phase 4.21）。
+  //   skipped / unsupported / updated / not-found は無表示（モバイルのノイズ回避）。
+  // - 一致が無ければ何もしない（新規作成・リネームはしない）。失敗は非致命（メモは MyBrain に更新済み）。
+  async function maybeOverwriteSavedMemoInVault(
+    updatedMemo: Memo,
+    setMessage: (message: string) => void,
+  ) {
+    const outcome = await overwriteVaultMemoFileIfFound(updatedMemo);
+    switch (outcome.status) {
+      case 'permission-denied':
+        setMessage('Obsidianフォルダの許可が必要です。設定から再接続してください。');
+        break;
+      case 'error':
+        setMessage('MyBrainは更新済みです。Obsidian側の更新のみ失敗しました。');
+        break;
+      // skipped / unsupported / updated / not-found は無表示（このページの方針）。
+      default:
+        break;
+    }
+  }
+
   async function handleSave() {
     setActionError(null);
     setSaving(true);
@@ -158,6 +182,8 @@ export default function MemoDetailPage() {
     if (updated) {
       setMemo(updated);
       setEditing(false);
+      // 付加的：obsidian-local 選択かつ Vault 接続済みのときだけ、更新後メモで既存ファイルを上書き（非致命）。
+      await maybeOverwriteSavedMemoInVault(updated, setActionError);
     }
   }
 
@@ -246,6 +272,8 @@ export default function MemoDetailPage() {
     setTags(updated.tags.join(', '));
     setAiResult('');
     setAiKind(null);
+    // 付加的：obsidian-local 選択かつ Vault 接続済みのときだけ、更新後メモで既存ファイルを上書き（非致命）。
+    await maybeOverwriteSavedMemoInVault(updated, setAiError);
   }
 
   // 別メモとして保存
