@@ -14,6 +14,13 @@ import {
 import { listMemos } from '@/lib/memos';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { isLocalHost } from '@/lib/env';
+import {
+  DEFAULT_MEMO_STORAGE_TARGET,
+  loadMemoStorageTarget,
+  saveMemoStorageTarget,
+} from '@/lib/storage/memo-storage-target';
+import type { MemoStorageTarget } from '@/lib/storage/memo-store';
+import { OBSIDIAN_MEMO_FOLDER } from '@/lib/markdown';
 
 const NAVY = '#223A70';
 const MUTED = '#8A94A6';
@@ -105,6 +112,13 @@ export default function DesktopSettings() {
   // ストレージ表示用
   const [memoCount, setMemoCount] = useState<number | null>(null);
 
+  // メモの保存先（選択の保存・表示のみ。保存挙動はヘルパー側で判定＝ここでは変更しない）
+  const [memoStorageTarget, setMemoStorageTarget] = useState<MemoStorageTarget>(DEFAULT_MEMO_STORAGE_TARGET);
+  function selectMemoStorageTarget(target: MemoStorageTarget) {
+    setMemoStorageTarget(target);
+    saveMemoStorageTarget(target);
+  }
+
   const [toast, setToast] = useState<string | null>(null);
 
   function showToast(msg: string) {
@@ -116,6 +130,7 @@ export default function DesktopSettings() {
     setLocal(isLocalHost());
     setOllama(loadOllamaSettings());
     setApp(loadAppSettings());
+    setMemoStorageTarget(loadMemoStorageTarget());
     const sb = getSupabaseBrowserClient();
     sb?.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
     listMemos().then(({ memos }) => setMemoCount(memos.length)).catch(() => setMemoCount(null));
@@ -400,8 +415,62 @@ export default function DesktopSettings() {
               <div className="flex flex-col gap-3">
                 <InfoRow label="保存済みメモ数" value={memoCount != null ? `${memoCount} 件` : '—'} />
                 <p className="text-[12px]" style={{ color: MUTED }}>
-                  データはすべてあなたのアカウント（Supabase）に保存されます。エクスポート機能は右側パネルから利用できます。
+                  メモはすべてMyBrain（あなたのアカウント）に保存されます。Obsidian保存は付加的で、MyBrainが主です。エクスポート機能は右側パネルから利用できます。
                 </p>
+              </div>
+
+              {/* メモの保存先（選択の保存・表示。MyBrainには常に保存され、Obsidian保存は付加的） */}
+              <div className="mt-6">
+                <h3 className="text-[14px] font-extrabold" style={{ color: NAVY }}>メモの保存先</h3>
+                <p className="mt-0.5 text-[12px]" style={{ color: MUTED }}>
+                  MyBrainを主として、Obsidian用Markdownの保存先を選べます。
+                </p>
+                <div className="mt-3 flex flex-col gap-2">
+                  {([
+                    { value: 'mybrain', label: 'MyBrain保存', desc: '通常はこちら。MyBrainにメモを保存します。' },
+                    { value: 'obsidian-local', label: 'Obsidian local', desc: 'MyBrainに保存しながら、対応ブラウザでVaultフォルダにMarkdownを保存します。' },
+                    { value: 'obsidian-gdrive', label: 'Google Drive連携（今後対応）', desc: '今後対応予定です。今はMyBrainに保存されます。' },
+                  ] as const).map((opt) => {
+                    const selected = memoStorageTarget === opt.value;
+                    const soon = opt.value === 'obsidian-gdrive';
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => selectMemoStorageTarget(opt.value)}
+                        aria-pressed={selected}
+                        className="flex items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition"
+                        style={
+                          selected
+                            ? { borderColor: PURPLE, background: LAVENDER }
+                            : { borderColor: '#E8EAF3', background: '#FBFBFE' }
+                        }>
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span className="text-[13px] font-bold" style={{ color: NAVY }}>{opt.label}</span>
+                          <span className="text-[11px] leading-snug" style={{ color: MUTED }}>{opt.desc}</span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
+                          {soon && (
+                            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: '#FFF4D6', color: '#9A7B27' }}>今後対応</span>
+                          )}
+                          {selected && (
+                            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: PURPLE, color: '#ffffff' }}>選択中</span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-3 text-[11px] font-semibold" style={{ color: NAVY }}>
+                  現在は安全のため、すべてMyBrainにも保存されます。
+                </p>
+                <p className="mt-1 text-[11px]" style={{ color: MUTED }}>
+                  Obsidian localを選ぶと、対応ブラウザでVaultフォルダへMarkdown保存できます。
+                </p>
+                <div className="mt-2">
+                  <p className="text-[11px] font-bold" style={{ color: NAVY }}>Obsidian内の保存場所</p>
+                  <p className="mt-0.5 text-[11px] break-all" style={{ color: MUTED, fontFamily: 'Consolas, Meiryo, monospace' }}>{OBSIDIAN_MEMO_FOLDER}</p>
+                </div>
               </div>
             </Card>
           )}
