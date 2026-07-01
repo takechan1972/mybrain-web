@@ -312,3 +312,46 @@
 
 - **本ステップはドキュメントのみ。** OAuth・Drive API 呼び出し・依存追加・UI 変更・Supabase 変更は行わない。
 - 実装は別フェーズで、まず「対応検出・連携状態の最小ヘルパー（UI 非接続）」から段階的に進める想定。
+
+---
+
+## 実機テスト結果（手動エクスポート）
+
+> 上記の設計は「設計のみ」と記載しているが、その後のフェーズで**手動エクスポート経路は実装・UI 接続済み**（`lib/google/google-drive-export.ts` の `exportMemosToGoogleDrive` ＋ `components/DesktopMemos.tsx` の「Google Driveへ書き出し」ボタン）。以下はその**本番（Vercel）での実機確認結果**。
+
+- **テスト日**：2026-07-01
+- **環境**：
+  - 本番（Vercel）: `https://mybrain-web.vercel.app`
+  - Vercel に `NEXT_PUBLIC_GOOGLE_DRIVE_ENABLED=true` / `NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID`（実 Client ID）設定済み・再デプロイ済み
+
+### 実施フロー（確認済み）
+
+- 本番の `/memos` で「**Google Driveへ書き出し**」ボタンが**表示された**。
+- ボタンを**クリックした**。
+- Google Drive への書き出し／保存が**成功した**。
+- 既存の**手動エクスポート経路が本番で動作することを確認**した。
+- これは**手動エクスポート**であり、保存先 `obsidian-gdrive` の**自動保存ではない**。
+
+### 結果サマリ
+
+| テスト | 結果 |
+|---|---|
+| 本番でボタン表示 | ✅ Pass |
+| ボタンクリック → Google 認可 | ✅ Pass |
+| Google Drive へ書き出し成功 | ✅ Pass |
+
+### ボタン表示までの操作（UX メモ）
+
+ボタンはメモ一覧の**選択フロー**からのみ出る（詳細画面には出ない）：
+
+1. **メモ一覧へ戻る**（詳細を開いている場合）
+2. **選択してまとめる**（選択モードに入る）
+3. **メモを1件以上選択**
+4. **Google Driveへ書き出し**
+
+### 備考
+
+- **MyBrain/Supabase が引き続き source of truth**。Google Drive 書き出しは一方向コピー（best-effort）。
+- Google Drive 書き出しは**ユーザー操作（クリック）起点の手動エクスポート**。自動・定期アップロードはしない。
+- 保存先 `obsidian-gdrive`（自動保存）は**まだ未実装**（自動書き出しはしない・プレースホルダのまま）。
+- 認可は GIS トークンフロー（scope `drive.file`）・短命アクセストークン（メモリのみ）。
