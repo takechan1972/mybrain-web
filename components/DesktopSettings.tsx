@@ -490,10 +490,9 @@ export default function DesktopSettings() {
                   {([
                     { value: 'mybrain', label: 'MyBrain保存', desc: '通常はこちら。MyBrainにメモを保存します。' },
                     { value: 'obsidian-local', label: 'Obsidian local', desc: 'MyBrainに保存しながら、対応ブラウザでVaultフォルダにMarkdownを保存します。' },
-                    { value: 'obsidian-gdrive', label: 'Google Drive連携（今後対応）', desc: '今後対応予定です。今はMyBrainに保存されます。' },
+                    { value: 'obsidian-gdrive', label: 'Google Drive連携', desc: 'MyBrainに保存しながら、保存後に表示されるボタンからGoogle DriveへMarkdownを書き出せます。' },
                   ] as const).map((opt) => {
                     const selected = memoStorageTarget === opt.value;
-                    const soon = opt.value === 'obsidian-gdrive';
                     return (
                       <button
                         key={opt.value}
@@ -511,9 +510,6 @@ export default function DesktopSettings() {
                           <span className="text-[11px] leading-snug" style={{ color: MUTED }}>{opt.desc}</span>
                         </span>
                         <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
-                          {soon && (
-                            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: '#FFF4D6', color: '#9A7B27' }}>今後対応</span>
-                          )}
                           {selected && (
                             <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: PURPLE, color: '#ffffff' }}>選択中</span>
                           )}

@@ -901,11 +901,10 @@ export default function SettingsPage() {
               [
                 { value: 'mybrain', label: 'MyBrain保存', desc: '通常はこちら。MyBrain内にメモを保存します。' },
                 { value: 'obsidian-local', label: 'Obsidian用Markdown', desc: 'MyBrainに保存しながら、メモ詳細画面でObsidian用Markdownをコピー・ダウンロードできます。' },
-                { value: 'obsidian-gdrive', label: 'Google Drive連携', desc: '今後対応予定です。現在はMyBrainに保存されます。' },
+                { value: 'obsidian-gdrive', label: 'Google Drive連携', desc: 'MyBrainに保存しながら、保存後に表示されるボタンからGoogle DriveへMarkdownを書き出せます。' },
               ] as const
             ).map((opt) => {
               const selected = memoStorageTarget === opt.value;
-              const soon = opt.value !== 'mybrain';
               return (
                 <button
                   key={opt.value}
@@ -930,13 +929,6 @@ export default function SettingsPage() {
                         現在
                       </span>
                     )}
-                    {soon && (
-                      <span
-                        className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-                        style={{ background: 'rgba(242,213,138,0.16)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.4)' }}>
-                        準備中
-                      </span>
-                    )}
                     {selected && (
                       <span
                         className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
@@ -952,14 +944,11 @@ export default function SettingsPage() {
           <p className="mt-2.5 text-[11px] font-semibold" style={{ color: '#a5b4fc' }}>
             現在は安全のため、すべてMyBrainにも保存されます。
           </p>
-          <p className="mt-1.5 text-[11px]" style={{ color: '#8893c4' }}>
-            ※ 現在は選択にかかわらずMyBrainに保存されます。保存先の切り替えは今後対応します。
+          <p className="mt-1.5 text-[11px] leading-relaxed" style={{ color: '#8893c4' }}>
+            Obsidian localを選ぶと、対応ブラウザでVaultフォルダへMarkdown保存できます。
           </p>
           <p className="mt-1.5 text-[11px] leading-relaxed" style={{ color: '#8893c4' }}>
-            Obsidian保存は現在準備中です。<br />
-            今はMyBrainに保存されます。<br />
-            メモ詳細からMarkdownコピー・ダウンロードができます。<br />
-            ダウンロードした.mdファイルは、Obsidianに入れて使えます。
+            Google Drive連携を選ぶと、メモ保存後に表示されるボタンからGoogle DriveへMarkdownを書き出せます。
           </p>
           <div className="mt-3 rounded-2xl border px-4 py-3" style={{ borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' }}>
             <p className="text-[11px] font-bold" style={{ color: '#a5b4fc' }}>今の使い方</p>
