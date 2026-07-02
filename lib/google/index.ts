@@ -12,6 +12,7 @@ export * from './google-drive-export';
 export * from './google-drive-folders';
 export * from './google-drive-files';
 export * from './google-drive-upload';
+export * from './write-saved-memo-to-drive';
 export * from './google-calendar-config';
 export * from './google-calendar-connection-state';
 export * from './google-calendar-oauth';
