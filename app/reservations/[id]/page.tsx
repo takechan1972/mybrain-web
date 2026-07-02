@@ -11,7 +11,7 @@ import {
   msToLocalInput,
   updateReservation,
 } from '@/lib/reservations';
-import { isGoogleCalendarConfigured, exportReservationToGoogleCalendar } from '@/lib/google';
+import { isGoogleCalendarConfigured, exportReservationToGoogleCalendar, updateReservationInGoogleCalendar } from '@/lib/google';
 import type { Reservation } from '@/lib/types';
 
 function formatDate(ts: number): string {
@@ -38,6 +38,11 @@ export default function ReservationDetailPage() {
   const [calExporting, setCalExporting] = useState(false);
   const [calMessage, setCalMessage] = useState<string | null>(null);
   const [calLink, setCalLink] = useState<string | null>(null);
+  // Googleカレンダー「更新」導線（編集保存後のみ・追加フローとは別state）。
+  const [showCalUpdate, setShowCalUpdate] = useState(false);
+  const [calUpdating, setCalUpdating] = useState(false);
+  const [calUpdateMsg, setCalUpdateMsg] = useState<string | null>(null);
+  const [calUpdateOk, setCalUpdateOk] = useState(false);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -114,6 +119,10 @@ export default function ReservationDetailPage() {
 
   async function handleSave() {
     setActionError(null);
+    // 新しい保存を始めるとき、前回のカレンダー更新の状態はクリアする。
+    setShowCalUpdate(false);
+    setCalUpdateMsg(null);
+    setCalUpdateOk(false);
     // 終日は日付のみ必須。通常は従来どおり（日時は任意）。
     let allDayStartAt: number | null = null;
     if (editAllDay) {
@@ -139,6 +148,45 @@ export default function ReservationDetailPage() {
     if (reservation) {
       setItem(reservation);
       setEditing(false);
+      // MyBrain 更新成功後、設定済み＆開始日時ありのときだけ「Googleカレンダーを更新」導線を出す（OAuthはタップ後）。
+      if (calConfigured && (reservation.startAt ?? reservation.scheduleAt) != null) {
+        setShowCalUpdate(true);
+      }
+    }
+  }
+
+  // 編集保存後：この予定に対応する既存のGoogleカレンダーイベントを更新（ユーザーがタップしたときのみ）。
+  // - 既存の updateReservationInGoogleCalendar を再利用（events.patch・未登録なら作成しない）。
+  // - 失敗・キャンセルでも MyBrain 側の更新は成功のまま（別state）。
+  async function performCalendarUpdate() {
+    if (!item) return;
+    setCalUpdating(true);
+    setCalUpdateMsg(null);
+    try {
+      const result = await updateReservationInGoogleCalendar(item);
+      if (result.state === 'success') {
+        setCalUpdateOk(true);
+        setCalUpdateMsg('Googleカレンダーを更新しました');
+        setShowCalUpdate(false); // 成功後はボタンを消す
+      } else if (result.state === 'not-found') {
+        setCalUpdateOk(false);
+        setCalUpdateMsg('Googleカレンダーにまだ追加されていません。先に「Googleカレンダーへ追加」してください。');
+        setShowCalUpdate(false); // 追加が先。ボタンは消して追加へ誘導
+      } else if (result.state === 'cancelled') {
+        setCalUpdateOk(false);
+        setCalUpdateMsg('Googleカレンダーの更新をキャンセルしました');
+        // 再試行できるようボタンは残す
+      } else {
+        // error / unconfigured / 想定外：予定は保存済みのまま
+        setCalUpdateOk(false);
+        setCalUpdateMsg('Googleカレンダーの更新に失敗しました（予定はMyBrainに保存済みです）');
+        // 再試行できるようボタンは残す
+      }
+    } catch {
+      setCalUpdateOk(false);
+      setCalUpdateMsg('Googleカレンダーの更新に失敗しました（予定はMyBrainに保存済みです）');
+    } finally {
+      setCalUpdating(false);
     }
   }
 
@@ -308,7 +356,7 @@ export default function ReservationDetailPage() {
           <div className="mt-2 flex gap-2">
             <button
               type="button"
-              onClick={() => setEditing(true)}
+              onClick={() => { setEditing(true); setShowCalUpdate(false); setCalUpdateMsg(null); setCalUpdateOk(false); }}
               className="min-h-[44px] rounded-full px-5 py-2.5 font-bold text-white active:scale-95"
               style={{ background: 'linear-gradient(135deg, #2E7EFF, #38BDF8)', boxShadow: '0 6px 24px rgba(56,189,248,0.45)' }}>
               編集
@@ -332,6 +380,21 @@ export default function ReservationDetailPage() {
                 {calExporting ? '書き出し中...' : 'Googleカレンダーへ書き出し'}
               </button>
             </div>
+          )}
+          {showCalUpdate && calConfigured && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={performCalendarUpdate}
+                disabled={calUpdating}
+                className="min-h-[44px] rounded-full border px-5 py-2.5 font-bold active:scale-95 disabled:opacity-50"
+                style={{ borderColor: 'rgba(56,189,248,0.5)', background: 'rgba(56,189,248,0.12)', color: '#7dd3fc' }}>
+                {calUpdating ? '更新中…' : 'Googleカレンダーを更新'}
+              </button>
+            </div>
+          )}
+          {calUpdateMsg && (
+            <p className="mt-1 text-sm" style={{ color: calUpdateOk ? '#86efac' : '#fca5a5' }}>{calUpdateMsg}</p>
           )}
         </div>
       )}
