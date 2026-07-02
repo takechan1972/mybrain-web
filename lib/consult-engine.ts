@@ -22,7 +22,7 @@ export interface ConsultAnswer {
   memoIds: string[];
 }
 
-type DateScope = 'today' | 'tomorrow' | 'future' | null;
+type DateScope = 'today' | 'tomorrow' | 'thisweek' | 'future' | null;
 
 /** どんな値でも安全に文字列化（null/undefined/数値などで落ちないように） */
 function s(v: unknown): string {
@@ -53,6 +53,7 @@ const GENERIC_WORDS = ['スケジュール', '予定', 'メモ', 'タスク'];
 function detectDateScope(question: string): DateScope {
   if (question.includes('明日')) return 'tomorrow';
   if (question.includes('今日') || question.includes('本日')) return 'today';
+  if (question.includes('今週')) return 'thisweek';
   if (question.includes('今後') || question.includes('来週')) return 'future';
   return null;
 }
@@ -113,6 +114,18 @@ function dayRange(offsetDays: number): { from: number; to: number } {
   return { from, to };
 }
 
+/**
+ * 「今週」のレンジ：今日の0:00から今週の日曜23:59:59まで（過去日は含めない）。
+ * dayRange と同じくローカル日付で計算する。今日が日曜なら今日の終わりまで。
+ */
+function weekRange(): { from: number; to: number } {
+  const n = new Date();
+  const from = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+  const daysUntilSunday = (7 - n.getDay()) % 7; // 日曜=0, 月曜=6, … 土曜=1
+  const to = new Date(n.getFullYear(), n.getMonth(), n.getDate() + daysUntilSunday + 1).getTime() - 1;
+  return { from, to };
+}
+
 function hhmm(ms: number): string {
   const d = new Date(ms);
   const p = (n: number) => String(n).padStart(2, '0');
@@ -146,6 +159,38 @@ function matchReservation(r: Reservation, keywords: string[]): boolean {
   return keywords.some((k) => hay.includes(s(k).toLowerCase()));
 }
 
+/** 明示コマンド（「メモ検索: X」「タグ検索: X」）。半角/全角コロン両対応。 */
+type AssistCommand =
+  | { kind: 'memo-search'; term: string }
+  | { kind: 'tag-search'; term: string };
+
+/**
+ * 質問文の先頭が「メモ検索:」「タグ検索:」（半角/全角コロン）で始まる場合だけコマンドとして解釈する。
+ * - 一致しなければ null（呼び出し側は従来ロジックへフォールスルー＝自由文の挙動は不変）。
+ * - プレフィックスは取り除き、後続の語だけを検索語として返す（メモ検索/タグ検索/検索 は検索語に含めない）。
+ */
+function parseAssistCommand(question: string): AssistCommand | null {
+  const q = s(question).trim();
+  const memoMatch = q.match(/^メモ検索\s*[:：]\s*(.+)$/);
+  if (memoMatch) {
+    const term = memoMatch[1].trim();
+    if (term.length > 0) return { kind: 'memo-search', term };
+  }
+  const tagMatch = q.match(/^タグ検索\s*[:：]\s*(.+)$/);
+  if (tagMatch) {
+    const term = tagMatch[1].trim();
+    if (term.length > 0) return { kind: 'tag-search', term };
+  }
+  return null;
+}
+
+/** メモの「タグのみ」を対象に部分一致（大文字小文字無視）。本文・タイトルは見ない。先頭 # は無視。 */
+function matchMemoTag(m: Memo, term: string): boolean {
+  const t = s(term).replace(/^#/, '').toLowerCase();
+  if (t.length === 0) return false;
+  return arr(m.tags).map(s).some((tag) => tag.toLowerCase().includes(t));
+}
+
 /** 予定パート（参照予定リストと文）を作る */
 function buildScheduleSection(
   reservations: Reservation[],
@@ -162,6 +207,10 @@ function buildScheduleSection(
     const { from, to } = dayRange(1);
     list = list.filter((r) => (r.scheduleAt as number) >= from && (r.scheduleAt as number) <= to);
     label = '明日の予定';
+  } else if (scope === 'thisweek') {
+    const { from, to } = weekRange();
+    list = list.filter((r) => (r.scheduleAt as number) >= from && (r.scheduleAt as number) <= to);
+    label = '今週の予定';
   } else if (scope === 'future') {
     const { to } = dayRange(0);
     list = list.filter((r) => (r.scheduleAt as number) > to);
@@ -317,6 +366,38 @@ export function buildConsultAnswer(
   // 入力が null/undefined や非配列でも落ちないように正規化
   const memos = arr(memosInput);
   const reservations = arr(reservationsInput);
+
+  // 明示コマンド（「メモ検索: X」「タグ検索: X」）を最優先で処理する。
+  // - プレフィックスに一致したときだけ発火。一致しなければ従来ロジックへフォールスルー（自由文の挙動は不変）。
+  // - どちらもメモ限定。タグ検索はタグのみを対象（本文・タイトルは見ない）。
+  const command = parseAssistCommand(question);
+  if (command) {
+    if (command.kind === 'memo-search') {
+      const sec = buildMemoSection(memos, [command.term]);
+      return {
+        answer: sec.text,
+        memoCount: sec.used.length,
+        scheduleCount: 0,
+        scheduleIds: [],
+        memoIds: sec.used.map((m) => m.id),
+      };
+    }
+    // タグ検索：タグのみ一致（本文・タイトルは対象外）
+    const tag = command.term.replace(/^#/, '');
+    const hits = memos.filter((m) => matchMemoTag(m, command.term));
+    if (hits.length === 0) {
+      return { answer: `タグ「${tag}」のメモは見つかりませんでした。`, memoCount: 0, scheduleCount: 0, scheduleIds: [], memoIds: [] };
+    }
+    const lines = hits.slice(0, 5).map((m) => `・${s(m.title) || '無題のメモ'}：${memoPreview(m) || '（本文なし）'}`);
+    return {
+      answer: `タグ「${tag}」のメモが${hits.length}件あります。\n${lines.join('\n')}`,
+      memoCount: hits.length,
+      scheduleCount: 0,
+      scheduleIds: [],
+      memoIds: hits.map((m) => m.id),
+    };
+  }
+
   const useMemos = refTarget === 'both' || refTarget === 'memos';
   const useSched = refTarget === 'both' || refTarget === 'schedule';
 
