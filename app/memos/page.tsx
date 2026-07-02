@@ -9,6 +9,8 @@ import VoiceInput from '@/components/VoiceInput';
 import { parseTags } from '@/lib/memos';
 import { getMemoStore } from '@/lib/storage/memo-store';
 import { loadMemoStorageTarget, savedMessageForTarget } from '@/lib/storage/memo-storage-target';
+import { exportMemosToGoogleDrive, isGoogleDriveConfigured } from '@/lib/google';
+import type { Memo } from '@/lib/types';
 import { isPaidPlan } from '@/lib/plan';
 import { useFullAccess } from '@/lib/auth/use-full-access';
 import DesktopMemos from '@/components/DesktopMemos';
@@ -53,6 +55,11 @@ export default function MemosPage() {
   const [saveOk, setSaveOk] = useState<string | null>(null);
   // 保存先が obsidian-local のときだけ、保存直後に「保存したメモを開く」導線を出すための保存済みメモID
   const [savedMemoLinkId, setSavedMemoLinkId] = useState<string | null>(null);
+  // 保存先が obsidian-gdrive かつ Drive 設定済みのとき、保存後にワンタップ書き出しボタンを出すための保存済みメモ
+  const [savedGdriveMemo, setSavedGdriveMemo] = useState<Memo | null>(null);
+  const [gdriveExporting, setGdriveExporting] = useState(false);
+  const [gdriveMsg, setGdriveMsg] = useState<string | null>(null);
+  const [gdriveOk, setGdriveOk] = useState(false);
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -109,6 +116,9 @@ export default function MemosPage() {
     setSaveError(null);
     setSaveOk(null);
     setSavedMemoLinkId(null);
+    setSavedGdriveMemo(null);
+    setGdriveMsg(null);
+    setGdriveOk(false);
     if (title.trim().length === 0 && body.trim().length === 0) {
       setSaveError('タイトルか本文を入力してください。');
       return;
@@ -126,10 +136,39 @@ export default function MemosPage() {
     if (memo && loadMemoStorageTarget() === 'obsidian-local') {
       setSavedMemoLinkId(memo.id);
     }
+    // obsidian-gdrive かつ Drive 設定済みのときだけ、保存後のワンタップ書き出しボタンを出す（OAuth はタップ後のみ）
+    if (memo && loadMemoStorageTarget() === 'obsidian-gdrive' && isGoogleDriveConfigured()) {
+      setSavedGdriveMemo(memo);
+    }
     setTitle('');
     setBody('');
     setTags('');
     setImages([]);
+  }
+
+  // 保存済みメモ1件を Google Drive へ書き出す（ユーザーがボタンをタップしたときのみ。OAuth はこのタップ起点）。
+  // - 既存の手動エクスポート exportMemosToGoogleDrive をそのまま再利用（挙動は不変）。
+  // - 失敗・キャンセルでもメモは MyBrain に保存済みのまま（保存成功には影響しない）。
+  async function exportSavedMemoToGoogleDrive() {
+    if (!savedGdriveMemo) return;
+    setGdriveExporting(true);
+    setGdriveMsg(null);
+    try {
+      const result = await exportMemosToGoogleDrive([savedGdriveMemo]);
+      if (result.failureCount === 0) {
+        setGdriveOk(true);
+        setGdriveMsg('Google Driveへ書き出しました');
+        setSavedGdriveMemo(null); // 成功後はボタンを消す（重複書き出し防止）
+      } else {
+        setGdriveOk(false);
+        setGdriveMsg('Google Driveへの書き出しに失敗しました（メモはMyBrainに保存済みです）');
+      }
+    } catch {
+      setGdriveOk(false);
+      setGdriveMsg('Google Driveへの書き出しに失敗しました（メモはMyBrainに保存済みです）');
+    } finally {
+      setGdriveExporting(false);
+    }
   }
 
   return (
@@ -284,6 +323,18 @@ export default function MemosPage() {
             📄 保存したメモを開く
           </Link>
         )}
+        {/* obsidian-gdrive 保存時：保存後のワンタップ Google Drive 書き出し（OAuth はタップ後のみ） */}
+        {savedGdriveMemo && (
+          <button
+            type="button"
+            onClick={exportSavedMemoToGoogleDrive}
+            disabled={gdriveExporting}
+            className="mx-auto flex h-11 w-full max-w-[280px] items-center justify-center rounded-full border text-[14px] font-bold text-white active:scale-95 disabled:opacity-60"
+            style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(120,160,255,0.5)', boxShadow: '0 0 14px rgba(80,160,255,0.18)' }}>
+            {gdriveExporting ? '書き出し中…' : '☁️ Google Driveへ書き出し'}
+          </button>
+        )}
+        {gdriveMsg && <p className={`text-center text-sm ${gdriveOk ? 'text-emerald-300' : 'text-red-400'}`}>{gdriveMsg}</p>}
 
         {/* ── 保存（ネオン）＋メモ一覧＋ホーム（コンパクト） ── */}
         <div className="mt-1 flex gap-2">
