@@ -8,6 +8,8 @@ import DesktopSchedules from '@/components/DesktopSchedules';
 import VoiceInput from '@/components/VoiceInput';
 import { SendIcon } from '@/components/icons';
 import { createReservation, localInputToMs } from '@/lib/reservations';
+import { exportReservationToGoogleCalendar, isGoogleCalendarConfigured } from '@/lib/google';
+import type { Reservation } from '@/lib/types';
 import { isPaidPlan } from '@/lib/plan';
 import { useFullAccess } from '@/lib/auth/use-full-access';
 import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
@@ -34,6 +36,11 @@ export default function ReservationsPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState<string | null>(null);
   const [needLogin, setNeedLogin] = useState(false);
+  // 保存後の Googleカレンダー追加導線（設定済み＆開始日時ありのときだけ表示。OAuthはタップ後のみ）
+  const [savedCalReservation, setSavedCalReservation] = useState<Reservation | null>(null);
+  const [calBusy, setCalBusy] = useState(false);
+  const [calMsg, setCalMsg] = useState<string | null>(null);
+  const [calOk, setCalOk] = useState(false);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -78,6 +85,9 @@ export default function ReservationsPage() {
   async function handleCreate() {
     setSaveError(null);
     setSaveOk(null);
+    setSavedCalReservation(null);
+    setCalMsg(null);
+    setCalOk(false);
 
     const finalTitle = title.trim();
     if (finalTitle.length === 0) {
@@ -134,6 +144,43 @@ export default function ReservationsPage() {
     setAllDay(false);
     setNotify(false);
     setSaveOk('予定を保存しました。');
+    // Googleカレンダー設定済み＆開始日時ありのときだけ、保存後のワンタップ追加導線を出す（OAuthはタップ後）
+    if (isGoogleCalendarConfigured() && reservation.startAt !== null) {
+      setSavedCalReservation(reservation);
+    }
+  }
+
+  // 保存済み予定1件を Googleカレンダーへ追加（ユーザーがタップしたときのみ。OAuthはこのタップ起点）。
+  // - 既存の exportReservationToGoogleCalendar を再利用（作成のみ・重複防止つき）。
+  // - 失敗・キャンセルでも予定は MyBrain に保存済みのまま（保存成功には影響しない）。
+  async function addSavedReservationToCalendar() {
+    if (!savedCalReservation) return;
+    setCalBusy(true);
+    setCalMsg(null);
+    try {
+      const result = await exportReservationToGoogleCalendar(savedCalReservation);
+      if (result.state === 'success') {
+        setCalOk(true);
+        setCalMsg('Googleカレンダーへ追加しました');
+        setSavedCalReservation(null); // 成功後はボタンを消す（重複作成防止）
+      } else if (result.state === 'already-exists') {
+        setCalOk(true);
+        setCalMsg('Googleカレンダーにすでに登録されています');
+        setSavedCalReservation(null); // 既に登録済み → ボタンを消す
+      } else if (result.state === 'cancelled') {
+        setCalOk(false);
+        setCalMsg('Googleカレンダーへの追加をキャンセルしました');
+      } else {
+        // error / unconfigured / 想定外：予定は保存済みのまま
+        setCalOk(false);
+        setCalMsg('Googleカレンダーへの追加に失敗しました（予定はMyBrainに保存済みです）');
+      }
+    } catch {
+      setCalOk(false);
+      setCalMsg('Googleカレンダーへの追加に失敗しました（予定はMyBrainに保存済みです）');
+    } finally {
+      setCalBusy(false);
+    }
   }
 
   if (!configured) {
@@ -306,6 +353,18 @@ export default function ReservationsPage() {
 
         {saveError && <p className="text-center text-sm text-red-400">{saveError}</p>}
         {saveOk && <p className="text-center text-sm text-emerald-300">{saveOk}</p>}
+        {/* 保存後：Googleカレンダーへ追加（設定済み＆開始日時あり＆保存成功時のみ。OAuthはタップ後） */}
+        {savedCalReservation && (
+          <button
+            type="button"
+            onClick={addSavedReservationToCalendar}
+            disabled={calBusy}
+            className="mx-auto flex h-11 w-full max-w-[280px] items-center justify-center rounded-full border text-[14px] font-bold text-white active:scale-95 disabled:opacity-60"
+            style={{ background: 'rgba(10,14,32,0.7)', borderColor: 'rgba(120,160,255,0.5)', boxShadow: '0 0 14px rgba(80,160,255,0.18)' }}>
+            {calBusy ? '追加中…' : '📅 Googleカレンダーへ追加'}
+          </button>
+        )}
+        {calMsg && <p className={`text-center text-sm ${calOk ? 'text-emerald-300' : 'text-red-400'}`}>{calMsg}</p>}
 
         {/* ── 保存（ネオン）＋予定一覧＋ホーム ── */}
         <div className="mt-1 flex gap-2">
