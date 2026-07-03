@@ -18,7 +18,7 @@ import { parseScheduleFromText } from '@/lib/parse/schedule';
 import { loadOllamaSettings, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
 import { isGoogleCalendarConfigured, readGoogleCalendarEventsInRange } from '@/lib/google';
-import type { GoogleCalendarEvent } from '@/lib/google';
+import type { GoogleCalendarEvent, GoogleCalendarReadRange } from '@/lib/google';
 import type { Reservation } from '@/lib/types';
 
 const NAVY = '#223A70';
@@ -76,6 +76,22 @@ function formatEventClock(ms: number | null): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/** Googleカレンダー読み取り範囲の日本語ラベル（見出し・空メッセージ共用）。 */
+const CAL_READ_RANGE_LABEL: Record<GoogleCalendarReadRange, string> = {
+  today: '今日',
+  tomorrow: '明日',
+  thisweek: '今週',
+};
+
+const CAL_READ_WD = ['日', '月', '火', '水', '木', '金', '土'];
+
+/** epoch ms を端末ローカルの "M/D(曜)" にする（今週表示の日付プレフィックス用）。null/不正値は空文字。 */
+function formatEventDate(ms: number | null): string {
+  if (ms == null || !Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  return `${d.getMonth() + 1}/${d.getDate()}(${CAL_READ_WD[d.getDay()]})`;
+}
+
 type View = 'week' | 'month' | 'list';
 
 export default function DesktopSchedules() {
@@ -89,11 +105,14 @@ export default function DesktopSchedules() {
   const [view, setView] = useState<View>('week');
   const [toast, setToast] = useState<string | null>(null);
 
-  // Googleカレンダー「今日の予定」読み取り表示（ユーザーのクリック起点のみ・保存しない）
+  // Googleカレンダー「今日/明日/今週の予定」読み取り表示（ユーザーのクリック起点のみ・保存しない）
   const [calReadConfigured, setCalReadConfigured] = useState(false);
-  const [calReadLoading, setCalReadLoading] = useState(false);
+  // 取得中の範囲（null = 取得中でない）。クリックされたボタンだけ「取得中…」にするために範囲で持つ。
+  const [calReadLoading, setCalReadLoading] = useState<GoogleCalendarReadRange | null>(null);
   const [calReadMsg, setCalReadMsg] = useState<string | null>(null);
   const [calReadEvents, setCalReadEvents] = useState<GoogleCalendarEvent[] | null>(null);
+  // 表示中の結果がどの範囲か（成功時に calReadEvents と同時にセット。見出し・空メッセージに使う）。
+  const [calReadRange, setCalReadRange] = useState<GoogleCalendarReadRange | null>(null);
 
   // ローカルAI/音声ステータス
   const [local, setLocal] = useState(false);
@@ -322,18 +341,20 @@ export default function DesktopSchedules() {
     }
   }
 
-  // Googleカレンダーの「今日の予定」を読み取って表示（ユーザーがクリックしたときのみ。OAuthはこのクリック起点）。
-  // - 既存の読み取り専用ヘルパー readGoogleCalendarEventsInRange('today') を使う。
+  // Googleカレンダーの予定（今日/明日/今週）を読み取って表示（ユーザーがクリックしたときのみ。OAuthはこのクリック起点）。
+  // - 既存の読み取り専用ヘルパー readGoogleCalendarEventsInRange(range) を使う。
   // - 取得結果はどこにも保存しない（state に持つだけ。Supabase / localStorage に入れない）。
   // - 結果はカード内に表示する（showToast は自動で消えるため使わない）。
-  async function readTodayCalendar() {
-    setCalReadLoading(true);
+  // - 成功時は calReadEvents と calReadRange を同時にセットする（見出しと結果がずれないように）。
+  async function readCalendarRange(range: GoogleCalendarReadRange) {
+    setCalReadLoading(range);
     setCalReadMsg(null);
     setCalReadEvents(null);
     try {
-      const result = await readGoogleCalendarEventsInRange('today');
+      const result = await readGoogleCalendarEventsInRange(range);
       if (result.state === 'success') {
         setCalReadEvents(result.events ?? []);
+        setCalReadRange(range);
       } else if (result.state === 'cancelled') {
         setCalReadMsg('Googleカレンダーの読み取りをキャンセルしました');
       } else {
@@ -343,7 +364,7 @@ export default function DesktopSchedules() {
     } catch {
       setCalReadMsg('Googleカレンダーの予定を取得できませんでした');
     } finally {
-      setCalReadLoading(false);
+      setCalReadLoading(null);
     }
   }
 
@@ -544,18 +565,23 @@ export default function DesktopSchedules() {
               {!speechSupported && <p className="mt-2 text-[10px]" style={{ color: MUTED }}>※ この環境では音声入力に対応していません。</p>}
             </section>
 
-            {/* Googleカレンダー「今日の予定」読み取り表示（設定済みのときのみ。取得はクリック後・保存しない） */}
+            {/* Googleカレンダー「今日/明日/今週の予定」読み取り表示（設定済みのときのみ。取得はクリック後・保存しない） */}
             {calReadConfigured && (
               <section className="mt-5 rounded-3xl border border-[#E8EAF3] bg-white p-5 shadow-[0_6px_18px_rgba(31,53,104,0.04)]">
-                <p className="mb-3 text-[14px] font-extrabold" style={{ color: NAVY }}>Googleカレンダー（今日）</p>
-                <button
-                  type="button"
-                  onClick={readTodayCalendar}
-                  disabled={calReadLoading}
-                  className="w-full rounded-xl border border-[#E8EAF3] py-2.5 text-[13px] font-bold disabled:opacity-50"
-                  style={{ color: '#54607A' }}>
-                  {calReadLoading ? '取得中…' : '📅 Googleカレンダーの今日の予定を見る'}
-                </button>
+                <p className="mb-3 text-[14px] font-extrabold" style={{ color: NAVY }}>📅 Googleカレンダーの予定</p>
+                <div className="flex gap-2">
+                  {(['today', 'tomorrow', 'thisweek'] as GoogleCalendarReadRange[]).map((range) => (
+                    <button
+                      key={range}
+                      type="button"
+                      onClick={() => readCalendarRange(range)}
+                      disabled={calReadLoading !== null}
+                      className="flex-1 rounded-xl border border-[#E8EAF3] py-2.5 text-[13px] font-bold disabled:opacity-50"
+                      style={{ color: '#54607A' }}>
+                      {calReadLoading === range ? '取得中…' : CAL_READ_RANGE_LABEL[range]}
+                    </button>
+                  ))}
+                </div>
 
                 {calReadMsg && (
                   <p
@@ -565,28 +591,36 @@ export default function DesktopSchedules() {
                   </p>
                 )}
 
-                {calReadEvents && (
-                  calReadEvents.length === 0 ? (
-                    <p className="mt-3 py-3 text-center text-[12px]" style={{ color: MUTED }}>今日の予定はありません</p>
-                  ) : (
-                    <div className="mt-3 flex flex-col gap-1.5">
-                      {calReadEvents.map((ev) => {
-                        const clock = ev.allDay
-                          ? ''
-                          : `${formatEventClock(ev.start)}〜${formatEventClock(ev.end)}`.replace(/^〜$/, '');
-                        return (
-                          <div key={ev.id} className="flex items-start gap-2 rounded-2xl border border-[#EEF0F5] px-3 py-2">
-                            {ev.allDay ? (
-                              <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: LAVENDER, color: PURPLE }}>終日</span>
-                            ) : (
-                              clock && <span className="shrink-0 text-[11px] font-bold tabular-nums" style={{ color: PURPLE }}>{clock}</span>
-                            )}
-                            <span className="min-w-0 flex-1 break-words text-[12px] font-bold" style={{ color: NAVY }}>{ev.summary}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )
+                {calReadEvents && calReadRange && (
+                  <>
+                    <p className="mt-3 text-[12px] font-bold" style={{ color: MUTED }}>Googleカレンダー（{CAL_READ_RANGE_LABEL[calReadRange]}）</p>
+                    {calReadEvents.length === 0 ? (
+                      <p className="mt-2 py-3 text-center text-[12px]" style={{ color: MUTED }}>{CAL_READ_RANGE_LABEL[calReadRange]}の予定はありません</p>
+                    ) : (
+                      <div className="mt-2 flex flex-col gap-1.5">
+                        {calReadEvents.map((ev) => {
+                          const clock = ev.allDay
+                            ? ''
+                            : `${formatEventClock(ev.start)}〜${formatEventClock(ev.end)}`.replace(/^〜$/, '');
+                          // 今週だけ日付（M/D(曜)）を付ける。start が null のときは付けない（防御）。
+                          const datePrefix = calReadRange === 'thisweek' ? formatEventDate(ev.start) : '';
+                          return (
+                            <div key={ev.id} className="flex items-start gap-2 rounded-2xl border border-[#EEF0F5] px-3 py-2">
+                              {datePrefix && (
+                                <span className="shrink-0 text-[11px] font-bold tabular-nums" style={{ color: PURPLE }}>{datePrefix}</span>
+                              )}
+                              {ev.allDay ? (
+                                <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: LAVENDER, color: PURPLE }}>終日</span>
+                              ) : (
+                                clock && <span className="shrink-0 text-[11px] font-bold tabular-nums" style={{ color: PURPLE }}>{clock}</span>
+                              )}
+                              <span className="min-w-0 flex-1 break-words text-[12px] font-bold" style={{ color: NAVY }}>{ev.summary}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 )}
               </section>
             )}
