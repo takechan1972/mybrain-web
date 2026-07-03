@@ -17,6 +17,8 @@ import { useSpeech } from '@/lib/useSpeech';
 import { parseScheduleFromText } from '@/lib/parse/schedule';
 import { loadOllamaSettings, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
+import { isGoogleCalendarConfigured, readGoogleCalendarEventsInRange } from '@/lib/google';
+import type { GoogleCalendarEvent } from '@/lib/google';
 import type { Reservation } from '@/lib/types';
 
 const NAVY = '#223A70';
@@ -67,6 +69,13 @@ function sameDay(a: Date, b: Date): boolean {
 const WD = ['月', '火', '水', '木', '金', '土', '日'];
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 8); // 8:00〜21:00
 
+/** epoch ms を端末ローカルの "HH:mm" にする（Googleカレンダー読み取り表示用）。null/不正値は空文字。 */
+function formatEventClock(ms: number | null): string {
+  if (ms == null || !Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 type View = 'week' | 'month' | 'list';
 
 export default function DesktopSchedules() {
@@ -79,6 +88,12 @@ export default function DesktopSchedules() {
   const [catFilter, setCatFilter] = useState<CatKey | 'all'>('all');
   const [view, setView] = useState<View>('week');
   const [toast, setToast] = useState<string | null>(null);
+
+  // Googleカレンダー「今日の予定」読み取り表示（ユーザーのクリック起点のみ・保存しない）
+  const [calReadConfigured, setCalReadConfigured] = useState(false);
+  const [calReadLoading, setCalReadLoading] = useState(false);
+  const [calReadMsg, setCalReadMsg] = useState<string | null>(null);
+  const [calReadEvents, setCalReadEvents] = useState<GoogleCalendarEvent[] | null>(null);
 
   // ローカルAI/音声ステータス
   const [local, setLocal] = useState(false);
@@ -118,6 +133,10 @@ export default function DesktopSchedules() {
   }
 
   useEffect(() => {
+    // Googleカレンダー連携の公開設定が揃っているかだけ判定する。
+    // ここでは絶対に予定を取得しない（このコンポーネントはモバイルでも hidden lg:flex でマウントされるため、
+    // OAuth ポップアップ・イベント取得はユーザーのクリック後のみ）。
+    setCalReadConfigured(isGoogleCalendarConfigured());
     setLocal(isLocalHost());
     const s = loadOllamaSettings();
     setOllamaModel(s.model);
@@ -300,6 +319,31 @@ export default function DesktopSchedules() {
     } else {
       lastVoiceRef.current = '';
       startSpeech('');
+    }
+  }
+
+  // Googleカレンダーの「今日の予定」を読み取って表示（ユーザーがクリックしたときのみ。OAuthはこのクリック起点）。
+  // - 既存の読み取り専用ヘルパー readGoogleCalendarEventsInRange('today') を使う。
+  // - 取得結果はどこにも保存しない（state に持つだけ。Supabase / localStorage に入れない）。
+  // - 結果はカード内に表示する（showToast は自動で消えるため使わない）。
+  async function readTodayCalendar() {
+    setCalReadLoading(true);
+    setCalReadMsg(null);
+    setCalReadEvents(null);
+    try {
+      const result = await readGoogleCalendarEventsInRange('today');
+      if (result.state === 'success') {
+        setCalReadEvents(result.events ?? []);
+      } else if (result.state === 'cancelled') {
+        setCalReadMsg('Googleカレンダーの読み取りをキャンセルしました');
+      } else {
+        // error / unconfigured / 想定外
+        setCalReadMsg('Googleカレンダーの予定を取得できませんでした');
+      }
+    } catch {
+      setCalReadMsg('Googleカレンダーの予定を取得できませんでした');
+    } finally {
+      setCalReadLoading(false);
     }
   }
 
@@ -499,6 +543,53 @@ export default function DesktopSchedules() {
               </div>
               {!speechSupported && <p className="mt-2 text-[10px]" style={{ color: MUTED }}>※ この環境では音声入力に対応していません。</p>}
             </section>
+
+            {/* Googleカレンダー「今日の予定」読み取り表示（設定済みのときのみ。取得はクリック後・保存しない） */}
+            {calReadConfigured && (
+              <section className="mt-5 rounded-3xl border border-[#E8EAF3] bg-white p-5 shadow-[0_6px_18px_rgba(31,53,104,0.04)]">
+                <p className="mb-3 text-[14px] font-extrabold" style={{ color: NAVY }}>Googleカレンダー（今日）</p>
+                <button
+                  type="button"
+                  onClick={readTodayCalendar}
+                  disabled={calReadLoading}
+                  className="w-full rounded-xl border border-[#E8EAF3] py-2.5 text-[13px] font-bold disabled:opacity-50"
+                  style={{ color: '#54607A' }}>
+                  {calReadLoading ? '取得中…' : '📅 Googleカレンダーの今日の予定を見る'}
+                </button>
+
+                {calReadMsg && (
+                  <p
+                    className="mt-3 text-center text-[12px] font-semibold"
+                    style={{ color: calReadMsg === 'Googleカレンダーの読み取りをキャンセルしました' ? MUTED : '#C0392B' }}>
+                    {calReadMsg}
+                  </p>
+                )}
+
+                {calReadEvents && (
+                  calReadEvents.length === 0 ? (
+                    <p className="mt-3 py-3 text-center text-[12px]" style={{ color: MUTED }}>今日の予定はありません</p>
+                  ) : (
+                    <div className="mt-3 flex flex-col gap-1.5">
+                      {calReadEvents.map((ev) => {
+                        const clock = ev.allDay
+                          ? ''
+                          : `${formatEventClock(ev.start)}〜${formatEventClock(ev.end)}`.replace(/^〜$/, '');
+                        return (
+                          <div key={ev.id} className="flex items-start gap-2 rounded-2xl border border-[#EEF0F5] px-3 py-2">
+                            {ev.allDay ? (
+                              <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: LAVENDER, color: PURPLE }}>終日</span>
+                            ) : (
+                              clock && <span className="shrink-0 text-[11px] font-bold tabular-nums" style={{ color: PURPLE }}>{clock}</span>
+                            )}
+                            <span className="min-w-0 flex-1 break-words text-[12px] font-bold" style={{ color: NAVY }}>{ev.summary}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                )}
+              </section>
+            )}
           </aside>
         </div>
       </div>
