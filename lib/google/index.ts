@@ -20,3 +20,4 @@ export * from './google-calendar-events';
 export * from './google-calendar-export';
 export * from './google-calendar-lookup';
 export * from './google-calendar-read';
+export * from './google-calendar-delete';
