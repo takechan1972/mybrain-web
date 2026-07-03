@@ -11,7 +11,7 @@ import {
   msToLocalInput,
   updateReservation,
 } from '@/lib/reservations';
-import { isGoogleCalendarConfigured, exportReservationToGoogleCalendar, updateReservationInGoogleCalendar } from '@/lib/google';
+import { isGoogleCalendarConfigured, exportReservationToGoogleCalendar, updateReservationInGoogleCalendar, deleteReservationEventFromGoogleCalendar } from '@/lib/google';
 import type { Reservation } from '@/lib/types';
 
 function formatDate(ts: number): string {
@@ -43,6 +43,11 @@ export default function ReservationDetailPage() {
   const [calUpdating, setCalUpdating] = useState(false);
   const [calUpdateMsg, setCalUpdateMsg] = useState<string | null>(null);
   const [calUpdateOk, setCalUpdateOk] = useState(false);
+  // Googleカレンダー「削除」導線（このカレンダーのコピーだけを消す。MyBrain の予定は消さない）。確認モーダル経由。
+  const [calDeleteConfirmOpen, setCalDeleteConfirmOpen] = useState(false);
+  const [calDeleteLoading, setCalDeleteLoading] = useState(false);
+  const [calDeleteMsg, setCalDeleteMsg] = useState<string | null>(null);
+  const [calDeleteMsgType, setCalDeleteMsgType] = useState<'success' | 'error' | 'neutral' | null>(null);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -187,6 +192,44 @@ export default function ReservationDetailPage() {
       setCalUpdateMsg('Googleカレンダーの更新に失敗しました（予定はMyBrainに保存済みです）');
     } finally {
       setCalUpdating(false);
+    }
+  }
+
+  // 確認後：この予定に対応するGoogleカレンダーのイベントだけを削除する（ユーザーがタップしたときのみ）。
+  // - 既存の deleteReservationEventFromGoogleCalendar を使う（予定IDで検索→1件削除）。
+  // - **MyBrain の予定は削除しない**（performDelete / deleteReservation はここから呼ばない）。
+  // - 失敗・キャンセルでも MyBrain 側は無変更。画面遷移もしない。
+  async function handleDeleteFromGoogleCalendar() {
+    if (!item) return;
+    // 確認モーダルを閉じ、進行状態に入る（ポップアップが閉じてもメッセージは画面に残す）。
+    setCalDeleteConfirmOpen(false);
+    setCalDeleteMsg(null);
+    setCalDeleteMsgType(null);
+    setCalDeleteLoading(true);
+    try {
+      const result = await deleteReservationEventFromGoogleCalendar(item);
+      if (result.state === 'success') {
+        setCalDeleteMsg('Googleカレンダーから削除しました');
+        setCalDeleteMsgType('success');
+      } else if (result.state === 'not-found') {
+        setCalDeleteMsg('Googleカレンダーに登録されていません');
+        setCalDeleteMsgType('neutral');
+      } else if (result.state === 'unconfigured') {
+        setCalDeleteMsg('Googleカレンダー連携が設定されていません');
+        setCalDeleteMsgType('neutral');
+      } else if (result.state === 'cancelled') {
+        setCalDeleteMsg('Googleカレンダーの削除をキャンセルしました');
+        setCalDeleteMsgType('neutral');
+      } else {
+        // error / 想定外：MyBrain の予定はそのまま
+        setCalDeleteMsg('Googleカレンダーからの削除に失敗しました（MyBrainの予定はそのままです）');
+        setCalDeleteMsgType('error');
+      }
+    } catch {
+      setCalDeleteMsg('Googleカレンダーからの削除に失敗しました（MyBrainの予定はそのままです）');
+      setCalDeleteMsgType('error');
+    } finally {
+      setCalDeleteLoading(false);
     }
   }
 
@@ -396,6 +439,25 @@ export default function ReservationDetailPage() {
           {calUpdateMsg && (
             <p className="mt-1 text-sm" style={{ color: calUpdateOk ? '#86efac' : '#fca5a5' }}>{calUpdateMsg}</p>
           )}
+          {calConfigured && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => { setCalDeleteMsg(null); setCalDeleteMsgType(null); setCalDeleteConfirmOpen(true); }}
+                disabled={calDeleteLoading}
+                className="min-h-[44px] rounded-full border px-5 py-2.5 font-bold active:scale-95 disabled:opacity-50"
+                style={{ borderColor: 'rgba(224,85,85,0.5)', background: 'rgba(224,85,85,0.12)', color: '#ff9b9b' }}>
+                {calDeleteLoading ? '削除中…' : '📅 Googleカレンダーから削除'}
+              </button>
+            </div>
+          )}
+          {calDeleteMsg && (
+            <p
+              className="mt-1 text-sm"
+              style={{ color: calDeleteMsgType === 'success' ? '#86efac' : calDeleteMsgType === 'error' ? '#fca5a5' : '#a5b4fc' }}>
+              {calDeleteMsg}
+            </p>
+          )}
         </div>
       )}
 
@@ -491,10 +553,56 @@ export default function ReservationDetailPage() {
           </div>
         </div>
       )}
+      {/* Googleカレンダー削除確認モーダル（このカレンダーのコピーだけ削除。MyBrain の予定は消さない） */}
+      {calDeleteConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-5 pb-10 sm:items-center sm:pb-0">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => !calDeleteLoading && setCalDeleteConfirmOpen(false)}
+          />
+          <div
+            className="relative w-full max-w-md rounded-3xl border p-6"
+            style={{
+              background: 'rgba(20, 16, 38, 0.92)',
+              borderColor: 'rgba(224,85,85,0.35)',
+              boxShadow: '0 0 24px rgba(224,85,85,0.16), 0 20px 60px rgba(0,0,0,0.55)',
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+            }}>
+            <p className="text-center text-[15px] font-bold" style={{ color: '#ffffff' }}>
+              Googleカレンダーからこの予定を削除しますか？
+            </p>
+            <p className="mt-2 text-center text-[14px] font-semibold" style={{ color: '#bae6fd' }}>
+              {item!.title || '無題の予定'}
+            </p>
+            <p className="mt-2 text-center text-[12px]" style={{ color: '#a5b4fc' }}>
+              MyBrainの予定は削除されません。
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setCalDeleteConfirmOpen(false)}
+                disabled={calDeleteLoading}
+                className="min-h-[44px] flex-1 rounded-full border py-3 text-[14px] font-semibold disabled:opacity-60"
+                style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#c7d2fe', background: 'rgba(0,0,0,0.3)' }}>
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteFromGoogleCalendar}
+                disabled={calDeleteLoading}
+                className="min-h-[44px] flex-1 rounded-full py-3 text-[14px] font-semibold text-white disabled:opacity-60"
+                style={{ backgroundColor: '#E05555' }}>
+                {calDeleteLoading ? '削除中…' : '削除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
 
       {/* 下部ネオンクイックナビ（メモ / 予定 / AI）。モーダル表示中は重なり防止のため非表示。 */}
-      {!confirmingDelete && !confirmingCalendar && <NeonQuickNav />}
+      {!confirmingDelete && !confirmingCalendar && !calDeleteConfirmOpen && <NeonQuickNav />}
     </>
   );
 }
