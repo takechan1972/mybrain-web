@@ -415,11 +415,13 @@ export default function DesktopSettings() {
             <Card>
               <CardTitle title="アプリケーション設定" sub="表示・動作をお好みに合わせて調整します" />
               <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                <SettingRow label="テーマ" sub="アプリのテーマを選択します">
+                {/* テーマ切替は未実装（設定値が画面に反映されない）ため、実装まで操作不可にする */}
+                <SettingRow label="テーマ" sub="テーマ切替は現在準備中です。">
                   <Segmented
                     value={app.theme}
                     options={[{ v: 'light', t: 'ライト' }, { v: 'dark', t: 'ダーク' }]}
                     onChange={(v) => updateApp({ theme: v as AppSettings['theme'] })}
+                    disabled
                   />
                 </SettingRow>
                 <ToggleRow label="自動保存" sub="メモや文字起こしを自動で保存します" on={app.autoSave} onChange={(v) => updateApp({ autoSave: v })} />
@@ -736,13 +738,13 @@ function ToggleRow({ label, sub, on, onChange }: { label: string; sub?: string; 
   );
 }
 
-function Segmented({ value, options, onChange }: { value: string; options: { v: string; t: string }[]; onChange: (v: string) => void }) {
+function Segmented({ value, options, onChange, disabled = false }: { value: string; options: { v: string; t: string }[]; onChange: (v: string) => void; disabled?: boolean }) {
   return (
-    <div className="flex overflow-hidden rounded-xl border border-[#E8EAF3]">
+    <div className="flex overflow-hidden rounded-xl border border-[#E8EAF3]" style={disabled ? { opacity: 0.5 } : undefined}>
       {options.map((o) => {
         const active = o.v === value;
         return (
-          <button key={o.v} type="button" onClick={() => onChange(o.v)} className="px-4 py-1.5 text-[12px] font-bold transition"
+          <button key={o.v} type="button" disabled={disabled} onClick={() => onChange(o.v)} className="px-4 py-1.5 text-[12px] font-bold transition disabled:cursor-not-allowed"
             style={active ? { backgroundColor: LAVENDER, color: PURPLE } : { backgroundColor: '#fff', color: '#A6AEC0' }}>
             {o.t}
           </button>
