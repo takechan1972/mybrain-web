@@ -62,3 +62,14 @@
 - Google Drive への自動保存は、引き続き未実装。
 - Google Drive への書き出しは、引き続き手動エクスポートのみ対応。
 - モバイル Safari や File System Access API 非対応ブラウザでは、ローカル Vault への書き込みに対応していない場合がある。
+
+### OBS16R：Google Drive 手動エクスポートの本番検証 — ✅完了（2026-07-05）
+
+- 手動の Google Drive エクスポートを本番で確認済み。
+- MyBrain のメモが Google Drive へ正しく書き出されることを確認した。
+- 書き出された Markdown ファイルは `MyBrain/Memos/` 配下に作成された。
+- Google Drive への書き出しは、ユーザーが操作したときだけ実行される手動の挙動である。
+- MyBrain（Supabase）は引き続き source of truth。
+- Google Drive への書き出しは、MyBrain のメモ CRUD の挙動を変えない。
+- 保存時に自動で Google Drive へ書き出す処理は、引き続き未実装。
+- `writeSavedMemoToDriveIfEnabled` は、UI から呼び出されていないスキャフォールド（下地のヘルパー）のままである。
