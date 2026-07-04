@@ -21,3 +21,19 @@
 - 本番で確認済み：メッセージが表示され、ライト／ダークが押せないこと。これは本来の想定どおりの挙動（テーマ切替はまだ未実装のため）。
 - 本格的なダークモード対応は、別の将来タスクとして扱う。
 - コミット `ab1354a fix: mark theme setting as coming soon` を push 済み。
+
+## Google カレンダー連携
+
+### Googleカレンダー 読み取り表示 — ✅ 実装済み（2026-07-04）
+
+- Googleカレンダーの予定を「読み取り専用」で表示する機能は実装済み・UI 接続済み。
+- モバイル予約画面（`app/reservations/page.tsx`）に接続済み。
+- デスクトップ予定画面（`components/DesktopSchedules.tsx`）に接続済み。
+- 今日／明日／今週 の予定を表示できる。
+- 挙動：読み取り専用・ユーザー操作起点・表示のみ（自動取得や書き込みはしない）。
+- 取得結果は React state のみで保持する。
+- 取得結果は Supabase に保存しない。
+- 取得結果は localStorage に保存しない。
+- MyBrain の予定への取り込み（import / 双方向同期）は、意図的にまだ実装していない。
+- 将来の取り込み／同期は、別の独立タスクとして扱う。
+- 詳細な本番検証ログ（CAL3R / CAL5R / CAL7R / CAL8R）は `docs/google-calendar-integration-design.md` を参照。
