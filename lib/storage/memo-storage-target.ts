@@ -5,8 +5,9 @@ import type { MemoStorageTarget } from './memo-store';
  *
  * - Supabase は使わず端末ローカルにのみ保存（既存の ai-assist / ollama ストアと同じ方針）。
  * - SSR では window 無しのため既定値を返す（ハイドレーション安全）。
- * - Phase 1.2：この値は「選択の保存・表示」のみに使う。
- *   getMemoStore()（実際の保存先）にはまだ接続しない＝保存挙動は不変（常に MyBrain/Supabase）。
+ * - この値は getMemoStore()（保存アダプタの切り替え）と、保存後の付加処理・表示メッセージで参照する。
+ *   ただしメモ CRUD の source of truth は常に MyBrain/Supabase（アダプタを変えても CRUD 先は不変）。
+ *   'obsidian-local' のときだけ、保存フローが lib/fs ヘルパーで追加的にローカル Vault へ .md を書き出す。
  */
 
 export const DEFAULT_MEMO_STORAGE_TARGET: MemoStorageTarget = 'mybrain';

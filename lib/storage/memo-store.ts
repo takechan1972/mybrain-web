@@ -18,14 +18,15 @@ import { obsidianGdriveMemoStore } from './obsidian-gdrive-memo-store';
 // 参照するため、実行時の循環 import は発生しない。
 
 /**
- * メモ保存アダプタ層（Phase 1：足場のみ）。
+ * メモ保存アダプタ層。
  *
- * 目的：将来「保存先（MyBrain / Obsidian Vault 等）」を1点で切り替えられるようにするための seam。
+ * 目的：「保存先（MyBrain / Obsidian Vault 等）」を1点で切り替えるための seam。
  *
  * 重要：
- * - これは足場（scaffolding）であり、まだ既存ページからは使われない。
- * - 既存の保存挙動・lib/memos.ts・呼び出し箇所は一切変更していない。
- * - 現状 getMemoStore() は常に Supabase 実装（既存関数への転送）を返すため、アプリの動作は不変。
+ * - lib/memos.ts（facade）は getMemoStore() 経由で本アダプタ層を使う。
+ * - メモ CRUD の source of truth は常に Supabase。どのアダプタを選んでも CRUD 先は Supabase で不変。
+ * - 保存先が 'obsidian-local' のときのローカル Vault への .md 書き出しは、この CRUD アダプタではなく
+ *   保存フロー側の付加処理（lib/fs/write-saved-memo-to-vault.ts 等）が担う（追加的・非致命）。
  *
  * 契約は現行の async／結果ラッパー型（ListResult / MemoResult / DeleteResult）に一致させる。
  * 結果型は lib/memos.ts のものを再利用し、独自再定義による乖離を避ける。
@@ -39,7 +40,7 @@ export interface MemoStore {
   deleteMemo(id: string): Promise<DeleteResult>;
 }
 
-/** 保存先の種別（将来の選択用。現時点では切り替えに使用しない）。 */
+/** 保存先の種別（メモの保存先設定で選択）。 */
 export type MemoStorageTarget = 'mybrain' | 'obsidian-local' | 'obsidian-gdrive';
 
 /**
@@ -57,12 +58,12 @@ export const supabaseMemoStore: MemoStore = {
 /**
  * 現在有効なメモ保存ストアを返す。
  *
- * Phase 1.3：選択中の保存先（localStorage: mybrain.memo.storageTarget）を読み、
- * それに応じてアダプタを切り替えられる seam にした。
+ * 選択中の保存先（localStorage: mybrain.memo.storageTarget）を読み、対応するアダプタを返す。
  *
- * ただし現時点では「どの保存先を選んでも」Supabase 実装にフォールバックする。
- * → 保存挙動は従来どおり完全に不変（常に MyBrain/Supabase に保存）。
- * → Obsidian ローカル / Google Drive アダプタは未実装。下記 TODO の箇所で接続する。
+ * どのアダプタも CRUD の実体は Supabase（source of truth）。保存先を変えても CRUD 先は変わらない。
+ * → 'obsidian-local' のローカル Vault への .md 追加書き出しは、この CRUD アダプタではなく
+ *   保存フロー側の付加処理（lib/fs/write-saved-memo-to-vault.ts）が担当する。
+ * → 'obsidian-gdrive' の自動書き出しは未対応（Google Drive へは手動エクスポートのみ）。
  *
  * SSR では loadMemoStorageTarget() が既定値 'mybrain' を返すため、サーバ側でも安全。
  */
@@ -71,15 +72,13 @@ export function getMemoStore(): MemoStore {
 
   switch (target) {
     case 'obsidian-local':
-      // Obsidian ローカル Vault 用アダプタ（プレースホルダ）。
-      // 現状は内部で MyBrain/Supabase に委譲するため保存挙動は不変。
-      // 実ファイル保存は obsidian-local-memo-store.ts の TODO で実装予定。
+      // Obsidian ローカル Vault 用アダプタ。CRUD は Supabase に委譲（挙動は不変）。
+      // ローカル Vault への .md 書き出しは保存フロー側（lib/fs）が付加的に行う。
       return obsidianLocalMemoStore;
 
     case 'obsidian-gdrive':
-      // Google Drive 同期の Obsidian Vault 用アダプタ（プレースホルダ）。
-      // 現状は内部で MyBrain/Supabase に委譲するため保存挙動は不変。
-      // 実ファイル保存は obsidian-gdrive-memo-store.ts の TODO で実装予定。
+      // Google Drive 同期の Obsidian Vault 用アダプタ。CRUD は Supabase に委譲（挙動は不変）。
+      // 保存時の自動 Drive 書き出しは未対応（Drive へは手動エクスポートのみ）。
       return obsidianGdriveMemoStore;
 
     case 'mybrain':

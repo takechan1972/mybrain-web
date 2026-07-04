@@ -37,3 +37,17 @@
 - MyBrain の予定への取り込み（import / 双方向同期）は、意図的にまだ実装していない。
 - 将来の取り込み／同期は、別の独立タスクとして扱う。
 - 詳細な本番検証ログ（CAL3R / CAL5R / CAL7R / CAL8R）は `docs/google-calendar-integration-design.md` を参照。
+
+## Obsidian / Markdown 連携
+
+### メモの保存先・Obsidian 書き出し — ✅ 現状（2026-07-04）
+
+- メモの保存先設定（`mybrain.memo.storageTarget`）は localStorage に保存・読み込みする。
+- メモ CRUD の source of truth は常に Supabase（MyBrain）。保存先を変えても CRUD 先は変わらない。
+- `getMemoStore()` は保存先に応じてアダプタを切り替えるが、どのアダプタも CRUD の実体は Supabase。
+- `obsidian-local`：保存フロー側（`lib/fs` ヘルパー）が追加的にローカル Vault へ Markdown（.md）を書き出す。
+  - File System Access API を使い、Vault フォルダが認可済みのときだけ書き出す（メモ保存フローに接続済み）。
+  - 未対応ブラウザ・未接続時は安全にスキップ（メモは Supabase に保存済みとして扱う）。
+- Markdown のコピー／ダウンロード／ZIP 一括エクスポートは実装済み。
+- `obsidian-gdrive`：保存時の自動 Drive 書き出しは未実装。Google Drive へは手動エクスポートのみ対応。
+- 自動 Drive 書き出しや保存アダプタの統合は、別の独立タスクとして扱う。
