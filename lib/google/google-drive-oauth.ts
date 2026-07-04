@@ -1,12 +1,13 @@
 /**
- * Google Drive OAuth（GIS トークンフロー）ヘルパー（UI 非接続）。
+ * Google Drive OAuth（GIS トークンフロー）ヘルパー。
  *
  * - 設計メモ（docs/google-drive-markdown-export-design.md の「OAuth 同意フロー設計」）に沿う：
  *   GIS トークンフロー採用 / scope は drive.file / アクセストークンは短命・メモリのみ。
  * - ここでは「アクセストークンを取得して呼び出し側へ返す」ところまで。保存はしない・Drive API も呼ばない。
  * - リフレッシュトークンは要求も保存もしない。
  * - トークンを localStorage / sessionStorage / IndexedDB / Cookie / Supabase に保存しない（メモリのみ）。
- * - まだどの画面からも呼ばない（UI 非接続）。
+ * - 手動エクスポート（google-drive-export.ts の exportMemosToGoogleDrive）から、
+ *   ユーザー操作起点で呼ばれる。保存時の自動書き出しはまだこのトークン取得に接続していない。
  */
 
 import { getGoogleDriveClientId, isGoogleDriveConfigured } from './google-drive-config';

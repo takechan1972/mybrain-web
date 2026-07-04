@@ -1,10 +1,13 @@
 /**
- * 保存済みメモを「付加的に」Google Drive の MyBrain/Memos/ へ1件書き出す共有ヘルパー（UI 非接続・スキャフォールド）。
+ * 保存済みメモを「付加的に」Google Drive の MyBrain/Memos/ へ1件書き出す共有ヘルパー（スキャフォールド・呼び出し元なし）。
  *
- * - 目的：将来「保存先 = obsidian-gdrive のときに保存後 Drive へ書き出す」導線の接続点を1箇所に用意する。
+ * - 目的：将来「保存先 = obsidian-gdrive のときに保存後 Drive へ自動書き出す」導線の接続点を1箇所に用意する。
  *   Obsidian ローカルの writeSavedMemoToVaultIfEnabled（lib/fs）を鏡写しにした seam。
+ * - 現状どの画面・保存フローからも呼ばれていない（呼び出し元 0 件）。存在するだけで挙動には影響しない。
+ * - 現在ユーザーが使える Google Drive 書き出しは、これとは別の「手動エクスポート」
+ *   （google-drive-export.ts の exportMemosToGoogleDrive）で、デスクトップ一覧・詳細・
+ *   モバイル保存後ボタンに UI 接続済み。本ヘルパーはその自動化版であり、まだ未接続。
  * - このヘルパーは UI 文言・トーストを持たない。status を返すだけで、表示は呼び出し側の責務。
- * - まだどの画面・保存フローからも呼ばない（UI 非接続）。呼ぶと挙動が変わるわけではない。
  * - OAuth を自動で起動しない：アクセストークンは呼び出し側が用意して渡す（ユーザー操作起点で取得したもの）。
  *   トークンが無ければ 'needs-auth' を返すだけで、ポップアップは出さない。
  * - Drive への実書き込みは既存の低レベルヘルパー（ensureDriveFolderPath / uploadMarkdownToDrive）に委譲。

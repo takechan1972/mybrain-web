@@ -1,12 +1,15 @@
 /**
- * Google Drive への Markdown 書き出しアダプタ（UI 非接続のコア）。
+ * Google Drive への Markdown 書き出しアダプタ（手動エクスポートの中核）。
  *
  * - 選択メモを Drive の MyBrain/Memos/ に Obsidian 互換 Markdown として書き出す。
  * - 結果の形は、ローカル Vault のバッチ書き込み（lib/fs の MemoBatchWriteResult）に揃える。
  *   宛先（ローカル FS / Google Drive）を差し替えても、呼び出し側が同じ形で結果を扱えるようにするため。
  * - 既存ヘルパーを組み合わせるだけ（トークン取得・フォルダ確保・Markdown 化・アップロードは各ヘルパーに委譲）。
  * - アクセストークンは引数で持ち回るだけ・保存しない。リフレッシュトークンは扱わない。
- * - まだどの画面からも呼ばない（UI 非接続）。
+ * - UI 接続済み：デスクトップのメモ一覧（複数選択）・メモ詳細（単体）、モバイルの保存後ボタンから、
+ *   いずれもユーザー操作（ボタン/確認ダイアログ）起点で呼ばれる「手動エクスポート」。
+ * - 保存時の自動 Drive 書き出しはこの関数ではなく別のスキャフォールド
+ *   （write-saved-memo-to-drive.ts の writeSavedMemoToDriveIfEnabled）の役割で、現状 UI 未接続。
  * - 設計方針：docs/google-drive-markdown-export-design.md
  */
 
