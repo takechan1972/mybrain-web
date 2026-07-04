@@ -51,3 +51,14 @@
 - Markdown のコピー／ダウンロード／ZIP 一括エクスポートは実装済み。
 - `obsidian-gdrive`：保存時の自動 Drive 書き出しは未実装。Google Drive へは手動エクスポートのみ対応。
 - 自動 Drive 書き出しや保存アダプタの統合は、別の独立タスクとして扱う。
+
+### OBS14R：Obsidian-local Markdown 保存の本番検証 — ✅ 完了（2026-07-05）
+
+- 保存先「Obsidian用Markdown」（obsidian-local）を本番で確認済み。
+- MyBrain のメモが Obsidian（ローカル Vault）に正しく追加されることを確認した。
+- MyBrain（Supabase）は引き続き source of truth。保存は変わらず Supabase に行われる。
+- Obsidian-local の Markdown 書き出しは「付加的な保存」（Supabase 保存に追加して行う書き出し）である。
+- 今回の確認により、ローカル Vault への Markdown 書き出し経路が実際に動作することを確認した。
+- Google Drive への自動保存は、引き続き未実装。
+- Google Drive への書き出しは、引き続き手動エクスポートのみ対応。
+- モバイル Safari や File System Access API 非対応ブラウザでは、ローカル Vault への書き込みに対応していない場合がある。
