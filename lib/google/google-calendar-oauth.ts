@@ -1,5 +1,5 @@
 /**
- * Google カレンダー OAuth（GIS トークンフロー）ヘルパー（UI 非接続）。
+ * Google カレンダー OAuth（GIS トークンフロー）ヘルパー。
  *
  * - 設計メモ（docs/google-calendar-integration-design.md）に沿う：
  *   GIS トークンフロー採用 / scope は calendar.events / アクセストークンは短命・メモリのみ。
@@ -8,7 +8,7 @@
  * - ここでは「アクセストークンを取得して呼び出し側へ返す」ところまで。保存しない・Calendar API も呼ばない。
  * - リフレッシュトークンは要求も保存もしない。
  * - トークンを localStorage / sessionStorage / IndexedDB / Cookie / Supabase に保存しない（メモリのみ）。
- * - まだどの画面からも呼ばない（UI 非接続）。
+ * - 読み取り（予約画面・予定画面の表示）・削除（予約詳細）から、ユーザー操作起点で呼ばれる。
  */
 
 import { getGoogleDriveClientId } from './google-drive-config';

@@ -1,8 +1,9 @@
 /**
- * Google カレンダーの予定を「読み取り専用」で取得するヘルパー（UI 非接続）。
+ * Google カレンダーの予定を「読み取り専用」で取得するヘルパー。
  *
- * - 目的：将来 UI で「Googleカレンダーの予定（今日/明日/今週）」を表示するための土台。
- *   まだどの画面からも呼ばない。呼んでも保存挙動は変わらない。
+ * - 用途：モバイル予約画面・デスクトップ予定画面で「Googleカレンダーの予定（今日/明日/今週）」を
+ *   表示するために使う。読み取り専用・ユーザー操作起点・表示のみ（取り込み/書き込みはしない）。
+ * - 取得結果は Supabase / localStorage に保存しない（React state で表示するだけ）。
  * - Calendar REST API（events.list）を primary カレンダーに対して呼ぶ。
  *   既存スコープ calendar.events で読み取り可能（新しいスコープは追加しない）。
  * - アクセストークンは取得して使うのみ・保存しない。リフレッシュトークンは扱わない。
@@ -155,8 +156,8 @@ function rangeFor(range: GoogleCalendarReadRange): { timeMin: number; timeMax: n
  * - isGoogleCalendarConfigured() を確認 → 未設定なら { state:'unconfigured' }。
  * - アクセストークンを取得（ユーザー操作起点の想定）。cancelled/error は素直に返す。
  * - ローカル日付で範囲を計算し listCalendarEvents を呼ぶ。
- * - 取得結果はどこにも保存しない（呼び出し側へ返すのみ・Supabase に入れない）。
- * - まだどの画面からも呼ばない（UI 非接続）。自動取得はしない。
+ * - 取得結果はどこにも保存しない（呼び出し側へ返すのみ・Supabase / localStorage に入れない）。
+ * - モバイル予約画面・デスクトップ予定画面から呼ぶ（ユーザー操作起点・表示のみ）。自動取得はしない。
  */
 export async function readGoogleCalendarEventsInRange(
   range: GoogleCalendarReadRange,
