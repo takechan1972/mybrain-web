@@ -894,7 +894,7 @@ export default function SettingsPage() {
             <p className="text-[15px] font-bold" style={{ color: '#ffffff' }}>メモの保存先</p>
           </div>
           <p className="mt-1.5 text-[13px] font-semibold" style={{ color: '#a5b4fc' }}>現在：MyBrainに保存</p>
-          <p className="mt-0.5 text-[12px]" style={{ color: '#9fb0e0' }}>今後：Obsidian形式で保存先を選べるようにします。</p>
+          <p className="mt-0.5 text-[12px]" style={{ color: '#9fb0e0' }}>Obsidian形式（Markdown）の保存先を選べます。MyBrainが本体の保存先です。</p>
 
           <div className="mt-3 flex flex-col gap-2">
             {(
@@ -945,10 +945,10 @@ export default function SettingsPage() {
             現在は安全のため、すべてMyBrainにも保存されます。
           </p>
           <p className="mt-1.5 text-[11px] leading-relaxed" style={{ color: '#8893c4' }}>
-            Obsidian localを選ぶと、対応ブラウザでVaultフォルダへMarkdown保存できます。
+            スマホではMarkdownをコピー・ダウンロードして使えます。フォルダ直接保存は対応PCブラウザ向けです。
           </p>
           <p className="mt-1.5 text-[11px] leading-relaxed" style={{ color: '#8893c4' }}>
-            Google Drive連携を選ぶと、メモ保存後に表示されるボタンからGoogle DriveへMarkdownを書き出せます。
+            Google Drive連携を選ぶと、メモ保存後に表示されるボタンからGoogle DriveへMarkdownを手動で書き出せます。Google Driveへの完全自動保存は行いません。
           </p>
           <div className="mt-3 rounded-2xl border px-4 py-3" style={{ borderColor: 'rgba(120,160,255,0.25)', background: 'rgba(10,14,32,0.5)' }}>
             <p className="text-[11px] font-bold" style={{ color: '#a5b4fc' }}>今の使い方</p>
@@ -970,13 +970,13 @@ export default function SettingsPage() {
             <span className="text-[18px]">☁️</span>
             <p className="text-[15px] font-bold" style={{ color: '#ffffff' }}>Google Drive 連携</p>
           </div>
-          <p className="mt-1.5 text-[13px] font-semibold" style={{ color: '#a5b4fc' }}>準備中</p>
+          <p className="mt-1.5 text-[13px] font-semibold" style={{ color: '#a5b4fc' }}>手動で書き出しできます</p>
           <p className="mt-1.5 text-[13px] leading-relaxed" style={{ color: '#c7d2fe' }}>
-            Google Drive連携は準備中です。<br />
-            準備ができたら、メモをGoogle Driveの Obsidian フォルダに保存できるようになります。
+            メモ保存後に表示されるボタンから、メモをGoogle Driveの Obsidian フォルダへMarkdownで書き出せます。<br />
+            Google Driveへの完全自動保存は行いません。書き出しはボタンを押したときだけ実行されます。
           </p>
           <p className="mt-2 text-[11px]" style={{ color: '#8893c4' }}>
-            ※ 今はObsidian用Markdownをダウンロードして使えます。
+            ※ MyBrainが本体の保存先です。ObsidianやGoogle Driveは追加のMarkdown保存です。
           </p>
         </section>
 
