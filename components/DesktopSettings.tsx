@@ -550,7 +550,7 @@ export default function DesktopSettings() {
                         disabled={!vaultDirSupported}
                         className="rounded-xl px-3 py-2 text-[12px] font-bold text-white disabled:opacity-50"
                         style={{ background: PURPLE }}>
-                        Vaultフォルダを選択
+                        Obsidianフォルダを接続
                       </button>
                       <button
                         type="button"
