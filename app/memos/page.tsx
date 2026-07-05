@@ -9,7 +9,11 @@ import VoiceInput from '@/components/VoiceInput';
 import { parseTags } from '@/lib/memos';
 import { getMemoStore } from '@/lib/storage/memo-store';
 import { loadMemoStorageTarget, savedMessageForTarget } from '@/lib/storage/memo-storage-target';
-import { exportMemosToGoogleDrive, isGoogleDriveConfigured } from '@/lib/google';
+import {
+  isGoogleDriveConfigured,
+  requestGoogleDriveAccessToken,
+  writeSavedMemoToDriveIfEnabled,
+} from '@/lib/google';
 import type { Memo } from '@/lib/types';
 import { isPaidPlan } from '@/lib/plan';
 import { useFullAccess } from '@/lib/auth/use-full-access';
@@ -147,19 +151,41 @@ export default function MemosPage() {
   }
 
   // 保存済みメモ1件を Google Drive へ書き出す（ユーザーがボタンをタップしたときのみ。OAuth はこのタップ起点）。
-  // - 既存の手動エクスポート exportMemosToGoogleDrive をそのまま再利用（挙動は不変）。
+  // - タップ起点でアクセストークンを取得（requestGoogleDriveAccessToken）し、共有ヘルパー
+  //   writeSavedMemoToDriveIfEnabled に委譲する（付加的な1件書き出し）。
   // - 失敗・キャンセルでもメモは MyBrain に保存済みのまま（保存成功には影響しない）。
+  //   成功（written）のときだけボタンを消す（重複書き出し防止）。
   async function exportSavedMemoToGoogleDrive() {
     if (!savedGdriveMemo) return;
     setGdriveExporting(true);
     setGdriveMsg(null);
     try {
-      const result = await exportMemosToGoogleDrive([savedGdriveMemo]);
-      if (result.failureCount === 0) {
+      const token = await requestGoogleDriveAccessToken();
+      if (token.state === 'cancelled') {
+        setGdriveOk(false);
+        setGdriveMsg('Google Driveへの書き出しをキャンセルしました（メモはMyBrainに保存済みです）');
+        return;
+      }
+      if (token.state === 'unconfigured') {
+        setGdriveOk(false);
+        setGdriveMsg('Google Drive連携が設定されていません');
+        return;
+      }
+      if (token.state !== 'granted' || !token.accessToken) {
+        setGdriveOk(false);
+        setGdriveMsg('Google Driveへの書き出しに失敗しました（メモはMyBrainに保存済みです）');
+        return;
+      }
+
+      const result = await writeSavedMemoToDriveIfEnabled(savedGdriveMemo, token.accessToken);
+      if (result.status === 'written') {
         setGdriveOk(true);
         setGdriveMsg('Google Driveへ書き出しました');
         setSavedGdriveMemo(null); // 成功後はボタンを消す（重複書き出し防止）
+      } else if (result.status === 'skipped') {
+        // 保存先が obsidian-gdrive ではない：何もしない（現在の保存状態を維持）。
       } else {
+        // needs-auth / error：非致命。メモは MyBrain に保存済みのまま。
         setGdriveOk(false);
         setGdriveMsg('Google Driveへの書き出しに失敗しました（メモはMyBrainに保存済みです）');
       }
