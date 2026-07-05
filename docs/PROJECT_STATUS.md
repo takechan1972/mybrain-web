@@ -77,3 +77,18 @@
   - 同じメモをもう一度エクスポートしても、既存の Markdown ファイルは上書きされない。
   - 代わりに `-2.md` のような連番付きのファイルが新しく作成される。
   - これにより、Google Drive エクスポートの重複回避（上書きしない）挙動を確認した。
+
+### OBS17R：Google Drive 自動保存の設計方針 — 🟡調査完了・実装は保留（2026-07-05）
+
+- Google Drive への「完全な無音の自動保存」は実装しない。
+- 現在の GIS トークンフローでは、Google Drive への書き出しはユーザー操作起点のままにする。
+  - GIS のトークン取得（同意ポップアップ）はユーザーのタップ操作が必要で、保存直後に自動では開けないため。
+- MyBrain（Supabase）は引き続き source of truth。
+- Google Drive への Markdown 書き出しは、引き続き「付加的な保存」（Supabase 保存に追加して行う書き出し）である。
+- 既存の手動エクスポート（`exportMemosToGoogleDrive`）は引き続き有効であり、壊さない。
+- `writeSavedMemoToDriveIfEnabled` は、UI から呼び出されていないスキャフォールド（下地のヘルパー）のままである。
+- 将来実装する場合、最小の安全なステップはモバイル優先とする：
+  - 保存先 `obsidian-gdrive` でメモを保存したあとに、ユーザーがタップする Drive 保存／書き出しボタンを表示する。
+  - タップ時に Google Drive のトークンを取得する。
+  - そのうえで `writeSavedMemoToDriveIfEnabled(memo, token)` を呼び出す。
+- デスクトップ／詳細画面の保存フローは、別の独立した将来タスクとして扱う。
