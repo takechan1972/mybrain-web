@@ -92,3 +92,15 @@
   - タップ時に Google Drive のトークンを取得する。
   - そのうえで `writeSavedMemoToDriveIfEnabled(memo, token)` を呼び出す。
 - デスクトップ／詳細画面の保存フローは、別の独立した将来タスクとして扱う。
+
+### OBS18R：モバイル Google Drive 保存ヘルパー接続の本番検証 — ✅完了（2026-07-05）
+
+- 保存先 `obsidian-gdrive` のモバイル「保存後 Google Drive 書き出しボタン」を本番で確認済み。
+- メモを保存したあとに、Google Drive 書き出しボタンが表示された。
+- ボタンをタップすると、Google Drive の認可（同意）が正しく要求された。
+- メモが Google Drive へ正しく書き出されたことを確認した。
+- この導線は `requestGoogleDriveAccessToken()` と `writeSavedMemoToDriveIfEnabled(...)` を使う実装になった。
+- これにより、`writeSavedMemoToDriveIfEnabled` はスキャフォールド（下地）ではなく、モバイルの保存後ボタンから実際に呼び出されるようになった。
+- Google Drive への書き出しは、引き続きユーザー操作起点（ボタンのタップ時のみ）である。
+- MyBrain（Supabase）は引き続き source of truth。
+- デスクトップおよびメモ詳細画面の Google Drive 書き出しフローは、OBS18 では変更していない。
