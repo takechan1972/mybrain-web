@@ -354,24 +354,19 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {/* 一括エクスポートの案内（メモ一覧のみ・準備中・表示のみ。ボタンや操作は無い） */}
+        {/* 一括エクスポート（メモ一覧のみ）。選択したメモをZIP（Obsidian用Markdown）でダウンロードする。 */}
         {view === 'memos' && (
           <div
             className="rounded-2xl border px-4 py-3"
             style={{ borderColor: 'rgba(99,102,241,0.30)', background: 'rgba(10,14,35,0.50)' }}>
             <div className="flex items-center gap-2">
               <span className="text-[14px] font-bold" style={{ color: '#c7d2fe' }}>一括エクスポート</span>
-              <span
-                className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                style={{ background: 'rgba(242,213,138,0.16)', color: '#f2d58a', border: '1px solid rgba(242,213,138,0.4)' }}>
-                準備中
-              </span>
             </div>
             <p className="mt-1 text-[12px] leading-relaxed" style={{ color: '#9fb0e0' }}>
-              複数のメモをまとめてObsidian用Markdownとして保存する機能を準備中です。
+              選択したメモをObsidian用Markdownとして、1つのZIPファイルでダウンロードできます。
             </p>
             <p className="mt-0.5 text-[11px]" style={{ color: '#818cf8' }}>
-              ※ 今はメモ詳細から1件ずつダウンロードできます。
+              ※ 1件ずつのダウンロードはメモ詳細からもできます。
             </p>
             <button
               type="button"
