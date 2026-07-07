@@ -52,7 +52,7 @@ export default function ObsidianMemoFileInfo({ fileName, path, variant = 'dark' 
       <p className="mt-1 text-[11px] break-all" style={t.text}>ファイル名: {fileName}</p>
       <p className="mt-0.5 text-[11px] break-all" style={t.text}>保存場所: {path}</p>
       <p className="mt-1.5 text-[11px] leading-relaxed" style={t.note}>
-        ※ 自動保存は準備中です。今はMarkdownをダウンロードしてObsidianに入れてください。
+        ※ MyBrainが本体の保存先です。Markdownをダウンロードして、Obsidianに手動で入れてください。
       </p>
     </div>
   );

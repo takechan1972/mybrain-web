@@ -957,6 +957,9 @@ export default function SettingsPage() {
               <li>Markdownをダウンロード</li>
               <li>ダウンロードした.mdファイルをObsidianに入れる</li>
             </ol>
+            <p className="mt-1.5 text-[11px] leading-relaxed" style={{ color: '#9fb0e0' }}>
+              複数のメモは、メモ一覧の「一括エクスポート」からZIPでまとめてダウンロードできます。
+            </p>
           </div>
           <div className="mt-2.5">
             <p className="text-[11px] font-bold" style={{ color: '#a5b4fc' }}>Obsidian内の予定保存場所</p>
@@ -964,7 +967,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Google Drive 連携の案内（準備中・表示のみ。ボタンや接続処理はまだ無い） */}
+        {/* Google Drive 連携の案内（手動書き出しの説明。表示のみ・接続処理は持たない） */}
         <section className="rounded-3xl p-5" style={GLASS_CARD}>
           <div className="flex items-center gap-2">
             <span className="text-[18px]">☁️</span>
