@@ -133,3 +133,18 @@
 - `docs/markdown-export-qa-checklist.md` を追加した（ドキュメントのみ・アプリコード変更なし）。
 - 対象：ログイン必須画面／モバイル・デスクトップの一括ZIP／単件Markdownダウンロード／フォルダ書き出し（対応PCブラウザのみ）／Google Drive 手動書き出し（構成済み環境のみ）。
 - 「MyBrain が本体の保存先」「エクスポートは手動のみ（自動保存なし）」の確認項目とブラウザ制限の注意を含む。
+
+### OBS22：Markdown エクスポート 手動QA 全8ケース完了 — ✅完了（2026-07-08）
+
+- `docs/markdown-export-qa-checklist.md` の全8テストケースを本番環境で実施し、**すべて Pass（合格）** となった。
+  1. ログイン必須画面（未ログインで `/history?view=memos` → ログイン画面へリダイレクト）
+  2. モバイル 一括ZIPエクスポート
+  3. デスクトップ 一括ZIPエクスポート
+  4. メモ詳細 単件Markdownダウンロード（frontmatter 確認含む）
+  5. フォルダへ書き出し（対応PCブラウザ）
+  6. Google Drive 手動エクスポート（構成済み環境・同意フロー含む）
+  7. MyBrain が本体の保存先であること（エクスポートで元メモは削除・移動されない）
+  8. エクスポートが手動のみであること（ボタン操作なしに Obsidian・Google Drive へファイルは作成されない）
+- 各実施記録の詳細は `docs/markdown-export-qa-checklist.md` の「実施記録」を参照。
+- QA記録の最終コミット：`4425f66 docs: record google drive markdown export QA result`。
+- この作業はドキュメントのみで、アプリロジック・Supabase スキーマ・OAuth スコープ・エクスポート挙動は変更していない。
