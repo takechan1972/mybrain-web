@@ -258,3 +258,15 @@
 - これで OBS25 設計の Phase 1（一覧）・Phase 2（1件プレビュー）が実装・本番QAともに完了。残るは Phase 3（AI/検索参照・任意）のみで、別の独立タスクとして扱う。
 - この作業（OBS27R）はドキュメントのみで、アプリコード・Supabase スキーマ・OAuth スコープ・Google カレンダー連携・モバイル UI は変更していない。
 - 実装コミット：`8e92ea1 feat: add read-only google drive markdown preview`（push 済み）。
+
+### OBS28：Drive Markdown の検索・AI参照（Phase 3）詳細設計 — 🟡設計のみ・実装は未着手（2026-07-09）
+
+- `docs/google-drive-markdown-read-search-design.md` に「Phase 3 詳細設計（OBS28）」セクションを追加した（ドキュメントのみ・アプリコード変更なし）。
+- 目的：ユーザーが明示的に読み込んだ Drive Markdown を「Google Drive参照」として、既存のクライアント検索と AI アシストの参照データに使えるようにする（取り込み・インポートではない）。
+- 最重要の設計判断：**参照メモは本体メモに一切混ぜない。** 一覧・件数・フォルダ・一括エクスポートの対象外とし、検索時のみ独立セクション「Google Drive参照の検索結果」に「Google Drive参照」バッジ付きで表示する。保持は React state のみ（画面を開いている間だけ・保存しない）。
+- 読み込みは既存の「エクスポート済み一覧」に「参照に追加」ボタンを足すだけ（Phase 2 の `readDriveMarkdownFile`＋`markdownToMemo` を再利用・新しい Drive ロジックなし）。
+- 実装は2段階に分ける：Phase 3a（検索参照のみ・AI非接続）→ 本番QA後に Phase 3b（デスクトップ AI アシスタントへ出所明示の参照ブロックを追加。「Google Drive参照 N件も参考にします」を表示して黙って混ぜない）。
+- 最初の実装はデスクトップのみ。モバイル UI・consult（モバイル AIアシスト）は変更しない。
+- スコープ外：Supabase／localStorage への保存・参照の永続化・自動読み込み・ベクトル検索・OAuth スコープ変更・カレンダー連携・参照メモの編集/削除/エクスポート。
+- QAチェックリスト草案（S1〜S10）を設計ドキュメントに含めた。
+- 実装（Phase 3a）は次の独立タスクとして扱う（このフェーズでは設計ドキュメントのみ）。
