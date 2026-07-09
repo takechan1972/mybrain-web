@@ -182,3 +182,15 @@
 - MyBrain（Supabase）は引き続き source of truth。エクスポートで元のメモは削除・移動されない。
 - この作業（OBS24R）はドキュメントのみで、アプリコード・Supabase スキーマ・OAuth スコープ・Google カレンダー連携は変更していない。
 - 実装コミット：`28a3a89 feat: add mobile bulk Google Drive export for selected memos`（push 済み）。
+
+### OBS25：Google Drive Markdown 読み取り・検索参照 設計メモ — 🟡設計のみ・実装は未着手（2026-07-09）
+
+- `docs/google-drive-markdown-read-search-design.md` を追加した（ドキュメントのみ・アプリコード変更なし）。
+- 目的：MyBrain が Drive の `MyBrain/Memos/` に書き出した Markdown を、あとから一覧・読み取りし、将来 AI アシスト・検索の参照データに使えるようにする。
+- 最重要の設計判断：OAuth スコープは `drive.file` のまま変更しない。`drive.file` はアプリ自身が作成したファイルを読み返せるため、**MyBrain のエクスポート済み Markdown はスコープ変更なしで読める**。他アプリが置いたファイルは見えない（許容する制限として明記）。
+- 解析は既存の `markdownToMemo`（`lib/markdown/memo-markdown.ts`）を再利用する（新パーサは作らない）。
+- 読み取りは手動・読み取り専用・メモリのみ（Supabase・localStorage に保存しない）。MyBrain（Supabase）は引き続き source of truth。
+- 実装フェーズ案：Phase 1（一覧のみ）→ Phase 2（1件プレビュー）→ Phase 3（AI/検索参照・任意）。各フェーズは独立の小タスク。
+- スコープ外：Drive からの取り込み・双方向同期・自動読み込み・`drive.readonly` への拡張・ベクトル検索・カレンダー連携／スキーマ／メモ入力 UI の変更。
+- QAチェックリスト草案（R1〜R10）を設計ドキュメントに含めた（実装フェーズで正式化する）。
+- 実装は次の独立タスクとして扱う（このフェーズでは設計ドキュメントのみ）。
