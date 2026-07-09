@@ -15,6 +15,7 @@ import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory, resol
 import { isGoogleDriveConfigured, exportMemosToGoogleDrive } from '@/lib/google';
 import { savedMessageForTarget } from '@/lib/storage/memo-storage-target';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
+import DriveExportedFilesList from '@/components/DriveExportedFilesList';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
 import type { Memo } from '@/lib/types';
@@ -1048,6 +1049,8 @@ export default function DesktopMemos() {
                     </button>
                   </div>
                 )}
+                {/* エクスポート済み一覧（Phase 1・読み取り専用）。Drive 構成済みのときのみ表示。 */}
+                {googleDriveConfigured && <DriveExportedFilesList />}
               </div>
             )}
             {mode === 'list' ? (

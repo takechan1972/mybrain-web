@@ -1,6 +1,7 @@
 # Google Drive Markdown 読み取り・検索参照 ― 設計メモ（OBS25）
 
-> **ステータス：設計のみ（未実装）。** このドキュメントは実装前の方針整理であり、アプリコード・OAuth スコープ・Supabase スキーマの変更は含まない。
+> **ステータス：Phase 1 実装済み（2026-07-09・OBS26）／Phase 2・3 は未着手。**
+> Phase 1（一覧のみ）を実装した：`lib/google/google-drive-read.ts`（`listDriveMarkdownFiles`・読み取り専用・フォルダ作成なし）＋デスクトップの一括エクスポートパネル内「エクスポート済み一覧」（`components/DriveExportedFilesList.tsx`）。本文読み取り（Phase 2）・AI/検索参照（Phase 3）は未実装。OAuth スコープは `drive.file` のまま変更なし。
 > 関連：`docs/google-drive-markdown-export-design.md`（書き出し設計）／`docs/mobile-bulk-markdown-export-design.md`（OBS23/24）／`lib/google/`（Drive ヘルパー群）／`lib/markdown/memo-markdown.ts`（Markdown ⇄ メモ変換）／`lib/ai/consult-ollama.ts`（AI アシストのコンテキスト構築）。
 
 ---
@@ -91,7 +92,7 @@ MyBrain が Google Drive の `MyBrain/Memos/` に書き出した Markdown ファ
 
 ### 8. 実装フェーズ案（それぞれ独立の小タスク）
 
-1. **Phase 1（一覧のみ）**：`lib/google/google-drive-read.ts` に `listDriveMarkdownFiles` を追加し、デスクトップ設定または一括エクスポートパネル付近に「Google Driveのエクスポート済み一覧」を表示（ファイル名・更新日時のみ。ユーザー操作起点・読み取り専用）。
+1. **Phase 1（一覧のみ）— ✅実装済み（2026-07-09・OBS26）**：`lib/google/google-drive-read.ts` に `listDriveMarkdownFiles` を追加し、デスクトップの一括エクスポートパネル内に「エクスポート済み一覧」を表示（ファイル名・更新日時のみ。ユーザー操作起点・読み取り専用・フォルダ作成なし）。
 2. **Phase 2（1件プレビュー）**：`readDriveMarkdownFile` を追加し、一覧から選んだ 1 件を `markdownToMemo` で解析してプレビュー表示（タイトル・タグ・本文。メモリのみ）。
 3. **Phase 3（AI/検索参照・任意）**：読み込み済みの Drive メモを、既存のクライアント検索と AI アシストの参照コンテキストに「Driveの参照」として追加できるようにする（ユーザーが明示的に選んだ場合のみ）。
 - 各フェーズとも：実装後に `npx tsc --noEmit`・`npm run build`・本番QA（下のチェックリスト）を実施してから次へ進む。
@@ -111,6 +112,24 @@ MyBrain が Google Drive の `MyBrain/Memos/` に書き出した Markdown ファ
 | R8 | 保存しないこと | 読み取った内容が Supabase・localStorage に保存されない（リロードで消える） |
 | R9 | 手動のみであること | ユーザー操作なしに Drive への読み取りリクエストが発生しない |
 | R10 | 同意キャンセル | 同意ポップアップを閉じると何も読み込まれず、エラー表示も穏当 |
+
+---
+
+## OBS26 QA（Phase 1：一覧のみ）— 手動QAチェックリスト
+
+Phase 1 の本番検証で確認するケース（上の草案 R1〜R10 のうち Phase 1 に該当するもの）。
+
+| # | ケース | 期待 | 合否 |
+|---|---|---|---|
+| R1 | 一覧表示（構成済み・エクスポート済み） | デスクトップのメモ一覧 ＞ 一括エクスポートパネル ＞「エクスポート済み一覧」＞「一覧を確認」→（必要なら）Google 同意 → `MyBrain/Memos/` の `.md` がファイル名・更新日時つきで新しい順に表示される | ☐ Pass ☐ Fail |
+| R2 | 一覧表示（エクスポート0件／フォルダなし） | エラーにならず「Google Driveに書き出したMarkdownはまだありません。」と表示される。**Drive にフォルダは作成されない** | ☐ Pass ☐ Fail |
+| R3 | 未構成環境 | 「エクスポート済み一覧」の表示自体が出ない | ☐ Pass ☐ Fail |
+| R7 | 読み取り専用であること | 一覧を確認しても Drive のファイル・フォルダは変更・削除・作成されない | ☐ Pass ☐ Fail |
+| R9 | 手動のみであること | 「一覧を確認」を押すまで Drive への読み取りリクエストが発生しない（画面表示だけでは同意ポップアップが出ない） | ☐ Pass ☐ Fail |
+| R10 | 同意キャンセル | 同意ポップアップを閉じると何も読み込まれず、エラー表示も出ない（元の状態に戻る） | ☐ Pass ☐ Fail |
+
+- R4（他アプリのファイル非表示）・R5・R6（本文プレビュー系）・R8 は Phase 2 以降で正式化する。
+- モバイル UI は Phase 1 では変更していないため、モバイルの確認は不要。
 
 ---
 

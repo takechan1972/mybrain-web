@@ -194,3 +194,21 @@
 - スコープ外：Drive からの取り込み・双方向同期・自動読み込み・`drive.readonly` への拡張・ベクトル検索・カレンダー連携／スキーマ／メモ入力 UI の変更。
 - QAチェックリスト草案（R1〜R10）を設計ドキュメントに含めた（実装フェーズで正式化する）。
 - 実装は次の独立タスクとして扱う（このフェーズでは設計ドキュメントのみ）。
+
+### OBS26：Google Drive エクスポート済み一覧（Phase 1・読み取り専用） — 🟡実装済み・本番QA待ち（2026-07-09）
+
+- OBS25 設計の Phase 1（一覧のみ）を実装した。
+- 新ヘルパー `lib/google/google-drive-read.ts`：
+  - `listDriveMarkdownFiles(accessToken)`：Drive の `MyBrain/Memos/` 直下の `.md` ファイルの一覧メタデータ（id / name / modifiedTime / size）を新しい順で返す。本文はダウンロードしない。
+  - `findDriveFolderPathReadOnly(...)`：既存の `findDriveFolder` を find のみで辿る読み取り専用のフォルダ解決。**フォルダが無くても作成しない**（空一覧を返す）。
+  - `lib/google/index.ts` のバレルから再エクスポート。
+- 新コンポーネント `components/DriveExportedFilesList.tsx`（デスクトップのみ）：
+  - デスクトップのメモ一覧 ＞ 一括エクスポートパネル内に「エクスポート済み一覧」＋「一覧を確認」ボタンを追加（Drive 構成済みのときのみ表示）。
+  - ボタンを押したときだけ Drive に問い合わせる（ユーザー操作起点・自動読み込みなし）。トークンは既存の `requestGoogleDriveAccessToken()` を再利用・保存しない。
+  - 表示はファイル名と更新日時のみ。0件時は「Google Driveに書き出したMarkdownはまだありません。」、失敗時はやさしいエラーメッセージ。同意キャンセルは静かに元の状態へ戻す。
+  - 取得結果は React state のみで保持（Supabase・localStorage に保存しない）。
+- 読み取り専用：Drive のファイル・フォルダの作成・変更・削除は一切しない。
+- 未実装のまま：本文読み取り（Phase 2）・AI/検索参照（Phase 3）・Supabase への取り込み。
+- モバイル UI・メモ入力 UI・Supabase スキーマ・OAuth スコープ（`drive.file` のまま）・Google カレンダー連携は変更していない。
+- `npx tsc --noEmit`・`npm run build` は成功。
+- 本番QAは `docs/google-drive-markdown-read-search-design.md` の「OBS26 QA」（R1〜R3・R7・R9・R10）で実施する。
