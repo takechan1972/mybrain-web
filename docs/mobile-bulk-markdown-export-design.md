@@ -1,6 +1,6 @@
 # モバイル 複数メモ一括 Markdown エクスポート ― 設計メモ
 
-> **ステータス：✅ 実装済み（2026-07-09・OBS24）。** 本設計のとおり `app/history/page.tsx` の一括エクスポートパネルに「Google Driveへ書き出し」ボタンを追加した（Drive 構成済み環境のみ表示・既存 `exportMemosToGoogleDrive` を再利用・手動のみ・上書きしない）。本番QAは `docs/markdown-export-qa-checklist.md` のテスト9として実施する。
+> **ステータス：✅ 実装済み・本番QA完了（2026-07-09・OBS24／OBS24R）。** 本設計のとおり `app/history/page.tsx` の一括エクスポートパネルに「Google Driveへ書き出し」ボタンを追加した（Drive 構成済み環境のみ表示・既存 `exportMemosToGoogleDrive` を再利用・手動のみ・上書きしない）。本番QAは `docs/markdown-export-qa-checklist.md` のテスト9として実施し、**Pass（合格）**（OBS24R・2026-07-09）。実装コミット：`28a3a89`。
 > 関連：`docs/google-drive-markdown-export-design.md`（Drive 書き出し設計）／`docs/markdown-export-qa-checklist.md`（QA 全8ケース Pass 済み）／`lib/google/google-drive-export.ts`／`lib/markdown/export-memos-zip.ts`。
 
 ---

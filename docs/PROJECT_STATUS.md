@@ -172,3 +172,13 @@
 - Supabase スキーマ・RLS・Google OAuth スコープ・Google カレンダー連携は変更していない。
 - `npx tsc --noEmit`・`npm run build` は成功。
 - 本番QAは `docs/markdown-export-qa-checklist.md` に追加したテスト9（モバイル 一括Google Driveエクスポート）で実施する。
+
+### OBS24R：モバイル一括Google Driveエクスポートの本番検証 — ✅完了（2026-07-09）
+
+- OBS24 で実装したモバイルの一括 Google Drive エクスポートを本番環境で確認済み（`docs/markdown-export-qa-checklist.md` テスト9 Pass）。
+- モバイルのメモ一覧（一括エクスポートパネル）から複数メモを選択し、「Google Driveへ書き出し」で Google Drive への一括書き出しが動作することを確認した。
+- これで Markdown エクスポートの手動QAは全9テストケースが Pass となった。
+- Google Drive への書き出しは、引き続きユーザー操作起点（ボタンのタップ時のみ）の手動エクスポートである。
+- MyBrain（Supabase）は引き続き source of truth。エクスポートで元のメモは削除・移動されない。
+- この作業（OBS24R）はドキュメントのみで、アプリコード・Supabase スキーマ・OAuth スコープ・Google カレンダー連携は変更していない。
+- 実装コミット：`28a3a89 feat: add mobile bulk Google Drive export for selected memos`（push 済み）。
