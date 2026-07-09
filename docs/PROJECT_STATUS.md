@@ -227,3 +227,21 @@
 - これで Phase 1（一覧のみ）の本番QAは完了。次は Phase 2（1件プレビュー）を別の独立タスクとして扱う。
 - この作業（OBS26R）はドキュメントのみで、アプリコード・Supabase スキーマ・OAuth スコープ・Google カレンダー連携は変更していない。
 - 実装コミット：`dee94fe feat: add read-only google drive exported markdown list`（push 済み）。
+
+### OBS27：Google Drive Markdown 1件プレビュー（Phase 2・読み取り専用） — 🟡実装済み・本番QA待ち（2026-07-09）
+
+- OBS25 設計の Phase 2（1件プレビュー）を実装した。
+- `lib/google/google-drive-read.ts` を拡張：
+  - `readDriveMarkdownFile(accessToken, fileId)`：選んだ1件の Markdown 本文をテキストで読み取る（`files.get?alt=media`）。書き込み・変更・削除・フォルダ作成はしない。
+  - `DRIVE_MARKDOWN_READ_MAX_BYTES`（1MB）：これを超えるファイルは読み込まない（設計のサイズ上限）。
+- `components/DriveExportedFilesList.tsx` を拡張（デスクトップのみ）：
+  - 一覧の各ファイルに「内容を確認」ボタンを追加。押したときだけトークン取得（既存パターン・保存しない）→本文読み取り→既存の `markdownToMemo` で解析→一覧の下にプレビュー表示。
+  - プレビュー内容：タイトル（無ければファイル名）・タグ・作成/更新日時・本文。「閉じる」ボタンで閉じる。
+  - frontmatter が無い場合はエラーにせず、本文をそのまま表示し「MyBrain形式の情報が見つからなかった」旨の注記を出す。
+  - 状態表示：読み込み中「読み込み中...」／失敗「内容を読み込めませんでした。もう一度お試しください。」／1MB超「大きすぎるため表示できません」。同意キャンセルは静かに元へ戻す。
+  - 読み取り専用：保存・取り込み・編集ボタンは置かない。本文は React state のみで保持（Supabase・localStorage に保存しない）。
+- `DesktopMemos.tsx` の変更は不要（コンポーネント内で完結）。
+- 未実装のまま：AI/検索参照（Phase 3）・Supabase への取り込み。
+- モバイル UI・メモ入力 UI・Supabase スキーマ・OAuth スコープ（`drive.file` のまま）・Google カレンダー連携は変更していない。
+- `npx tsc --noEmit`・`npm run build` は成功。
+- 本番QAは `docs/google-drive-markdown-read-search-design.md` の「OBS27 QA」（R5・R6・R8・P1〜P3）で実施する。

@@ -1,8 +1,8 @@
 /**
- * Google Drive の Markdown 読み取りヘルパー（Phase 1：一覧のみ・読み取り専用）。
+ * Google Drive の Markdown 読み取りヘルパー（Phase 1：一覧／Phase 2：1件本文・読み取り専用）。
  *
- * - MyBrain が Drive の MyBrain/Memos/ に書き出した Markdown ファイルの「一覧メタデータ」だけを取得する。
- * - 本文（ファイルの中身）はダウンロードしない（Phase 2 の役割）。
+ * - MyBrain が Drive の MyBrain/Memos/ に書き出した Markdown ファイルの
+ *   一覧メタデータ（Phase 1）と、選択した1件の本文テキスト（Phase 2）を取得する。
  * - 読み取り専用：フォルダ・ファイルの作成／変更／削除はしない。
  *   フォルダが無い場合も作成せず、「エクスポートなし」として空の一覧を返す。
  * - スコープは既存の drive.file のまま（アプリ自身が作成したファイルだけが見える。
@@ -103,4 +103,31 @@ export async function listDriveMarkdownFiles(accessToken: string): Promise<Drive
   } while (pageToken);
 
   return files;
+}
+
+/**
+ * 本文読み取りの上限サイズ（バイト）。これを超えるファイルは読み込まない（呼び出し側で判定する）。
+ * - 設計方針（docs/google-drive-markdown-read-search-design.md）の「サイズ上限（例：1MB）」に対応。
+ */
+export const DRIVE_MARKDOWN_READ_MAX_BYTES = 1024 * 1024;
+
+/**
+ * 選択した1件の Markdown ファイル本文をテキストとして読み取る（Phase 2・読み取り専用）。
+ *
+ * - listDriveMarkdownFiles が返したファイル（＝このアプリが作成した .md）に対して使う想定。
+ * - 生の Markdown テキストをそのまま返す（解析は呼び出し側で lib/markdown の markdownToMemo を使う）。
+ * - Drive への書き込み・変更・削除はしない。フォルダも作成しない。
+ * - トークンは引数で受け取るだけ・保存しない。
+ *
+ * @param accessToken 短命アクセストークン（保存しない）
+ * @param fileId      Drive のファイル ID（一覧メタデータの id）
+ */
+export async function readDriveMarkdownFile(accessToken: string, fileId: string): Promise<string> {
+  const res = await fetch(`${DRIVE_FILES_ENDPOINT}/${encodeURIComponent(fileId)}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Drive file read failed (${res.status})`);
+  }
+  return res.text();
 }
