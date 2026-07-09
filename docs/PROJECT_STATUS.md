@@ -148,3 +148,27 @@
 - 各実施記録の詳細は `docs/markdown-export-qa-checklist.md` の「実施記録」を参照。
 - QA記録の最終コミット：`4425f66 docs: record google drive markdown export QA result`。
 - この作業はドキュメントのみで、アプリロジック・Supabase スキーマ・OAuth スコープ・エクスポート挙動は変更していない。
+
+### OBS23：モバイル一括Markdownエクスポート 設計メモ — 🟡設計のみ・実装は未着手（2026-07-09）
+
+- `docs/mobile-bulk-markdown-export-design.md` を追加した（ドキュメントのみ・アプリコード変更なし）。
+- 現状整理：複数メモの一括エクスポートは、デスクトップが ZIP／フォルダ／Google Drive の3経路、モバイルが ZIP のみ実装済み（OBS22 で QA 済み）。
+- 残ギャップ：モバイルから過去の複数メモをまとめて Google Drive（`MyBrain/Memos/`）へ書き出す導線がない。
+- 提案：モバイルの一括エクスポートパネルに「Google Driveへ書き出し」ボタンを1つ追加する（既存の `exportMemosToGoogleDrive` を再利用・手動のみ・上書きしない）。
+- スコープ外：逐次 .md ダウンロード（iOS制限）・自動保存・双方向同期・Supabase スキーマ／OAuth スコープ／カレンダー連携／デスクトップ UI の変更。
+- 実装は次の独立タスクとして扱う（このフェーズでは設計ドキュメントのみ）。
+
+### OBS24：モバイル一括Google Driveエクスポート 実装 — 🟡実装済み・本番QA待ち（2026-07-09）
+
+- OBS23 の設計どおり、モバイルのメモ一覧（`app/history/page.tsx`）の一括エクスポートパネルに「Google Driveへ書き出し」ボタンを追加した。
+- 表示条件：Google Drive が構成済みの環境のみ（デスクトップと同じ `isGoogleDriveConfigured()` を再利用）。
+- 押下時の流れはデスクトップの複数選択エクスポートと同じ：
+  - 選択0件ではボタンが押せない（disabled）。
+  - 10件以上選択時は先に警告ダイアログを出す（既存しきい値を共有）。
+  - 件数入りの確認ダイアログ →（未認可なら）Google 同意ポップアップ → アップロード → 成功/失敗件数をトーストで通知。
+- 中核は既存の `exportMemosToGoogleDrive`（`lib/google/google-drive-export.ts`）を再利用。新しい Drive ロジックは追加していない。
+- 書き出し先は Drive の `MyBrain/Memos/`。同名ファイルは上書きせず連番（`名前-2.md`）で新規作成（既存挙動のまま）。
+- 既存のモバイル ZIP 一括エクスポート・選択モード・メモ入力 UI は変更していない。デスクトップ UI も変更していない。
+- Supabase スキーマ・RLS・Google OAuth スコープ・Google カレンダー連携は変更していない。
+- `npx tsc --noEmit`・`npm run build` は成功。
+- 本番QAは `docs/markdown-export-qa-checklist.md` に追加したテスト9（モバイル 一括Google Driveエクスポート）で実施する。

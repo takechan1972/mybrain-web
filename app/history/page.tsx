@@ -24,6 +24,7 @@ import { listReservations, formatSchedule } from '@/lib/reservations';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { exportMemosAsZip } from '@/lib/markdown';
 import { downloadBlobFile } from '@/lib/download';
+import { isGoogleDriveConfigured, exportMemosToGoogleDrive } from '@/lib/google';
 import type { Memo, Reservation } from '@/lib/types';
 
 const NAVY = '#223A70';
@@ -77,6 +78,8 @@ export default function HistoryPage() {
   // メモの選択モード（モバイルのメモ一覧のみ・画面内ローカル・保存しない）。
   const [memoSelectMode, setMemoSelectMode] = useState(false);
   const [memoSelectedIds, setMemoSelectedIds] = useState<Set<string>>(new Set());
+  // Google Drive エクスポートの構成可否（マウント後に判定・SSR では false のまま）。
+  const [googleDriveConfigured, setGoogleDriveConfigured] = useState(false);
   const [query, setQuery] = useState('');
   const voiceBaseRef = useRef('');
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -117,6 +120,8 @@ export default function HistoryPage() {
     // AI相談：localStorage（相談画面と同一キー）
     setTurns(loadConsultTurns());
     setLoaded(true);
+    // Google Drive エクスポートの構成可否（デスクトップと同じ判定を再利用）。
+    setGoogleDriveConfigured(isGoogleDriveConfigured());
     // メモ・予定：Supabase（メモ画面・予定画面と同一データソース）
     if (isSupabaseConfigured()) {
       void listMemos().then(({ memos }) => setMemos(memos));
@@ -156,6 +161,33 @@ export default function HistoryPage() {
       showToast(`${count}件をZIPで書き出しました`);
     } catch {
       showToast('ZIPの書き出しに失敗しました');
+    }
+  }
+
+  // 選択したメモを Google Drive の MyBrain/Memos/ に書き出す（一方向・上書きしない・トークンは保存しない）。
+  // デスクトップ（DesktopMemos.tsx の exportSelectedMemosToGoogleDrive）と同じ流れ。
+  async function exportSelectedMemosToGoogleDrive() {
+    const targets = memos.filter((m) => memoSelectedIds.has(m.id));
+    if (targets.length === 0) return;
+    if (targets.length >= MEMO_LARGE_EXPORT_WARNING_COUNT) {
+      const proceed = window.confirm('選択数が多いため、Google Driveへのアップロードに時間がかかる場合があります。続けますか？');
+      if (!proceed) return;
+    }
+    const ok = window.confirm(`選択した ${targets.length} 件のメモをGoogle Driveの MyBrain/Memos/ に書き出します。よろしいですか？`);
+    if (!ok) return;
+    const result = await exportMemosToGoogleDrive(targets);
+    const SHOWN = 2;
+    if (result.failureCount === 0) {
+      showToast(`${result.successCount}件をGoogle Driveへ書き出しました`);
+    } else if (result.successCount === 0) {
+      // 全件失敗：先頭の失敗理由を出す。
+      showToast(`Google Driveへの書き出しに失敗しました：${result.failed[0]?.error ?? '不明なエラー'}`);
+    } else {
+      // 一部失敗：失敗メモのタイトルを先頭2件まで出し、残りは「ほかN件」とまとめる。
+      const titles = result.failed.slice(0, SHOWN).map((f) => f.title || '無題のメモ');
+      const rest = result.failureCount - titles.length;
+      const names = rest > 0 ? `${titles.join('、')}、ほか${rest}件` : titles.join('、');
+      showToast(`${result.successCount}件成功・${result.failureCount}件失敗しました：${names}`);
     }
   }
 
@@ -364,6 +396,7 @@ export default function HistoryPage() {
             </div>
             <p className="mt-1 text-[12px] leading-relaxed" style={{ color: '#9fb0e0' }}>
               選択したメモをObsidian用Markdownとして、1つのZIPファイルでダウンロードできます。
+              {googleDriveConfigured && 'Google Driveへも手動で書き出せます。'}
             </p>
             <p className="mt-0.5 text-[11px]" style={{ color: '#818cf8' }}>
               ※ 1件ずつのダウンロードはメモ詳細からもできます。
@@ -377,7 +410,7 @@ export default function HistoryPage() {
               {memoSelectMode ? '選択終了' : '選択'}
             </button>
             {memoSelectMode && (
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="text-[12px] font-semibold" style={{ color: '#c7d2fe' }}>
                   {memoSelectedIds.size}件 選択中
                 </span>
@@ -397,6 +430,16 @@ export default function HistoryPage() {
                   style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' }}>
                   選択メモを書き出し
                 </button>
+                {googleDriveConfigured && (
+                  <button
+                    type="button"
+                    onClick={exportSelectedMemosToGoogleDrive}
+                    disabled={memoSelectedIds.size === 0}
+                    className="rounded-full border px-3 py-1 text-[11px] font-semibold transition active:scale-95 disabled:opacity-40"
+                    style={{ borderColor: 'rgba(120,160,255,0.40)', color: '#c7d2fe', background: 'rgba(10,14,32,0.6)' }}>
+                    Google Driveへ書き出し
+                  </button>
+                )}
               </div>
             )}
           </div>
