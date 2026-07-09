@@ -212,3 +212,18 @@
 - モバイル UI・メモ入力 UI・Supabase スキーマ・OAuth スコープ（`drive.file` のまま）・Google カレンダー連携は変更していない。
 - `npx tsc --noEmit`・`npm run build` は成功。
 - 本番QAは `docs/google-drive-markdown-read-search-design.md` の「OBS26 QA」（R1〜R3・R7・R9・R10）で実施する。
+
+### OBS26R：Google Drive エクスポート済み一覧（Phase 1）の本番検証 — ✅完了（2026-07-09）
+
+- OBS26 で実装した「エクスポート済み一覧」を、本番環境（デスクトップ・ログイン済み・Drive 構成済み）で確認済み。
+- 確認できたこと（詳細は `docs/google-drive-markdown-read-search-design.md` の「OBS26R 実施記録」）：
+  - エクスポート済み Markdown がファイル名・更新日時つきで一覧表示される（R1）。
+  - フォルダなし／0件でも空表示になり、Drive にフォルダは作成されない（R2）。
+  - 同意ポップアップのキャンセルは安全に元の状態へ戻る（R10）。
+  - 既存のエクスポート導線は引き続き動作し、Drive のファイルは変更されない（R7）。
+  - Drive への読み取りは「一覧を確認」を押したときだけ発生する（R9）。
+  - Markdown 本文は表示されない（Phase 1 のスコープどおり）。
+- R3（未構成環境で読み取りUIが出ないこと）は、本番が構成済みのため対象外（未実施）として記録した。
+- これで Phase 1（一覧のみ）の本番QAは完了。次は Phase 2（1件プレビュー）を別の独立タスクとして扱う。
+- この作業（OBS26R）はドキュメントのみで、アプリコード・Supabase スキーマ・OAuth スコープ・Google カレンダー連携は変更していない。
+- 実装コミット：`dee94fe feat: add read-only google drive exported markdown list`（push 済み）。
