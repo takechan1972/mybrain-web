@@ -245,3 +245,16 @@
 - モバイル UI・メモ入力 UI・Supabase スキーマ・OAuth スコープ（`drive.file` のまま）・Google カレンダー連携は変更していない。
 - `npx tsc --noEmit`・`npm run build` は成功。
 - 本番QAは `docs/google-drive-markdown-read-search-design.md` の「OBS27 QA」（R5・R6・R8・P1〜P3）で実施する。
+
+### OBS27R：Google Drive Markdown 1件プレビュー（Phase 2）の本番検証 — ✅完了（2026-07-09）
+
+- OBS27 で実装した1件プレビューを、本番環境（デスクトップ・ログイン済み・Drive 構成済み）で確認済み。全6ケース Pass。
+- 確認できたこと（詳細は `docs/google-drive-markdown-read-search-design.md` の「OBS27R 実施記録」）：
+  - プレビューにタイトル・タグ・作成/更新日時・本文が表示され、「閉じる」で正しく閉じる（R5）。
+  - frontmatter 無しの Markdown は本文そのまま＋注記のフォールバック表示になる（R6）。
+  - プレビューはメモリのみ。再読み込み後には何も残らず、保存・取り込み・編集ボタンは無い（R8）。
+  - 読み込み中表示（P1）・失敗時のやさしいエラーメッセージ（P2）も動作する。
+  - プレビュー後も Drive のファイルは変更されない（P3・読み取り専用）。
+- これで OBS25 設計の Phase 1（一覧）・Phase 2（1件プレビュー）が実装・本番QAともに完了。残るは Phase 3（AI/検索参照・任意）のみで、別の独立タスクとして扱う。
+- この作業（OBS27R）はドキュメントのみで、アプリコード・Supabase スキーマ・OAuth スコープ・Google カレンダー連携・モバイル UI は変更していない。
+- 実装コミット：`8e92ea1 feat: add read-only google drive markdown preview`（push 済み）。
