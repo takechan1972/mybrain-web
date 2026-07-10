@@ -100,6 +100,30 @@ function extractAiSummary(body: string): string | null {
   return m ? m[1].trim() : null;
 }
 
+// AIアシスト（デスクトップ自由質問）に渡す Google Drive 参照メモの上限（OBS30/OBS31 設計）。
+// 件数・文字数を絞って「渡しすぎ・遅延・混乱」を防ぐ。将来はここ1か所で調整する。
+const DRIVE_REF_AI_MAX_ITEMS = 5;
+const DRIVE_REF_AI_MAX_CHARS = 200;
+const DRIVE_REF_AI_MAX_TITLE = 60;
+
+/**
+ * 読み込み済み Drive 参照メモを、AI に渡す「別ブロック」の文字列へ整形する（Phase 3b・OBS31）。
+ * - 本体メモ（source of truth）とは必ず別見出しにする（黙って混ぜない）。
+ * - 先頭 DRIVE_REF_AI_MAX_ITEMS 件まで・本文は各 DRIVE_REF_AI_MAX_CHARS 字まで・タイトルは切り詰める。
+ * - タイトル・タグがあれば含める。参照が0件なら空文字を返す（呼び出し側で「足さない＝挙動不変」に使う）。
+ */
+function buildDriveReferenceBlock(refs: DriveReferenceMemo[]): string {
+  if (refs.length === 0) return '';
+  const items = refs.slice(0, DRIVE_REF_AI_MAX_ITEMS);
+  const lines = items.map((r, i) => {
+    const title = (r.title || r.fileName || '無題').trim().replace(/\s+/g, ' ').slice(0, DRIVE_REF_AI_MAX_TITLE);
+    const body = (r.body || '').trim().replace(/\s+/g, ' ').slice(0, DRIVE_REF_AI_MAX_CHARS);
+    const tagLine = r.tags.length > 0 ? `\n   タグ：${r.tags.map((t) => `#${t}`).join(' ')}` : '';
+    return `${i + 1}. タイトル：${title}${tagLine}\n   本文（抜粋）：${body || '（本文なし）'}`;
+  });
+  return `【Google Drive参照メモ（MyBrain本体ではありません／エクスポート済みファイルの参考）】\n${lines.join('\n')}`;
+}
+
 /** 簡易 markdown 風レンダリング（見出し・箇条書きのみ。外部依存なし） */
 function renderBody(body: string) {
   const lines = body.split('\n');
@@ -730,10 +754,17 @@ export default function DesktopMemos() {
     setAiLoading(true);
     try {
       const ctx = `【メモのタイトル】\n${selected.title || '無題のメモ'}\n\n【メモの本文】\n${selected.body || '（本文なし）'}`;
+      // 読み込み済み Drive 参照メモがあれば、本体メモとは別の見出しブロックとして末尾に足す（Phase 3b・OBS31）。
+      // ユーザーに見えている質問文(q)は書き換えない。参照0件なら refBlock は空文字＝従来と完全に同じ送信内容。
+      const refBlock = buildDriveReferenceBlock(driveRefMemos);
+      const system = refBlock
+        ? 'あなたは日本語で答える有能なアシスタントです。提示されたメモの内容を根拠に、簡潔で実用的に回答してください。「Google Drive参照メモ」は補助的な参考情報です。回答の主な根拠は選択中のメモ（MyBrain本体）とし、参照メモを使ったときはその旨が分かるように答えてください。'
+        : 'あなたは日本語で答える有能なアシスタントです。提示されたメモの内容だけを根拠に、簡潔で実用的に回答してください。';
+      const user = refBlock ? `${ctx}\n\n${refBlock}\n\n【依頼】\n${q}` : `${ctx}\n\n【依頼】\n${q}`;
       const answer = await ollamaChat(
         [
-          { role: 'system', content: 'あなたは日本語で答える有能なアシスタントです。提示されたメモの内容だけを根拠に、簡潔で実用的に回答してください。' },
-          { role: 'user', content: `${ctx}\n\n【依頼】\n${q}` },
+          { role: 'system', content: system },
+          { role: 'user', content: user },
         ],
         settings,
       );
@@ -1261,6 +1292,14 @@ export default function DesktopMemos() {
                       <p className="truncate text-[11px]" style={{ color: MUTED }}>このメモについてAIに質問 ・ 対象: {selected.title || '無題のメモ'}</p>
                     </div>
                   </div>
+
+                  {/* Google Drive参照メモがあるときだけ、AIに参考として渡す旨を送信前に明示（Phase 3b・OBS31）。
+                      黙って混ぜないための通知。件数は実際に送る上限（最大5件）に合わせる。 */}
+                  {driveRefMemos.length > 0 && (
+                    <p className="rounded-xl px-3 py-2 text-[11px] font-semibold leading-relaxed" style={{ backgroundColor: LAVENDER, color: NAVY }}>
+                      Google Drive参照 {Math.min(driveRefMemos.length, DRIVE_REF_AI_MAX_ITEMS)}件も参考にします（MyBrainには保存されません）
+                    </p>
+                  )}
 
                   {/* 入力 */}
                   <div className="flex items-end gap-2 rounded-2xl border border-[#E8EAF3] bg-white px-2.5 py-2">

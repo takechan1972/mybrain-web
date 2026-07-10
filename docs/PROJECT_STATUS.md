@@ -320,3 +320,17 @@
 - MyBrain（Supabase）は引き続き source of truth。OAuth スコープは `drive.file` のまま。
 - `npx tsc --noEmit`・`npm run build` は成功（ドキュメントのみのため挙動不変の確認）。
 - 実装（Phase 3b）は次の独立タスクとして扱う（このフェーズでは設計ドキュメントのみ）。
+
+### OBS31：Drive 参照メモの AI コンテキスト接続（Phase 3b・実装） — 🟡実装済み・本番QA待ち（2026-07-10）
+
+- OBS30 設計の Phase 3b を実装した。デスクトップの**自由質問 AI アシスト**（`askAssistant`）だけに、読み込み済み Drive 参照メモを出所明示の別ブロックで接続した。
+- `components/DesktopMemos.tsx` のみ変更：
+  - モジュール関数 `buildDriveReferenceBlock(refs)` を追加。読み込み済み `driveRefMemos` を「Google Drive参照メモ（MyBrain本体ではありません…）」見出しの別ブロック文字列へ整形する。
+  - 上限：`DRIVE_REF_AI_MAX_ITEMS = 5`（件数）・`DRIVE_REF_AI_MAX_CHARS = 200`（本文/件）・`DRIVE_REF_AI_MAX_TITLE = 60`（タイトル）。タイトル・タグがあれば含める。参照0件なら空文字。
+  - `askAssistant` は、参照ブロックが空でなければ user メッセージ末尾に**別ブロックとして追記**（本体メモ本文には混ぜない）。参照があるときだけ system プロンプトに1文追加（参照は補助・主根拠は本体メモ）。参照0件のときは送信内容が**従来と完全に同じ**（挙動不変）。
+  - ユーザーに見えている質問文は書き換えない。`ollamaChat` の呼び出し形・送信先は不変。
+  - UI：AIアシスタント入力の上に、`driveRefMemos.length > 0` のときだけ「Google Drive参照 N件も参考にします（MyBrainには保存されません）」を表示（Nは実送信件数＝最大5）。
+- 触っていない（境界を維持）：モバイル AI アシスト（consult）・`lib/ai/consult-ollama.ts`・要約/整理（`runMemoAi`）・Supabase スキーマ／保存・localStorage への参照保存・OAuth スコープ（`drive.file`）・Google カレンダー・Drive への書き込み・モバイル UI。
+- MyBrain（Supabase）は引き続き source of truth。参照はメモリのみ・リロードで消える。
+- `npx tsc --noEmit`・`npm run build` は成功。
+- 本番QAは `docs/google-drive-markdown-read-search-design.md` の「OBS31 QA」（T1〜T12）で実施する。
