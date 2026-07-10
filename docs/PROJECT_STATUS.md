@@ -288,3 +288,20 @@
 - モバイル UI・consult（モバイル AIアシスト）・メモ入力 UI・Supabase スキーマ・OAuth スコープ（`drive.file` のまま）・Google カレンダー連携は変更していない。
 - `npx tsc --noEmit`・`npm run build` は成功。
 - 本番QAは `docs/google-drive-markdown-read-search-design.md` の「OBS29 QA」（S1〜S7・S9・S10）で実施する。
+
+### OBS29R：Drive Markdown 検索参照（Phase 3a）の本番検証 — ✅完了（2026-07-10）
+
+- OBS29 で実装した Drive Markdown 検索参照（Phase 3a・AI非接続）を、本番環境（デスクトップ・ログイン済み・Drive 構成済み）で確認済み。全9ケース Pass。
+- 確認できたこと（詳細は `docs/google-drive-markdown-read-search-design.md` の「OBS29R 実施記録」）：
+  - エクスポート済み一覧の「参照に追加」で Drive Markdown を参照メモとして追加できる（S1）。
+  - 追加済みファイルは「参照中」表示になり、二度追加されない（S2）。
+  - 参照メモは検索時のみ独立セクション「Google Drive参照の検索結果」に表示される（S3）。
+  - 参照メモの検索結果に「Google Drive参照」バッジが付く（S4）。
+  - 「参照を解除」で1件ずつ外せる（S5）。
+  - 「すべて解除」で全参照メモを一括で外せる（S6）。
+  - 参照メモは本体メモの一覧・件数・フォルダ・お気に入り・一括選択・一括エクスポートに混ざらない（S7）。
+  - Phase 3a では AI アシストは Drive 参照に接続していない（S9）。
+  - 既存のメモ保存・ZIP エクスポート・Drive エクスポート・一覧・プレビューは引き続き動作する（S10）。
+- これで OBS25 設計の Phase 1（一覧）・Phase 2（1件プレビュー）・Phase 3a（検索参照）が実装・本番QAともに完了。残るは Phase 3b（AI参照）のみで、別の独立タスクとして扱う。
+- この作業（OBS29R）はドキュメントのみで、アプリコード・Supabase スキーマ・OAuth スコープ・Google カレンダー連携・モバイル UI は変更していない。
+- 実装コミット：`3f8e3d7 feat: add drive markdown reference memos to desktop search`（push 済み）。
