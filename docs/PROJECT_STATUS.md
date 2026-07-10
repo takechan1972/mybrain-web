@@ -305,3 +305,18 @@
 - これで OBS25 設計の Phase 1（一覧）・Phase 2（1件プレビュー）・Phase 3a（検索参照）が実装・本番QAともに完了。残るは Phase 3b（AI参照）のみで、別の独立タスクとして扱う。
 - この作業（OBS29R）はドキュメントのみで、アプリコード・Supabase スキーマ・OAuth スコープ・Google カレンダー連携・モバイル UI は変更していない。
 - 実装コミット：`3f8e3d7 feat: add drive markdown reference memos to desktop search`（push 済み）。
+
+### OBS30：Drive 参照メモの AI コンテキスト設計（Phase 3b・設計のみ） — 🟡設計のみ・実装は未着手（2026-07-10）
+
+- `docs/google-drive-markdown-read-search-design.md` に「Phase 3b 詳細設計（OBS30）」セクションを追加した（ドキュメントのみ・アプリコード変更なし）。
+- 目的：Phase 3a（検索参照・OBS29R 済み）に続く最小の安全なステップとして、ユーザーが明示的に読み込んだ Drive 参照メモを、デスクトップ AI アシストの参照コンテキストに**出所を明示して**渡す設計を確定する（取り込み・インポートではない）。
+- 最重要の設計判断：
+  - 接続先はデスクトップの `askAssistant`（自由質問）のみ。参照は `DesktopMemos` 内の既存 `driveRefMemos` を、送信直前に**別見出し・別ブロック**で user メッセージ末尾に足すだけ（新しい Drive ロジック・新 state を増やさない）。本体メモの本文には混ぜない。
+  - モバイル AI アシスト（`app/consult`／`lib/ai/consult-ollama.ts`）は**変更しない**。要約・整理（`runMemoAi`）も対象外。
+  - 上限：参照は最大5件・1件あたり本文約200字（既存 `buildContext` と同基準）。渡すのは今メモリにある参照だけ（自動読み込み・過去分復元・Drive 再問い合わせなし）。
+  - 送信前に「Google Drive参照 N件も参考にします（MyBrainには保存されません）」を画面表示（黙って混ぜない）。
+- スコープ外：Supabase／localStorage への保存・参照の永続化・ベクトル検索・OAuth スコープ変更・カレンダー連携・スキーマ変更・モバイル UI 変更・AI 送信先の追加。
+- QAチェックリスト草案（T1〜T11）を設計ドキュメントに含めた。
+- MyBrain（Supabase）は引き続き source of truth。OAuth スコープは `drive.file` のまま。
+- `npx tsc --noEmit`・`npm run build` は成功（ドキュメントのみのため挙動不変の確認）。
+- 実装（Phase 3b）は次の独立タスクとして扱う（このフェーズでは設計ドキュメントのみ）。
