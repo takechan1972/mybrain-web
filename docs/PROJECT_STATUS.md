@@ -334,3 +334,23 @@
 - MyBrain（Supabase）は引き続き source of truth。参照はメモリのみ・リロードで消える。
 - `npx tsc --noEmit`・`npm run build` は成功。
 - 本番QAは `docs/google-drive-markdown-read-search-design.md` の「OBS31 QA」（T1〜T12）で実施する。
+
+### OBS31R：Drive 参照メモの AI コンテキスト接続（Phase 3b）の本番検証 — ✅完了（2026-07-10）
+
+- OBS31 で実装した Drive 参照メモの AI コンテキスト接続（Phase 3b）を、本番環境（デスクトップ・ログイン済み・Drive 構成済み・ローカル Ollama 接続）で確認済み。全12ケース Pass。
+- 確認できたこと（詳細は `docs/google-drive-markdown-read-search-design.md` の「OBS31R 実施記録」）：
+  - Drive 参照メモを読み込むと「Google Drive参照 N件も参考にします（MyBrainには保存されません）」が表示される（T1）。
+  - 参照を「すべて解除」すると通知が消える（T2）。
+  - AI が読み込み済みの参照メモ内容を参考に回答できる（T3）。
+  - 入力欄に見えている質問文は書き換わらない（T4）。
+  - AI に渡る参照は先頭5件まで（T5）。
+  - 1件あたり本文は約200字までに切られて渡る（T6）。
+  - 参照は「Google Drive参照メモ」として本体メモ（MyBrain本体）と別枠で渡り、本文に混ざらない（T7）。
+  - 参照0件のときデスクトップ AI の挙動は従来と同じ（T8）。
+  - モバイル consult は変更なし（T9）。
+  - 要約・整理 AI は変更なし（T10）。
+  - 参照は Supabase に保存されず、リロードで消える（T11）。
+  - 既存のメモ保存・Drive 一覧・Drive プレビュー・Drive 参照検索・ZIP エクスポート・Drive エクスポートは引き続き動作する（T12）。
+- これで OBS25 設計の Phase 1（一覧）・Phase 2（1件プレビュー）・Phase 3a（検索参照）・Phase 3b（AI参照）が実装・本番QAともにすべて完了。
+- この作業（OBS31R）はドキュメントのみで、アプリコード・Supabase スキーマ・OAuth スコープ・Google カレンダー連携・モバイル UI は変更していない。
+- 実装コミット：`12c1db4 feat: add drive reference memos to desktop AI context`（push 済み）。
