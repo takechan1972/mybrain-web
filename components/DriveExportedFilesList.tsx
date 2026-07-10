@@ -11,17 +11,43 @@ import {
 import { markdownToMemo, type ParsedMemoMarkdown } from '@/lib/markdown';
 
 /**
- * Google Drive エクスポート済み Markdown の一覧＋1件プレビュー（Phase 1/2・デスクトップのみ・読み取り専用）。
+ * Google Drive エクスポート済み Markdown の一覧＋1件プレビュー＋検索参照への追加
+ * （Phase 1/2/3a・デスクトップのみ・読み取り専用）。
  *
- * - 「一覧を確認」「内容を確認」を押したときだけ Drive に問い合わせる（ユーザー操作起点・自動読み込みなし）。
+ * - 「一覧を確認」「内容を確認」「参照に追加」を押したときだけ Drive に問い合わせる（ユーザー操作起点・自動読み込みなし）。
  * - 一覧はファイル名と更新日時のみ。プレビューは選んだ1件の本文を読み、既存の markdownToMemo で解析して表示する。
- * - 取得結果・本文は React state のみで保持する（Supabase・localStorage に保存しない）。
+ * - 「参照に追加」した Drive メモは親（DesktopMemos）が state で保持し、検索の参考にのみ使う（Phase 3a）。
+ * - 取得結果・本文・参照メモは React state のみで保持する（Supabase・localStorage に保存しない）。
  * - 読み取り専用：Drive のファイル・フォルダは一切変更しない。保存・取り込み・編集・AI接続はしない。
  * - 設計方針：docs/google-drive-markdown-read-search-design.md
  */
 
 const NAVY = '#223A70';
 const MUTED = '#8A94A6';
+const PURPLE = '#7B61FF';
+
+/**
+ * 検索の参考に使う Drive 参照メモ（メモリのみ・MyBrain 本体メモとは別物）。
+ * - fileId で重複判定する。
+ * - title / body / tags は既存の markdownToMemo の解析結果。
+ */
+export interface DriveReferenceMemo {
+  fileId: string;
+  fileName: string;
+  title: string;
+  body: string;
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+  hasFrontmatter: boolean;
+}
+
+interface DriveExportedFilesListProps {
+  /** 現在の参照メモ（重複判定・「参照中」表示に使う）。未指定なら参照機能は出さない。 */
+  references?: DriveReferenceMemo[];
+  /** 参照メモの追加時に親へ通知するコールバック。未指定なら「参照に追加」ボタンを出さない。 */
+  onReferenceChange?: (next: DriveReferenceMemo[]) => void;
+}
 
 /** ISO 8601 → "YYYY/MM/DD HH:mm"（無効なら空文字）。 */
 function formatModified(iso: string): string {
@@ -57,9 +83,31 @@ type PreviewState =
   | { kind: 'too-large'; file: DriveMarkdownFileInfo }
   | { kind: 'error' };
 
-export default function DriveExportedFilesList() {
+/** Drive の本文読み取り＋解析の結果（プレビューと参照追加で共有）。 */
+type ReadResult =
+  | { ok: true; parsed: ParsedMemoMarkdown; hasFrontmatter: boolean }
+  | { ok: false; reason: 'cancelled' | 'error' };
+
+export default function DriveExportedFilesList({ references, onReferenceChange }: DriveExportedFilesListProps) {
   const [state, setState] = useState<ListState>({ kind: 'idle' });
   const [preview, setPreview] = useState<PreviewState>({ kind: 'idle' });
+  // 参照追加の進行中ファイルID・案内メッセージ（メモリのみ）。
+  const [addBusyId, setAddBusyId] = useState<string | null>(null);
+  const [addNote, setAddNote] = useState<string | null>(null);
+
+  const refs = references ?? [];
+  const canReference = typeof onReferenceChange === 'function';
+
+  // 選んだ1件の本文を取得して既存 markdownToMemo で解析する（トークン取得は既存パターン・保存しない）。
+  async function readAndParse(file: DriveMarkdownFileInfo): Promise<ReadResult> {
+    const token = await requestGoogleDriveAccessToken();
+    if (token.state === 'cancelled') return { ok: false, reason: 'cancelled' };
+    if (token.state !== 'granted' || !token.accessToken) return { ok: false, reason: 'error' };
+    const raw = await readDriveMarkdownFile(token.accessToken, file.id);
+    // フロントマターが無い場合、markdownToMemo は全文を本文として返す（安全なフォールバック）。
+    const hasFrontmatter = /^---\r?\n/.test(raw);
+    return { ok: true, parsed: markdownToMemo(raw), hasFrontmatter };
+  }
 
   async function loadList() {
     setState({ kind: 'loading' });
@@ -91,21 +139,55 @@ export default function DriveExportedFilesList() {
     }
     setPreview({ kind: 'loading', fileId: file.id });
     try {
-      const token = await requestGoogleDriveAccessToken();
-      if (token.state === 'cancelled') {
-        setPreview({ kind: 'idle' });
+      const r = await readAndParse(file);
+      if (!r.ok) {
+        setPreview(r.reason === 'cancelled' ? { kind: 'idle' } : { kind: 'error' });
         return;
       }
-      if (token.state !== 'granted' || !token.accessToken) {
-        setPreview({ kind: 'error' });
-        return;
-      }
-      const raw = await readDriveMarkdownFile(token.accessToken, file.id);
-      // フロントマターが無い場合、markdownToMemo は全文を本文として返す（安全なフォールバック）。
-      const hasFrontmatter = /^---\r?\n/.test(raw);
-      setPreview({ kind: 'loaded', file, parsed: markdownToMemo(raw), hasFrontmatter });
+      setPreview({ kind: 'loaded', file, parsed: r.parsed, hasFrontmatter: r.hasFrontmatter });
     } catch {
       setPreview({ kind: 'error' });
+    }
+  }
+
+  // 選んだ1件を「Google Drive参照」として親の state に追加する（検索の参考にのみ使う・保存しない）。
+  async function addReference(file: DriveMarkdownFileInfo) {
+    if (!onReferenceChange) return;
+    setAddNote(null);
+    // すでに追加済みなら、やさしい案内を出して終わり（重複追加しない）。
+    if (refs.some((r) => r.fileId === file.id)) {
+      setAddNote(`「${file.name}」はすでに参照に追加されています。`);
+      return;
+    }
+    // 大きすぎるファイルは読み込まない（プレビューと同じサイズ上限）。
+    if (file.size !== undefined && file.size > DRIVE_MARKDOWN_READ_MAX_BYTES) {
+      setAddNote(`「${file.name}」は大きすぎるため参照に追加できません。`);
+      return;
+    }
+    setAddBusyId(file.id);
+    try {
+      const r = await readAndParse(file);
+      if (!r.ok) {
+        // キャンセルは静かに終える。失敗のみ案内する。
+        if (r.reason === 'error') setAddNote('参照に追加できませんでした。もう一度お試しください。');
+        return;
+      }
+      const ref: DriveReferenceMemo = {
+        fileId: file.id,
+        fileName: file.name,
+        title: r.parsed.title,
+        body: r.parsed.body,
+        tags: r.parsed.tags,
+        createdAt: r.parsed.createdAt,
+        updatedAt: r.parsed.updatedAt,
+        hasFrontmatter: r.hasFrontmatter,
+      };
+      onReferenceChange([...refs, ref]);
+      setAddNote(`「${file.name}」を参照に追加しました。`);
+    } catch {
+      setAddNote('参照に追加できませんでした。もう一度お試しください。');
+    } finally {
+      setAddBusyId(null);
     }
   }
 
@@ -125,6 +207,11 @@ export default function DriveExportedFilesList() {
       <p className="mt-1 text-[11px] leading-relaxed" style={{ color: '#A6AEC0' }}>
         Google Driveの MyBrain/Memos/ にMyBrainから書き出したMarkdownファイルを表示します（表示のみ・ファイルは変更しません）。
       </p>
+      {canReference && (
+        <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: '#A6AEC0' }}>
+          「参照に追加」すると、メモ検索の参考にできます（この画面を開いている間だけ・MyBrainには保存されません）。
+        </p>
+      )}
       {state.kind === 'error' && (
         <p className="mt-1.5 text-[12px]" style={{ color: MUTED }}>
           一覧を取得できませんでした。時間をおいてもう一度お試しください。
@@ -137,23 +224,45 @@ export default function DriveExportedFilesList() {
       )}
       {state.kind === 'loaded' && state.files.length > 0 && (
         <ul className="mt-1.5 max-h-48 overflow-y-auto">
-          {state.files.map((f) => (
-            <li key={f.id} className="flex items-baseline justify-between gap-3 border-b border-[#F3F4FA] py-1 last:border-b-0">
-              <span className="min-w-0 truncate text-[12px]" style={{ color: NAVY }}>{f.name}</span>
-              <span className="flex shrink-0 items-baseline gap-2">
-                <span className="text-[11px]" style={{ color: MUTED }}>{formatModified(f.modifiedTime)}</span>
-                <button
-                  type="button"
-                  onClick={() => openPreview(f)}
-                  disabled={preview.kind === 'loading'}
-                  className="rounded-full border border-[#E8EAF3] bg-white px-2.5 py-0.5 text-[11px] font-semibold transition active:scale-95 disabled:opacity-40"
-                  style={{ color: '#54607A' }}>
-                  内容を確認
-                </button>
-              </span>
-            </li>
-          ))}
+          {state.files.map((f) => {
+            const isReferenced = refs.some((r) => r.fileId === f.id);
+            return (
+              <li key={f.id} className="flex items-baseline justify-between gap-3 border-b border-[#F3F4FA] py-1 last:border-b-0">
+                <span className="min-w-0 truncate text-[12px]" style={{ color: NAVY }}>{f.name}</span>
+                <span className="flex shrink-0 items-baseline gap-2">
+                  <span className="text-[11px]" style={{ color: MUTED }}>{formatModified(f.modifiedTime)}</span>
+                  <button
+                    type="button"
+                    onClick={() => openPreview(f)}
+                    disabled={preview.kind === 'loading'}
+                    className="rounded-full border border-[#E8EAF3] bg-white px-2.5 py-0.5 text-[11px] font-semibold transition active:scale-95 disabled:opacity-40"
+                    style={{ color: '#54607A' }}>
+                    内容を確認
+                  </button>
+                  {canReference && (
+                    isReferenced ? (
+                      <span className="rounded-full border border-[#E5DDFB] bg-[#F6F4FF] px-2.5 py-0.5 text-[11px] font-semibold" style={{ color: PURPLE }}>
+                        参照中
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => addReference(f)}
+                        disabled={addBusyId !== null}
+                        className="rounded-full border border-[#E8EAF3] bg-white px-2.5 py-0.5 text-[11px] font-semibold transition active:scale-95 disabled:opacity-40"
+                        style={{ color: '#54607A' }}>
+                        {addBusyId === f.id ? '追加中…' : '参照に追加'}
+                      </button>
+                    )
+                  )}
+                </span>
+              </li>
+            );
+          })}
         </ul>
+      )}
+      {canReference && addNote && (
+        <p className="mt-1.5 text-[11px]" style={{ color: MUTED }}>{addNote}</p>
       )}
 
       {/* 1件プレビュー（読み取り専用・メモリのみ。保存/取り込み/編集ボタンは置かない） */}

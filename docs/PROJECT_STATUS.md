@@ -270,3 +270,21 @@
 - スコープ外：Supabase／localStorage への保存・参照の永続化・自動読み込み・ベクトル検索・OAuth スコープ変更・カレンダー連携・参照メモの編集/削除/エクスポート。
 - QAチェックリスト草案（S1〜S10）を設計ドキュメントに含めた。
 - 実装（Phase 3a）は次の独立タスクとして扱う（このフェーズでは設計ドキュメントのみ）。
+
+### OBS29：Drive Markdown 検索参照（Phase 3a・AI非接続） — 🟡実装済み・本番QA待ち（2026-07-09）
+
+- OBS28 設計の Phase 3a（検索参照のみ・AI には接続しない）を実装した。デスクトップのみ。
+- `components/DriveExportedFilesList.tsx` を拡張：
+  - `DriveReferenceMemo` 型（fileId / fileName / title / body / tags / createdAt / updatedAt / hasFrontmatter）を export。
+  - props `references` / `onReferenceChange` を追加（未指定なら参照機能は出さない＝後方互換）。
+  - 一覧の各ファイルに「参照に追加」ボタンを追加。押すと既存の `readDriveMarkdownFile`＋`markdownToMemo` で読み込み（新しい Drive ロジックなし）、親 state に追加する。
+  - fileId で重複判定：追加済みは「参照中」表示になり二度追加しない。追加/重複/サイズ超過/失敗はやさしい案内文を出す。同意キャンセルは静かに終える。
+  - プレビューと参照追加で本文読み取りを共有する内部関数 `readAndParse` に集約（挙動は不変）。
+- `components/DesktopMemos.tsx` を拡張：
+  - `driveRefMemos` state を追加（メモリのみ・本体メモ `memos` とは別物・保存しない）。`DriveExportedFilesList` に `references`/`onReferenceChange` を渡す。
+  - 参照メモの検索結果 `visibleRefs` を、本体の `visible` とは独立に算出（同じ検索語・部分一致）。本体の一覧・件数・フォルダ・お気に入り・一括選択には一切混ぜない。
+  - メモ一覧の下に独立セクション「Google Drive参照の検索結果（N件）」を追加（参照メモがあり検索語があるときだけ表示）。各カードに「Google Drive参照」バッジ・「参照を解除」、ヘッダに「すべて解除」。「MyBrainには保存されない・画面を開いている間だけ」と明記。
+- AI アシストには接続していない（Phase 3b で対応）。参照メモは AI コンテキストに含めない。
+- モバイル UI・consult（モバイル AIアシスト）・メモ入力 UI・Supabase スキーマ・OAuth スコープ（`drive.file` のまま）・Google カレンダー連携は変更していない。
+- `npx tsc --noEmit`・`npm run build` は成功。
+- 本番QAは `docs/google-drive-markdown-read-search-design.md` の「OBS29 QA」（S1〜S7・S9・S10）で実施する。

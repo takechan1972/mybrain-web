@@ -15,7 +15,7 @@ import { isDirectoryPickerSupported, pickDirectory, writeMemosToDirectory, resol
 import { isGoogleDriveConfigured, exportMemosToGoogleDrive } from '@/lib/google';
 import { savedMessageForTarget } from '@/lib/storage/memo-storage-target';
 import ObsidianMemoFileInfo from '@/components/ObsidianMemoFileInfo';
-import DriveExportedFilesList from '@/components/DriveExportedFilesList';
+import DriveExportedFilesList, { type DriveReferenceMemo } from '@/components/DriveExportedFilesList';
 import { loadOllamaSettings, ollamaChat, testOllama } from '@/lib/ai/ollama';
 import { isLocalHost } from '@/lib/env';
 import type { Memo } from '@/lib/types';
@@ -141,6 +141,8 @@ export default function DesktopMemos() {
   const [selectMode, setSelectMode] = useState(false);
   // 選択中のメモID（画面内ローカルのみ。Supabase/localStorageには保存しない。selectedId とは別物）。
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Google Drive 参照メモ（Phase 3a）。検索の参考にのみ使う。メモリのみ・本体メモ(memos)とは別物・保存しない。
+  const [driveRefMemos, setDriveRefMemos] = useState<DriveReferenceMemo[]>([]);
   // File System Access API（フォルダへ直接書き出し）の対応可否。
   // SSR では false、マウント後に判定して反映する（ハイドレーション不一致を避ける）。
   const [dirPickerSupported, setDirPickerSupported] = useState(false);
@@ -271,6 +273,25 @@ export default function DesktopMemos() {
     );
     return list;
   }, [memos, query, filter, tagFilter, favs, sort, folderSel, folderMap, folders]);
+
+  // Google Drive 参照メモの検索結果（Phase 3a）。本体メモの絞り込みとは独立・検索語があるときだけ。
+  // 本体の visible には一切混ぜない（件数・フォルダ・お気に入り・一括選択の対象にしない）。
+  const visibleRefs = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length === 0) return [];
+    return driveRefMemos.filter((r) => {
+      const hay = `${r.title} ${r.body} ${r.tags.join(' ')}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [driveRefMemos, query]);
+
+  // 参照メモを1件外す／全部クリアする（メモリのみ・保存しない）。
+  function removeDriveRef(fileId: string) {
+    setDriveRefMemos((prev) => prev.filter((r) => r.fileId !== fileId));
+  }
+  function clearDriveRefs() {
+    setDriveRefMemos([]);
+  }
 
   // メモをフォルダへ割り当て（''=未分類）。localStorageに保存。
   function assignFolder(memoId: string, folderId: string) {
@@ -1049,8 +1070,10 @@ export default function DesktopMemos() {
                     </button>
                   </div>
                 )}
-                {/* エクスポート済み一覧（Phase 1・読み取り専用）。Drive 構成済みのときのみ表示。 */}
-                {googleDriveConfigured && <DriveExportedFilesList />}
+                {/* エクスポート済み一覧（Phase 1/2・読み取り専用）＋参照追加（Phase 3a）。Drive 構成済みのときのみ表示。 */}
+                {googleDriveConfigured && (
+                  <DriveExportedFilesList references={driveRefMemos} onReferenceChange={setDriveRefMemos} />
+                )}
               </div>
             )}
             {mode === 'list' ? (
@@ -1286,6 +1309,58 @@ export default function DesktopMemos() {
                 <span className="text-3xl">🗒️</span>
                 <p className="text-[13px]" style={{ color: MUTED }}>メモが選択されていません。</p>
                 <button type="button" onClick={() => setMode('list')} className="text-[13px] font-bold" style={{ color: PURPLE }}>← メモ一覧へ戻る</button>
+              </div>
+            )}
+
+            {/* Google Drive参照の検索結果（Phase 3a）。本体メモとは別枠・読み取り専用・保存しない。
+                参照メモがあり検索語があるときだけ表示する（無いときは既存画面のまま）。 */}
+            {mode === 'list' && driveRefMemos.length > 0 && query.trim().length > 0 && (
+              <div className="mt-4 rounded-2xl border border-dashed p-4" style={{ borderColor: '#C9B8F5', backgroundColor: '#FAF8FF' }}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[13px] font-bold" style={{ color: NAVY }}>
+                    Google Drive参照の検索結果（{visibleRefs.length}件）
+                  </p>
+                  <button
+                    type="button"
+                    onClick={clearDriveRefs}
+                    className="shrink-0 rounded-full border border-[#E8EAF3] bg-white px-3 py-1 text-[11px] font-semibold transition active:scale-95"
+                    style={{ color: '#54607A' }}>
+                    すべて解除
+                  </button>
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed" style={{ color: '#A6AEC0' }}>
+                  これはGoogle Driveから読み込んだ参考用のメモです。MyBrainには保存されておらず、この画面を開いている間だけ表示されます。
+                </p>
+                {visibleRefs.length === 0 ? (
+                  <p className="mt-2 text-[12px]" style={{ color: MUTED }}>一致する参照メモはありません。</p>
+                ) : (
+                  <div className="mt-2 flex flex-col gap-2">
+                    {visibleRefs.map((r) => (
+                      <div key={r.fileId} className="rounded-2xl border border-[#E8DDF9] bg-white p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: LAVENDER, color: PURPLE }}>
+                              Google Drive参照
+                            </span>
+                            <p className="truncate text-[14px] font-bold" style={{ color: NAVY }}>{r.title || r.fileName}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeDriveRef(r.fileId)}
+                            className="shrink-0 rounded-full border border-[#E8EAF3] bg-white px-2.5 py-0.5 text-[11px] font-semibold transition active:scale-95"
+                            style={{ color: '#54607A' }}>
+                            参照を解除
+                          </button>
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-[12px]" style={{ color: '#54607A' }}>{r.body || '（本文なし）'}</p>
+                        {r.tags.length > 0 && (
+                          <p className="mt-1.5 truncate text-[11px]" style={{ color: PURPLE }}>{r.tags.map((t) => `#${t}`).join(' ')}</p>
+                        )}
+                        <p className="mt-1 truncate text-[10px]" style={{ color: '#A6AEC0' }}>ファイル：{r.fileName}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
