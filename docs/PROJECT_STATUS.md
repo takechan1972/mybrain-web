@@ -400,3 +400,24 @@
 - 変更しない境界：`driveRefMemos` は React state のみ・保存しない（永続化しない）／Google Drive の挙動・API・`drive.file` スコープ／AI 送信ロジック（`buildDriveReferenceBlock`・`askAssistant`・上限値・参照0件時の挙動不変）／モバイル UI／Supabase スキーマ／取り込み・双方向同期は実装しない。
 - `npx tsc --noEmit`・`npm run build` は成功（ドキュメントのみのため挙動不変の確認）。
 - 実装（MVP）は OBS34 とは別の独立タスクとして扱う（この OBS34 は設計ドキュメントのみ）。
+
+### OBS35：Drive 参照メモ UX 可視化の改善（OBS34 設計の MVP 実装）— 🟡実装済み・本番QA待ち（2026-07-11）
+
+- OBS34 で設計した「表示だけ」の UX MVP を実装した。デスクトップの Drive 参照メモを分かりやすく可視化する変更で、**表示（UI）のみ**。データの持ち方・AI 送信ロジックは一切変更していない。
+- 変更ファイル：`components/DesktopMemos.tsx`（トレイ表示＋AI 通知の強化）／`components/DriveExportedFilesList.tsx`（参照追加後の案内文の一言追加）。
+- 実装内容：
+  - **常時表示トレイ**：`mode === 'list' && driveRefMemos.length > 0` のとき、検索語の有無に関係なくメモ一覧の上に「**読み込み中のGoogle Drive参照メモ（N件）**」を表示。
+    - 読み込み件数（N件）を表示。
+    - 一時性の警告：「**この参照メモは一時的です。再読み込みすると消えます。**」を常時表示。
+    - 上限の明示：「**AI相談に使われるのは最大5件までです。**」
+    - 読み込み済み参照メモのタイトル（無ければファイル名）を一覧表示。
+    - 各件の解除ボタン：「**参照を解除**」（`removeDriveRef`）。
+    - 全消しボタン：「**すべて解除**」（`clearDriveRefs`）。
+  - **AI 利用ラベル**：先頭5件に「**AIで使用**」・6件目以降に「**AIには渡りません**」を付ける（`index < DRIVE_REF_AI_MAX_ITEMS` の表示判定のみ。`buildDriveReferenceBlock` の先頭5件と一致）。
+  - **AI 通知の強化**：既存の「Google Drive参照 N件も参考にします（MyBrainには保存されません）」に加え、実際に渡る先頭5件のタイトルを「使うメモ：…」として列挙（`driveRefMemos.slice(0, 5)` の表示のみ）。
+  - **参照追加後の案内（`DriveExportedFilesList`）**：成功メッセージに「読み込み中の一覧はメモ一覧の上に表示されます。」を追記（文言のみ）。
+- 変更していないもの（境界を維持）：`driveRefMemos` は引き続き React state のみ・**保存しない**（永続化なし）／AI ペイロード構築（`buildDriveReferenceBlock`・`askAssistant`・最大5件／約200字ロジック・参照0件時の挙動不変）／Google Drive API・`drive.file` スコープ／認証／Supabase スキーマ／モバイル UI。新しい state は増やさず、既存の `removeDriveRef`／`clearDriveRefs`／`DRIVE_REF_AI_MAX_ITEMS` を使うだけ。
+- `npx tsc --noEmit`・`npm run build` は成功。ルート読み込み時のコンソールエラーなし。
+- 検証メモ：デスクトップのメモ画面はログイン必須で、参照トレイは Drive 参照を読み込んだとき（Google OAuth＋Drive 構成済み）に初めて表示される。認証情報なしでは対話的な確認（参照追加→トレイ表示→個別解除→全解除→6件目ラベル→AI 通知のタイトル列挙）ができないため、**本番QAは未実施**。実装は既存 state の表示のみで、本番ビルドは成功している。
+- 実装コミット：`35dcadc feat: improve drive reference memo visibility`（push 済み）。
+- 次の一歩：本番（デスクトップ・ログイン済み・Drive 構成済み）で OBS34 の QA 草案 U1〜U11 を実施し、結果を記録する。
