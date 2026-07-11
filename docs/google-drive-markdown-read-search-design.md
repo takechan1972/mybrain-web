@@ -4,6 +4,7 @@
 > Phase 1（一覧のみ）：`lib/google/google-drive-read.ts`（`listDriveMarkdownFiles`・読み取り専用・フォルダ作成なし）＋デスクトップの一括エクスポートパネル内「エクスポート済み一覧」（`components/DriveExportedFilesList.tsx`）。
 > Phase 2（1件プレビュー）：`readDriveMarkdownFile` を追加し、一覧の「内容を確認」から選んだ1件を既存の `markdownToMemo` で解析してプレビュー表示（タイトル・タグ・日時・本文。メモリのみ・読み取り専用）。
 > Phase 3a（検索参照・AI非接続）は実装済み・本番QA完了（2026-07-10・OBS29R・全9ケース Pass）。Phase 3b（AI参照）は実装済み・本番QA完了（2026-07-10・OBS31R・全12ケース Pass）。詳細は下の「Phase 3 詳細設計（OBS28）」「Phase 3b 詳細設計（OBS30）」「OBS31 QA」。OAuth スコープは `drive.file` のまま変更なし。
+> ユーザー向けのやさしいまとめは `docs/google-drive-markdown-user-guide.md`（OBS32）を参照。全体の完了サマリは下の「完了サマリ（OBS32）」。
 > 関連：`docs/google-drive-markdown-export-design.md`（書き出し設計）／`docs/mobile-bulk-markdown-export-design.md`（OBS23/24）／`lib/google/`（Drive ヘルパー群）／`lib/markdown/memo-markdown.ts`（Markdown ⇄ メモ変換）／`lib/ai/consult-ollama.ts`（AI アシストのコンテキスト構築）。
 
 ---
@@ -464,6 +465,59 @@ Phase 3b の本番検証で確認するケース（草案 S8＋OBS30 の T1〜T1
 - 上記により Phase 3b（AI参照・AI接続）の本番QAを完了とする（全12ケース Pass）。
 - 保存・スキーマ・OAuth スコープ・カレンダー・モバイル UI は変更していない（この作業はドキュメントのみ）。
 - これで OBS25 設計の Phase 1（一覧）・Phase 2（1件プレビュー）・Phase 3a（検索参照）・Phase 3b（AI参照）が実装・本番QAともに完了。
+
+---
+
+## 完了サマリ（OBS32）：Google Drive Markdown 連携の全体まとめ
+
+> **ステータス：ドキュメントのみ（2026-07-10）。** OBS25 で設計した Google Drive Markdown 連携（書き出し→一覧→プレビュー→検索参照→AI 参照）が、実装・本番QAともに全フェーズ完了したことを受けた全体まとめ。アプリコード・UI は変更しない。ユーザー向けのやさしい版は `docs/google-drive-markdown-user-guide.md`。
+
+### 1. 完成した機能（フェーズ別）
+
+| フェーズ | 機能 | 実装 / QA | 主なコード |
+|---|---|---|---|
+| 書き出し | メモを Google Drive `MyBrain/Memos/` へ手動書き出し（単件・複数・モバイル一括） | OBS16R〜OBS24R 完了 | `lib/google/google-drive-export.ts` |
+| Phase 1 | エクスポート済み Markdown の一覧（ファイル名・更新日時） | OBS26／OBS26R 完了 | `lib/google/google-drive-read.ts`・`components/DriveExportedFilesList.tsx` |
+| Phase 2 | 1件プレビュー（本文読み取り・`markdownToMemo` 解析・読み取り専用） | OBS27／OBS27R 完了 | 同上（`readDriveMarkdownFile`） |
+| Phase 3a | 検索参照（「参照に追加」＋独立セクション「Google Drive参照の検索結果」・バッジ・解除） | OBS29／OBS29R 完了 | `DriveExportedFilesList.tsx`・`DesktopMemos.tsx` |
+| Phase 3b | デスクトップ AI アシスト（自由質問）に出所明示の参照ブロックで接続（最大5件・各約200字・送信前通知） | OBS31／OBS31R 完了 | `DesktopMemos.tsx`（`buildDriveReferenceBlock`・`askAssistant`） |
+
+### 2. いまユーザーができること
+
+- メモを Google Drive へ手動で Markdown 書き出し（デスクトップ：単件／複数、モバイル：一括）。
+- 書き出し済み Markdown の一覧・1件プレビュー（デスクトップ・読み取り専用）。
+- Markdown を「参照に追加」してメモ検索の参考にする（デスクトップ・本体メモとは別枠）。
+- 参照メモをデスクトップ AI アシスタント（自由質問）の参考として渡す（送信前に件数通知）。
+
+### 3. ユーザーが理解しておくべき原則（must）
+
+- **MyBrain本体が正本（source of truth）。** Google Drive へ書き出しても本体メモは消えない・移動しない。
+- **Google Drive Markdown は書き出しコピー・参照用。** Drive 側を編集しても本体には反映されない（取り込みは無い）。
+- **参照メモは保存されない。** 画面を開いている間だけ有効。リロード・離脱で消える（Supabase・localStorage に残さない）。
+- **AI 相談に使えるのは、読み込んだ参照メモのみ。** ユーザーが「参照に追加」したものだけを、上限（5件・各約200字）内で渡す。使うときは画面に明示。
+
+### 4. 設定・ヘルプ向けのやさしい文言（案・UI 未変更）
+
+- 「MyBrain があなたのメモの本体です。Google Drive の Markdown は、書き出したコピー・参考用です。」
+- 「Google Drive参照は、この画面を開いている間だけの参考です。MyBrain には保存されません。」
+- 「AI が参考にするのは、あなたが読み込んだ参照だけです。使うときはお知らせが出ます。」
+- 文言の詳細版・FAQ は `docs/google-drive-markdown-user-guide.md` の「4. 設定・ヘルプ向けのやさしい文言（案）」を参照。
+
+### 5. 残っている制限
+
+- 他アプリが置いたファイルは見えない（`drive.file` の仕様）。
+- 取り込み（インポート）・双方向同期は無い。
+- 参照メモは非永続（保存しない・自動読み込みしない）。
+- AI 参照はデスクトップの自由質問のみ（モバイル consult・要約/整理は対象外）。
+- AI 参照は最大5件・各約200字・読み込み順（関連度並べ替え・ベクトル検索なし）。
+
+### 6. 推奨される次フェーズ（案・すべて未着手）
+
+- **A. ヘルプ／設定への文言反映**（UI 変更・小）：上記の文言をデスクトップの設定/ヘルプに反映。
+- **B. モバイルへの参照・AI 拡張**（中）：一覧・プレビュー・参照・AI 参照をモバイルにも慎重に展開。
+- **C. 参照の一時的な使い勝手改善**（小〜中）：並べ替え・AI へ渡す件数選択など（保存はしない）。
+- **D. 取り込み（インポート）機能の検討**（大・要設計）：Drive → MyBrain 取り込みは影響大のため別設計。
+- **E. 検索の高度化**（大・将来）：ベクトル検索・埋め込み・関連度スコアリングは別設計の将来タスク。
 
 ---
 

@@ -354,3 +354,19 @@
 - これで OBS25 設計の Phase 1（一覧）・Phase 2（1件プレビュー）・Phase 3a（検索参照）・Phase 3b（AI参照）が実装・本番QAともにすべて完了。
 - この作業（OBS31R）はドキュメントのみで、アプリコード・Supabase スキーマ・OAuth スコープ・Google カレンダー連携・モバイル UI は変更していない。
 - 実装コミット：`12c1db4 feat: add drive reference memos to desktop AI context`（push 済み）。
+
+### OBS32：Google Drive Markdown 連携の完了サマリ・ユーザーガイド — ✅追加（2026-07-10）
+
+- OBS25 の Google Drive Markdown 連携（書き出し→一覧→プレビュー→検索参照→AI 参照）が全フェーズ完了したことを受け、まとめドキュメントを整備した（ドキュメントのみ・アプリコード／UI 変更なし）。
+- 新規追加：`docs/google-drive-markdown-user-guide.md`（10〜70代向けのやさしいユーザーガイド）。
+  - 完成した機能・いまできること・理解しておくべき4原則・設定/ヘルプ向け文言案（FAQ含む）・制限・次フェーズ案。
+- `docs/google-drive-markdown-read-search-design.md` に「完了サマリ（OBS32）」セクションを追加（フェーズ別の実装/QA・コード対応表、原則、制限、次フェーズ案）。
+- ユーザーが理解しておくべき原則を明文化：
+  - **MyBrain本体が正本**（source of truth）。
+  - **Google Drive Markdown は書き出しコピー・参照用**（取り込み・双方向同期なし）。
+  - **参照メモは保存されない**（画面を開いている間だけ・リロードで消える）。
+  - **AI 相談に使えるのは読み込んだ参照メモのみ**（最大5件・各約200字・送信前に画面通知）。
+- 設定・ヘルプ向けのやさしい文言は「案」として記録（この OBS32 では実際の UI は変更しない）。
+- 次フェーズ案（すべて未着手）：A. ヘルプ/設定への文言反映、B. モバイルへの参照・AI 拡張、C. 参照の使い勝手改善、D. 取り込み（インポート）機能の検討（要設計）、E. 検索の高度化（将来）。
+- 変更していないもの：アプリコード・UI・Supabase スキーマ・OAuth スコープ（`drive.file`）・Google カレンダー連携・モバイル UI。
+- `npx tsc --noEmit`・`npm run build` は成功（ドキュメントのみのため挙動不変の確認）。
