@@ -1,9 +1,10 @@
 # Google Drive 参照メモ UX 改善 ― 設計メモ（OBS34）
 
-> **ステータス：調査・設計のみ（未実装）。この OBS34 ではアプリコード・UI・Supabase スキーマ・OAuth スコープ・Google Drive の挙動・API を変更しない。**
+> **ステータス：MVP 実装済み（OBS35）・本番QA完了（OBS35R・2026-07-11・U1〜U11 全11ケース Pass）。**
+> 実装コミット：`35dcadc feat: improve drive reference memo visibility`。QA 実施記録は `docs/PROJECT_STATUS.md` の「OBS35R」を参照。
 > 対象：既存の「Google Drive Markdown 参照メモ」機能（デスクトップのみ・メモリのみ・保存しない）。
 > 前提設計：`docs/google-drive-markdown-read-search-design.md`（OBS25／Phase 1〜3b・全フェーズ完了）。ユーザーガイド：`docs/google-drive-markdown-user-guide.md`（OBS32）。設定UIの文言反映：PROJECT_STATUS の OBS33。
-> 実装対象ファイル（将来）：`components/DesktopMemos.tsx`（参照メモの state・検索結果・AI通知）／`components/DriveExportedFilesList.tsx`（一覧・プレビュー・参照追加）。
+> 実装ファイル：`components/DesktopMemos.tsx`（トレイ表示・AI 通知の強化）／`components/DriveExportedFilesList.tsx`（参照追加後の案内文）。
 
 ---
 
