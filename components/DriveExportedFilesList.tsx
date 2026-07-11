@@ -183,7 +183,7 @@ export default function DriveExportedFilesList({ references, onReferenceChange }
         hasFrontmatter: r.hasFrontmatter,
       };
       onReferenceChange([...refs, ref]);
-      setAddNote(`「${file.name}」を参照に追加しました。`);
+      setAddNote(`「${file.name}」を参照に追加しました。読み込み中の一覧はメモ一覧の上に表示されます。`);
     } catch {
       setAddNote('参照に追加できませんでした。もう一度お試しください。');
     } finally {
