@@ -458,3 +458,26 @@
 - QA チェックリスト草案（M1〜M14）を設計ドキュメントに含めた。
 - `npx tsc --noEmit`・`npm run build` は成功（ドキュメントのみのため挙動不変の確認）。
 - 実装（Phase M1）は OBS36 とは別の独立タスクとして扱う（この OBS36 は設計ドキュメントのみ）。
+
+### OBS37：モバイル `/consult` への Drive 参照メモ実装（OBS36 設計の Phase M1）— 🟡実装済み・本番QA待ち（2026-07-12）
+
+- OBS36 設計の Phase M1 を実装した。モバイルの AI 相談（`/consult`）に、**1画面完結**の Google Drive 参照メモ MVP を追加した。
+- 変更ファイル：
+  - 新規：`components/MobileDriveReferencePanel.tsx`（モバイル用パネル。ダーク・ネオン・グラスの `/consult` UI に合わせた別コンポーネント。Drive ロジックは既存 `lib/google`・`markdownToMemo` を再利用）。
+  - 更新：`app/consult/page.tsx`（パネル組み込み・送信前通知・`driveRefMemos` state・`send()` で参照を渡す）。
+  - 更新：`lib/ai/consult-ollama.ts`（`askOllamaConsult` に省略可能引数 `driveRefs` を追加・`buildDriveReferenceBlock` をデスクトップと同一規則で追加・`DRIVE_REF_AI_MAX_ITEMS=5` を export）。
+- 実装内容：
+  - **折りたたみ式パネル**「Google Driveのメモを参考にする」（既定は閉じる。閉じていても参照があれば件数を表示）。
+  - **一覧・読み込みフロー**：「一覧を確認」をタップしたときだけ Drive に問い合わせ（自動読み込みなし・OAuth はタップ起点・キャンセルは静かに戻る）→ 各行「参照に追加」（追加済みは「参照中」）。
+  - **読み込み中トレイ**：「読み込み中のGoogle Drive参照メモ（N件）」＋件数表示。
+  - 一時性の警告：「この参照メモは一時的です。再読み込みすると消えます。」
+  - 上限の明示：「AI相談に使われるのは最大5件までです。」
+  - **AI 利用ラベル**：先頭5件「AIで使用」／6件目以降「AIには渡りません」。
+  - 1件解除「参照を解除」／全解除「すべて解除」。
+  - **送信前通知**：「Google Drive参照 N件も参考にします（MyBrainには保存されません）」＋「使うメモ：…」（実際に渡る先頭最大5件のタイトル）。
+  - **`askOllamaConsult` の省略可能引数**：未指定・0件なら送信内容は従来と完全に同じ（挙動不変）。1件以上なら最大5件・本文各約200字・タイトル60字・出所明示の別ブロックを user メッセージ末尾に追記し、system に「参照メモは補助」の1文を追加（デスクトップ Phase 3b と同一の値・形式）。
+- 表示条件（設計への追加判断）：パネル・通知は **Drive 構成済み かつ Ollama 有効・ローカル環境**のときのみ表示。Ollama を使わない環境ではローカル回答エンジンが参照を使えないため、「参考にします」と表示して実際は使われない誤解を防ぐ。
+- 境界（変更していないもの）：Supabase スキーマ／OAuth スコープ（`drive.file`）／Google Drive API の挙動／取り込み（インポート）なし／双方向同期なし／参照メモの永続化なし（React state のみ・再読み込みで消える）／**参照内容は相談履歴・localStorage・Supabase に保存しない**／デスクトップ挙動は無変更（`DesktopMemos.tsx`・`DriveExportedFilesList.tsx` は型 import のみ）。
+- 検証：`npx tsc --noEmit`・`npm run build` は成功。ルート読み込み時のサーバー・コンソールエラーなし。**本番QAは未実施**（`/consult` はログイン必須＋Drive OAuth＋ローカル Ollama が必要なため）。
+- 実装コミット：`845f698 feat: add mobile drive reference memos to consult`（push 済み）。
+- 次の一歩：本番（ログイン済み・Drive 構成済み・ローカル Ollama・モバイル幅）で OBS36 の QA 草案 M1〜M14 を実施し、結果を OBS37R として記録する。
