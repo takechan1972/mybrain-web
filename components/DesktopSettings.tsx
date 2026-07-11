@@ -526,6 +526,12 @@ export default function DesktopSettings() {
                 <p className="mt-1 text-[11px]" style={{ color: MUTED }}>
                   Obsidian localを選ぶと、対応ブラウザでVaultフォルダへMarkdown保存できます。
                 </p>
+                <ul className="mt-1.5 flex flex-col gap-1 text-[11px] leading-relaxed" style={{ color: MUTED }}>
+                  <li>・メモの本体（正本）はいつもMyBrainにあります。Google DriveのMarkdownは、書き出したコピー・参考用です。</li>
+                  <li>・Google Driveのファイルは、MyBrainに取り込まれません（インポート・双方向同期はありません）。書き出しはMyBrain→Google Driveの一方向だけです。</li>
+                  <li>・書き出したMarkdownは一覧・プレビューで読み返せます。「参照に追加」すると検索やAI相談の参考にできます（この画面を開いている間だけ・再読み込みで消え、保存されません）。</li>
+                  <li>・AI相談で参考にするのは、あなたがその場で読み込んだ参照メモだけです。</li>
+                </ul>
                 <div className="mt-2">
                   <p className="text-[11px] font-bold" style={{ color: NAVY }}>Obsidian内の保存場所</p>
                   <p className="mt-0.5 text-[11px] break-all" style={{ color: MUTED, fontFamily: 'Consolas, Meiryo, monospace' }}>{OBSIDIAN_MEMO_FOLDER}</p>

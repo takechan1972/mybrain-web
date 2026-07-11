@@ -978,8 +978,15 @@ export default function SettingsPage() {
             メモ保存後に表示されるボタンから、メモをGoogle Driveの Obsidian フォルダへMarkdownで書き出せます。<br />
             Google Driveへの完全自動保存は行いません。書き出しはボタンを押したときだけ実行されます。
           </p>
+          <ul className="mt-2.5 flex flex-col gap-1 text-[12px] leading-relaxed" style={{ color: '#9fb0e0' }}>
+            <li>・メモの本体（正本）はいつもMyBrainにあります。Google DriveのMarkdownは、書き出したコピー・参考用です。</li>
+            <li>・Google Driveのファイルは、MyBrainに取り込まれません（インポート機能はありません）。</li>
+            <li>・自動の双方向同期はありません。書き出しは手動で、MyBrain→Google Driveの一方向だけです。</li>
+            <li>・「参照に追加」したメモは、画面を開いている間だけ有効です。再読み込みすると消え、MyBrainには保存されません。</li>
+            <li>・AI相談で参考にするのは、あなたがその場で読み込んだ参照メモだけです。</li>
+          </ul>
           <p className="mt-2 text-[11px]" style={{ color: '#8893c4' }}>
-            ※ MyBrainが本体の保存先です。ObsidianやGoogle Driveは追加のMarkdown保存です。
+            ※ 一覧・プレビュー・参照・AI相談は、パソコンのデスクトップ画面の機能です。
           </p>
         </section>
 
