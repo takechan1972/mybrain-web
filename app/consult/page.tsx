@@ -21,8 +21,11 @@ import {
 import { buildConsultAnswer } from '@/lib/consult-engine';
 import { searchPublicFaq, type QaRecord } from '@/lib/knowledge';
 import { loadOllamaSettings } from '@/lib/ai/ollama';
-import { askOllamaConsult } from '@/lib/ai/consult-ollama';
+import { askOllamaConsult, DRIVE_REF_AI_MAX_ITEMS } from '@/lib/ai/consult-ollama';
 import { isLocalHost } from '@/lib/env';
+import { isGoogleDriveConfigured } from '@/lib/google';
+import MobileDriveReferencePanel from '@/components/MobileDriveReferencePanel';
+import type { DriveReferenceMemo } from '@/components/DriveExportedFilesList';
 import { safeUUID } from '@/lib/uuid';
 import { listMemos } from '@/lib/memos';
 import { listReservations } from '@/lib/reservations';
@@ -62,6 +65,12 @@ export default function ConsultPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   // ターンID → 関連する公開FAQ（参照カード用。履歴localStorageには保存しない）
   const [faqByTurn, setFaqByTurn] = useState<Record<string, QaRecord[]>>({});
+  // Google Drive 参照メモ（OBS36 Phase M1）。AI 相談の参考にのみ使う。
+  // メモリのみ・保存しない（Supabase・localStorage・相談履歴に入れない）。再読み込みで消える。
+  const [driveRefMemos, setDriveRefMemos] = useState<DriveReferenceMemo[]>([]);
+  // 参照機能を出すか（Drive 構成済み かつ Ollama 有効・ローカル環境のときのみ）。
+  // Ollama を使わない環境ではローカル回答エンジンが参照メモを使えないため、誤解を避けて出さない。
+  const [driveRefAvailable, setDriveRefAvailable] = useState(false);
   const baseRef = useRef('');
   // ホーム→AIアシスト（/ai-assist?q=）から ?q= で来たときの自動実行用
   const [dataReady, setDataReady] = useState(false);
@@ -77,6 +86,12 @@ export default function ConsultPage() {
     if (q) {
       setText(q);
       pendingQRef.current = q;
+    }
+    // Drive 参照（OBS36 Phase M1）の表示可否：Drive 構成済み かつ Ollama 有効・ローカル環境のみ。
+    // （SSR では false のまま。マウント後にクライアント側で判定する）
+    {
+      const o = loadOllamaSettings();
+      setDriveRefAvailable(isGoogleDriveConfigured() && o.enabled && isLocalHost());
     }
     if (!isSupabaseConfigured()) {
       // 参照データが無い環境でも自動実行できるよう準備完了にする
@@ -171,7 +186,9 @@ export default function ConsultPage() {
       if (useOllama) {
         showToast('Ollama で考えています…');
         try {
-          const aiAnswer = await askOllamaConsult(q, refTarget, memos, reservations, ollama);
+          // Drive 参照メモ（OBS36 Phase M1）：0件なら送信内容は従来と完全に同じ（挙動不変）。
+          // 相談履歴（localStorage）には参照メモの内容を保存しない。
+          const aiAnswer = await askOllamaConsult(q, refTarget, memos, reservations, ollama, driveRefMemos);
           if (aiAnswer.trim().length > 0) answer = aiAnswer.trim();
         } catch (err) {
           console.error('[consult] Ollama 失敗。ローカル回答にフォールバック:', err);
@@ -297,6 +314,23 @@ export default function ConsultPage() {
             ※ AIの回答は保存されたデータをもとに生成されます。
           </span>
         </div>
+
+        {/* Google Drive 参照メモ（OBS36 Phase M1・Drive 構成済み＆Ollama 有効ローカルのみ表示） */}
+        {driveRefAvailable && (
+          <MobileDriveReferencePanel references={driveRefMemos} onReferenceChange={setDriveRefMemos} />
+        )}
+
+        {/* 送信前通知（参照が1件以上のとき・黙って混ぜないための明示。デスクトップ OBS35 と同趣旨） */}
+        {driveRefAvailable && driveRefMemos.length > 0 && (
+          <div className="rounded-2xl border px-3.5 py-2.5" style={{ background: 'rgba(123,97,255,0.12)', borderColor: 'rgba(166,107,255,0.35)' }}>
+            <p className="text-[12px] font-semibold leading-relaxed" style={{ color: '#C9A6FF' }}>
+              Google Drive参照 {Math.min(driveRefMemos.length, DRIVE_REF_AI_MAX_ITEMS)}件も参考にします（MyBrainには保存されません）
+            </p>
+            <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: 'rgba(200,215,245,0.75)' }}>
+              使うメモ：{driveRefMemos.slice(0, DRIVE_REF_AI_MAX_ITEMS).map((r) => r.title || r.fileName).join('／')}
+            </p>
+          </div>
+        )}
 
         {/* 入力エリア */}
         <div className="flex items-center gap-2 rounded-2xl border px-3 py-2.5"
