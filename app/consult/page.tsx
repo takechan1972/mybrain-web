@@ -71,6 +71,8 @@ export default function ConsultPage() {
   // 参照機能を出すか（Drive 構成済み かつ Ollama 有効・ローカル環境のときのみ）。
   // Ollama を使わない環境ではローカル回答エンジンが参照メモを使えないため、誤解を避けて出さない。
   const [driveRefAvailable, setDriveRefAvailable] = useState(false);
+  // Drive は構成済みだが Ollama が使えないとき、参照欄が出ない理由だけを1行で知らせる（OBS38）。
+  const [driveRefNotice, setDriveRefNotice] = useState(false);
   const baseRef = useRef('');
   // ホーム→AIアシスト（/ai-assist?q=）から ?q= で来たときの自動実行用
   const [dataReady, setDataReady] = useState(false);
@@ -91,7 +93,12 @@ export default function ConsultPage() {
     // （SSR では false のまま。マウント後にクライアント側で判定する）
     {
       const o = loadOllamaSettings();
-      setDriveRefAvailable(isGoogleDriveConfigured() && o.enabled && isLocalHost());
+      const ollamaReady = o.enabled && isLocalHost();
+      const driveConfigured = isGoogleDriveConfigured();
+      setDriveRefAvailable(driveConfigured && ollamaReady);
+      // Drive 構成済みなのに Ollama が使えない環境（スマホ本番など）では、
+      // 参照欄を出さない理由だけを知らせる（OBS38。参照機能自体は有効にしない）。
+      setDriveRefNotice(driveConfigured && !ollamaReady);
     }
     if (!isSupabaseConfigured()) {
       // 参照データが無い環境でも自動実行できるよう準備完了にする
@@ -318,6 +325,13 @@ export default function ConsultPage() {
         {/* Google Drive 参照メモ（OBS36 Phase M1・Drive 構成済み＆Ollama 有効ローカルのみ表示） */}
         {driveRefAvailable && (
           <MobileDriveReferencePanel references={driveRefMemos} onReferenceChange={setDriveRefMemos} />
+        )}
+
+        {/* Drive 構成済みだが Ollama 未接続のとき：参照欄が出ない理由の説明のみ（OBS38） */}
+        {driveRefNotice && (
+          <p className="px-1 text-[11px] leading-relaxed" style={{ color: '#7A86A8' }}>
+            Google Driveのメモ参照は、ローカルAI（Ollama）接続時に使えます。現在はローカルAIが未接続のため表示していません。
+          </p>
         )}
 
         {/* 送信前通知（参照が1件以上のとき・黙って混ぜないための明示。デスクトップ OBS35 と同趣旨） */}
