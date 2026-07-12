@@ -287,8 +287,9 @@ export default function ConsultPage() {
             style={{ width: 'clamp(210px, 58vw, 300px)' }}
             priority
           />
+          {/* 見出しは「AI相談」（/ai-assist の「AIアシスト管理」と区別するため。OBS39） */}
           <p className="mt-1 text-[13px] font-bold tracking-[0.08em]" style={{ color: 'rgba(170,200,255,0.85)' }}>
-            AIアシスト
+            AI相談
           </p>
         </header>
 
