@@ -188,6 +188,16 @@ export default function AiAssistPage() {
               ホーム
             </Link>
           </div>
+          {/* 相談画面（/consult）への直接導線（OBS38）。質問なしでも Drive 参照の準備ができるようにする。
+              既存ボタン・空入力ヒントの挙動は変えない。 */}
+          <div className="mt-2.5 border-t pt-2.5" style={{ borderColor: 'rgba(120,160,255,0.18)' }}>
+            <p className="text-[11px] leading-relaxed" style={{ color: '#7A86A8' }}>
+              Driveメモ参照を使う場合は、相談画面を開いてください。
+            </p>
+            <Link href="/consult" className="mt-0.5 inline-block text-[12px] font-bold active:opacity-70" style={{ color: '#9B7BFF' }}>
+              相談画面を開く →
+            </Link>
+          </div>
         </div>
 
         {/* プライバシー注記 */}
