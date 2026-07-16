@@ -306,6 +306,14 @@ export default function DesktopSettings() {
                     </p>
                   )}
 
+                  {/* 有効化トグル（enabled は AIアシスト・/consult の利用可否判定に使われる） */}
+                  <ToggleRow
+                    label="Ollama（ローカルAI）"
+                    sub={ollama.enabled ? 'ローカルAIを使用する' : 'ローカルAIを使用しない'}
+                    on={ollama.enabled}
+                    onChange={(v) => updateOllama({ enabled: v })}
+                  />
+
                   <Field label="Ollamaホスト">
                     <input
                       type="text"
