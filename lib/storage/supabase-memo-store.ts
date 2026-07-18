@@ -105,6 +105,58 @@ export async function createMemo(input: MemoInput): Promise<MemoResult> {
   return { memo: mapRow(data as MemoRow), error: null };
 }
 
+/** メモ取り込み（インポート）で保持するタイムスタンプ（epoch ms。正規化済みを渡す） */
+export interface MemoImportTimestamps {
+  createdAtMs: number;
+  updatedAtMs: number;
+}
+
+/** epoch ms → ISO 文字列。無効値は挿入時刻へフォールバック（防御的。呼び出し側で正規化済みが前提） */
+function importMsToIso(ms: number): string {
+  return Number.isFinite(ms) && ms > 0 ? new Date(ms).toISOString() : new Date().toISOString();
+}
+
+/**
+ * メモ取り込み（インポート）専用の insert（設計：docs/memo-import-design.md §8・§15）。
+ *
+ * - createMemo と同じ認証・user_id 明示・RLS・trim・空タイトル→「無題」の挙動。
+ *   既存の createMemo は変更しない（取り込み専用の別関数として追加）。
+ * - 追加で created_at / updated_at を ISO 文字列で明示する（既存カラムを使う・スキーマ変更なし）。
+ * - id は渡さない＝Supabase が新しいメモIDを採番する。frontmatter の元 id は決して insert に使わない。
+ * - insert のみ（更新・上書き・削除の経路は持たない）。
+ * - 取り込みの保存先は保存先設定に関わらず Supabase のみのため、MemoStore アダプタ
+ *   （getMemoStore()）には載せず、この関数を直接使う（設計 §14）。
+ */
+export async function createMemoWithTimestamps(
+  input: MemoInput,
+  timestamps: MemoImportTimestamps,
+): Promise<MemoResult> {
+  const sb = getSupabaseBrowserClient();
+  if (!sb) return { memo: null, error: 'Supabaseが未設定です。' };
+
+  // ログイン中ユーザーを取得して user_id を明示（RLS insert チェックに一致させる。createMemo と同じ）
+  const { data: userData, error: userErr } = await sb.auth.getUser();
+  if (userErr) return { memo: null, error: formatError(userErr as SupaError, '認証情報を取得できませんでした。') };
+  const uid = userData.user?.id;
+  if (!uid) return { memo: null, error: 'ログインが必要です（セッションを取得できませんでした）。再ログインしてください。' };
+
+  const { data, error } = await sb
+    .from('memos')
+    .insert({
+      user_id: uid,
+      title: input.title.trim() || '無題',
+      body: input.body.trim(),
+      tags: input.tags,
+      images: input.images ?? [],
+      created_at: importMsToIso(timestamps.createdAtMs),
+      updated_at: importMsToIso(timestamps.updatedAtMs),
+    })
+    .select('*')
+    .single();
+  if (error) return { memo: null, error: formatError(error, '取り込みの保存に失敗しました。') };
+  return { memo: mapRow(data as MemoRow), error: null };
+}
+
 export async function updateMemo(id: string, input: MemoInput): Promise<MemoResult> {
   const sb = getSupabaseBrowserClient();
   if (!sb) return { memo: null, error: 'Supabaseが未設定です。' };

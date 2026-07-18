@@ -614,4 +614,40 @@
 - QA チェックリスト草案 **I1〜I19** を設計ドキュメントに含めた（IMP3 で実施）。
 - 現状：**設計のみ**。アプリコード・Supabase スキーマ・OAuth スコープ・Google Drive／Obsidian の挙動・モバイル UI は変更していない。
 - `npx tsc --noEmit`・`npm run build` は成功（ドキュメントのみのため挙動不変の確認）。
-- 次フェーズ：**IMP1（`lib/import/` の純ヘルパー＋タイムスタンプ保持 insert。UI 非接続）**を別の独立タスクとして扱う。
+- 次フェーズ：**IMP1（`lib/import/` の純ヘルパー＋タイムスタンプ保持 insert。UI 非接続）**を別の独立タスクとして扱う。→ IMP1 は OBS44 で実装完了（UI未接続・2026-07-18）。
+
+### OBS44：メモ取り込み（インポート）IMP1 純粋ヘルパー・日時保持Insert実装 — ✅実装完了・未接続（2026-07-18）
+
+- OBS43 設計（`docs/memo-import-design.md`）の IMP1 を実装した。**純ヘルパーと取り込み専用 insert のみで、UI には未接続**。
+- 実装範囲：
+  - 新規：`lib/import/import-candidate.ts`（定数・型・検証・正規化・候補生成）／`lib/import/import-duplicates.ts`（重複検知・「新しいメモとして取り込む」設定・保存対象の選別）／`lib/import/index.ts`（バレル）。
+  - 変更：`lib/storage/supabase-memo-store.ts`（`createMemoWithTimestamps` の追加のみ・52行追加・削除0行）。
+  - **UI 実装なし・Supabase スキーマ変更なし・`MemoStore` インターフェース／メモ CRUD facade（`lib/memos.ts`）の変更なし。**
+- 実装した挙動（設計 §3・§5〜§11・§15 のとおり）：
+  - Markdown ファイル名（.md）検証・1MB/件のサイズ検証（`IMPORT_MAX_FILE_BYTES`。Drive 読み取りと同値の独立定数）・最大20件/回の定数（`IMPORT_MAX_FILES_PER_BATCH`。enforcement は IMP2 の UI）。
+  - 解析は既存 `markdownToMemo` を再利用（新パーサなし）。
+  - タイトルのフォールバック：frontmatter title → ファイル名（.md 除去）→ 保存時の既定「無題」。
+  - タグ正規化：trim・空要素除去・完全一致の重複統合（先頭出現順を維持）。
+  - 日時の正規化（承認済みルール）：有効な created / updated を保持／created 無効・欠落→取り込み時刻／updated 無効・欠落・逆転（updated < created）→正規化済み created。
+  - `ImportCandidate` 生成（`buildImportCandidate`。取り込み時刻は注入可能で検証が決定的）。
+  - 既存メモとの重複検知（`detectImportDuplicates`）：① frontmatter id＋`source: "mybrain"` の一致→「重複（同じメモID）」（常にスキップ・選択肢なし）／② タイトル＋本文の完全一致（保存されるとおりの値＝trim・空タイトル→「無題」で比較）→「重複の可能性」（既定スキップ）。
+  - 「重複の可能性」のみ「新しいメモとして取り込む」を明示設定できる（`setImportAsNew`。他の状態では無効）。
+  - 保存対象の選別（`listImportTargets`：ok＋明示選択された重複の可能性のみ）。
+  - 取り込み専用の insert-only 関数 `createMemoWithTimestamps()`：createMemo と同じ認証・user_id 明示・RLS・trim・空タイトル→「無題」の挙動＋`created_at`／`updated_at` を ISO 文字列で明示（既存カラム使用）。
+  - **取り込みメモは必ず Supabase が新しいメモIDを採番**。frontmatter の元 id を行 ID として insert することは決してない。
+  - **既存の `createMemo` の挙動は不変**（別関数として追加・既存コードは1行も変更なし）。
+- 検証：
+  - リポジトリ外（スクラッチ領域）で検証を実施し、**29/29 チェック全 Pass**（タイトルフォールバック・タグ正規化・日時4ルール・重複2種・importAsNew・空/サイズ超過/読めない/拡張子違いの却下・定数値 ほか）。
+  - tsx は未インストールであり、**ダウンロード・インストールはしていない**。既存インストール済みの TypeScript コンパイラ＋Node のみで検証した。
+  - 一時スクラッチファイルは検証後にすべて削除済み。
+  - `npx tsc --noEmit`：Pass／`npm run build`：Pass（ルートサイズは変更前と同一＝既存挙動不変の傍証）。
+- 現状：
+  - **IMP1 実装完了。ヘルパーはどの UI にも未接続**（画面からは呼ばれない＝アプリの挙動は不変）。
+  - 自動保存なし・上書き/更新/削除の経路なし（insert-only）。
+  - コミット・push は未実施（記録後に実施予定）。
+- 既知の制限（設計どおり）：
+  - バッチ内（選択ファイル同士）の重複検知は IMP1 では行わない。
+  - updated のみ有効なファイルは承認済みフォールバックに従う（created＝取り込み時刻となるため updated も取り込み時刻になる）。
+  - ZIP・JSON・CSV・モバイル UI・ファイル選択（file picker）は IMP1 のスコープ外。
+  - 部分失敗のバッチ結果報告は IMP2（保存ループ側）の責務。
+- 次フェーズ：**IMP2 デスクトップ取り込み UI**（ファイル選択 → 候補プレビュー → 明示的な確認 → Supabase insert ループ → 結果サマリ）を別の独立タスクとして扱う。
