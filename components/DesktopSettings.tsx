@@ -29,6 +29,7 @@ import {
   clearVaultHandle,
   resolveSavedVaultDirectory,
 } from '@/lib/fs';
+import MemoImportPanel, { MEMO_IMPORT_SECTION_ID } from './MemoImportPanel';
 
 const NAVY = '#223A70';
 const MUTED = '#8A94A6';
@@ -228,6 +229,15 @@ export default function DesktopSettings() {
     setLatency(r.ok ? ms : null);
     setLastCheck(nowHm());
     setTestResult({ ok: r.ok, message: r.message });
+  }
+
+  // 「⬇ インポート（データ取込）」→ データ管理タブへ切り替えて取り込みセクションを表示する（IMP2a）
+  function openMemoImportSection() {
+    setTab('data');
+    // タブ切替の描画後にセクションへスクロールする
+    window.setTimeout(() => {
+      document.getElementById(MEMO_IMPORT_SECTION_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   }
 
   async function handleSignOut() {
@@ -482,7 +492,7 @@ export default function DesktopSettings() {
           {/* ───── データ管理タブ ───── */}
           {tab === 'data' && (
             <Card>
-              <CardTitle title="データ管理" sub="保存データの確認とエクスポート" />
+              <CardTitle title="データ管理" sub="保存データの確認・エクスポート・取り込み" />
               <div className="flex flex-col gap-3">
                 <InfoRow label="保存済みメモ数" value={memoCount != null ? `${memoCount} 件` : '—'} />
                 <p className="text-[12px]" style={{ color: MUTED }}>
@@ -593,6 +603,9 @@ export default function DesktopSettings() {
                   </div>
                 )}
               </div>
+
+              {/* メモの取り込み（インポート）プレビュー（IMP2a・確認のみ・保存は次ステップ） */}
+              <MemoImportPanel />
             </Card>
           )}
 
@@ -672,7 +685,7 @@ export default function DesktopSettings() {
             <div className="flex flex-col">
               <AccountRow label="🔒 パスワードを変更" onClick={() => showToast('この端末では未対応です')} />
               <AccountRow label="⬆ エクスポート（データ出力）" onClick={() => showToast('準備中です')} />
-              <AccountRow label="⬇ インポート（データ取込）" onClick={() => showToast('準備中です')} />
+              <AccountRow label="⬇ インポート（データ取込）" onClick={openMemoImportSection} />
               <button
                 type="button"
                 onClick={handleSignOut}
